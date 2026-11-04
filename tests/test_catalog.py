@@ -29,7 +29,9 @@ def sample_products() -> list[dict[str, Any]]:
 
 
 def sample_categories() -> list[str]:
-    return sorted({p["category"] for p in sample_products()})
+    # A literal list, not built from the products. "groceries" is on purpose a slug
+    # no sample product uses, so a loader that derived categories from products would fail.
+    return ["beauty", "fragrances", "furniture", "groceries", "laptops", "mens-shoes", "smartphones", "sunglasses", "tablets"]
 
 
 @pytest.fixture
@@ -121,7 +123,7 @@ def test_failed_fetch_with_no_cache_raises_a_clear_error(
         catalog.load_catalog()
     message = str(error.value)
     assert "Could not download" in message
-    assert "network access once" in message
+    assert "no usable saved copy" in message
     assert not cache_path.exists()
 
 
@@ -132,8 +134,9 @@ def test_http_error_status_also_raises_the_clear_error(
         def raise_for_status(self) -> None:
             raise httpx.HTTPStatusError("500", request=httpx.Request("GET", "x"), response=httpx.Response(500))
 
-    monkeypatch.setattr(catalog.httpx, "get", lambda url, **kwargs: ServerError({}))
-    with pytest.raises(catalog.CatalogError, match="network access once"):
+    # A valid body, so only the status check can make this raise.
+    monkeypatch.setattr(catalog.httpx, "get", lambda url, **kwargs: ServerError({"products": sample_products()}))
+    with pytest.raises(catalog.CatalogError, match="no usable saved copy"):
         catalog.load_categories()
 
 
@@ -160,8 +163,28 @@ def test_corrupted_cache_and_failed_fetch_raises_the_clear_error(
 ) -> None:
     cache_path.write_text("{ not json", encoding="utf-8")
     block_network(monkeypatch)
-    with pytest.raises(catalog.CatalogError, match="network access once"):
+    with pytest.raises(catalog.CatalogError, match="no usable saved copy"):
         catalog.load_catalog()
+
+
+def test_failed_save_warns_and_the_catalog_still_loads(
+    cache_path: Path, calls: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    real_open = Path.open
+
+    def open_unless_cache(self: Path, *args: Any, **kwargs: Any) -> Any:
+        # Only the cache file fails; the sample fixture must still be readable.
+        if self == cache_path:
+            raise OSError("disk is full")
+        return real_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", open_unless_cache)
+    products = catalog.load_catalog()
+    assert len(products) == len(sample_products())
+    warning = capsys.readouterr().err
+    assert "could not save the catalog cache" in warning
+    assert str(cache_path) in warning
+    assert "disk is full" in warning
 
 
 def test_cache_path_is_the_repo_root_and_not_the_current_folder() -> None:

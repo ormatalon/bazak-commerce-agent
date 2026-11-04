@@ -1,6 +1,7 @@
 """Fetch the DummyJSON catalog once, cache it locally and load it into memory."""
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -32,9 +33,9 @@ def _fetch_raw() -> dict[str, Any]:
         categories = _fetch_json(CATEGORIES_URL)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as error:
         raise CatalogError(
-            "Could not download the product catalog from dummyjson.com and there is "
-            f"no saved copy at {CACHE_PATH}. The app needs network access once, to "
-            f"create that file. Cause: {error!r}"
+            "Could not download the product catalog from dummyjson.com, and there is no "
+            f"usable saved copy at {CACHE_PATH}. The app needs network access to fetch "
+            f"the catalog; check the connection and start it again. Cause: {error!r}"
         ) from error
     return {"products": products, "categories": categories}
 
@@ -61,9 +62,10 @@ def _write_cache(raw: dict[str, Any]) -> None:
     try:
         with CACHE_PATH.open("w", encoding="utf-8") as file:
             json.dump(raw, file, ensure_ascii=False)
-    except OSError:
-        # The catalog is already in hand, so a failed save only costs a re-download next start.
-        pass
+    except OSError as error:
+        # The catalog is already in hand, so keep going. Without a saved copy every
+        # load downloads again, so warn instead of failing silently.
+        print(f"Warning: could not save the catalog cache to {CACHE_PATH}: {error!r}", file=sys.stderr)
 
 
 def _load() -> tuple[list[Product], list[str]]:
