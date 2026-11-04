@@ -8,7 +8,7 @@ Build order for a small Claude Code team led by the main session. Follow CLAUDE.
 | --- | --- | --- |
 | Lead | main session | `app/schemas.py`, `CLAUDE.md`, `plan/`, `DECISIONS.md`, `README.md`, `requirements.txt`, `.gitignore`, `.env.example`, every merge, every real-model and browser check |
 | Retrieval | `voltagent-core-dev:backend-developer` | `app/catalog.py`, `app/search.py`, `tests/test_catalog.py`, `tests/test_search.py` |
-| LLM | `voltagent-data-ai:prompt-engineer` | `app/parser.py`, `app/responder.py`, `tests/test_parser.py`, `tests/test_responder.py` |
+| LLM | `voltagent-data-ai:prompt-engineer` | `app/parser.py`, `app/responder.py`, `app/llm.py`, `tests/test_parser.py`, `tests/test_responder.py` |
 | App | `voltagent-core-dev:fullstack-developer` | `app/main.py`, `app/storage.py`, `public/`, `.chainlit/config.toml`, `tests/test_storage.py`, `tests/test_flow.py` |
 | Evals | `voltagent-data-ai:data-scientist` | `evals/` |
 | Reviewer | `voltagent-qa-sec:surgeon-reviewer` | nothing; read-only |
