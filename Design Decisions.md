@@ -2,15 +2,15 @@
 
 AI shopping copilot over the DummyJSON Products API. Deadline: Friday, 13 Nov 2026, 23:59. Submit by replying to the Bazak email with a private repo link (invite needed).
 
-## Assumptions (sent to Bazak)
+## Assumptions (answered by Bazak's CTO, 4 Nov 2026)
 
 1. Login and multi-device sync are out of scope; single local user.
-2. The catalog is static; no stock or price changes during a chat.
-3. English only.
-4. Desktop browser only; no mobile layout.
+2. The catalog is static; no stock or price changes during a chat. Be ready to discuss how this would handle live inventory and price changes.
+3. The UI, including product cards, is in English. The chat supports other languages: users may write in any language and the model replies in it.
+4. The app is responsive and works on desktop and mobile browsers.
 5. Scope is product discovery only; no cart or checkout.
 
-Open question sent: is it acceptable to fetch the catalog once, cache it locally, and filter/rank in our own code?
+Question answered: fetching the catalog once, caching it locally, and filtering/ranking in our own code is acceptable. It doesn't need to be production-grade.
 
 Also decided: no streaming. Replies are returned whole, to keep product-card rendering simple. Mention in Known limitations.
 
@@ -29,6 +29,8 @@ The model turns each user message into a structured search with two parts:
 2. **Search spec:** keywords, category (from DummyJSON's fixed list), min/max price, min rating, sort order. Multi-intent queries return a list of specs.
 
 Grounding rule: the model uses minimal own knowledge and never mentions a product, price or detail that didn't come from the catalog results (avoids hallucination).
+
+Other languages: the catalog is English only, so the model writes search keywords in English whatever language the user writes in. The reply uses the user's language, but product titles stay as in the catalog so grounding can still be checked. Prices stay in dollars; a budget in another currency gets a clarifying question, because we have no exchange rates and the model shouldn't guess one.
 
 ### Options considered
 
