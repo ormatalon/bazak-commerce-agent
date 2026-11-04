@@ -54,6 +54,13 @@ def test_off_catalog_can_never_carry_a_search() -> None:
     assert parsed.searches == []
 
 
+def test_invented_slug_in_a_stray_search_keeps_the_decline() -> None:
+    raw = '{"intent": "off_catalog", "mode": "new", "searches": [{"category": "flights"}]}'
+    parsed = ParsedRequest.model_validate_json(raw, context={"categories": CATEGORIES})
+    assert parsed.intent == "off_catalog"
+    assert parsed.searches == []
+
+
 def test_unset_keywords_are_null_so_a_refine_can_keep_them() -> None:
     assert SearchSpec().keywords is None
 

@@ -1,7 +1,7 @@
 """Shared data models. Every module builds against these, and only the Lead edits them."""
 
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -98,13 +98,17 @@ class ParsedRequest(BaseModel):
     # What we can't do, e.g. "book a flight", so a mixed request can still show products.
     unsupported: list[str] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def only_product_search_has_a_search(self) -> "ParsedRequest":
-        """Drop stray search fields, so an off-catalog request can never show cards."""
-        if self.intent != "product_search":
-            self.mode = None
-            self.searches = []
-        return self
+    @model_validator(mode="before")
+    @classmethod
+    def only_product_search_has_a_search(cls, data: Any) -> Any:
+        """Drop stray search fields, so an off-catalog request can never show cards.
+
+        Runs before field validation: an invented slug in a stray search would
+        otherwise raise, turning a correct decline into the safe default.
+        """
+        if isinstance(data, dict) and data.get("intent") != "product_search":
+            return {**data, "mode": None, "searches": []}
+        return data
 
 
 class SearchOutcome(BaseModel):
