@@ -6,6 +6,7 @@ Many of these read the numbers in the summary table, because that is what gets q
 import json
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 
 from app.schemas import (
     ChatTurn,
@@ -406,3 +407,14 @@ def test_results_md_is_not_overwritten_when_the_run_had_errors(tmp_path):
     saved = run_evals.save_report("clean report", run_path, has_errors=False, results_path=results)
     assert saved == results
     assert results.read_text(encoding="utf-8") == "clean report"
+
+
+def test_a_run_that_stopped_early_counts_as_a_problem():
+    clean = SimpleNamespace(error=None)
+    full_det = [clean] * len(load_rows())
+    full_beh = [clean] * len(run_evals.load_cases())
+    assert run_evals.run_has_problems(full_det, full_beh) is False
+    # A killed run leaves a shorter file with no errors in it.
+    assert run_evals.run_has_problems(full_det[:-1], full_beh) is True
+    assert run_evals.run_has_problems(full_det, full_beh[:-1]) is True
+    assert run_evals.run_has_problems([SimpleNamespace(error="boom")] + full_det[1:], full_beh) is True

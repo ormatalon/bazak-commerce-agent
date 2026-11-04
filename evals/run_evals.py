@@ -474,6 +474,17 @@ def build_report(det_records: list[DeterministicRecord], beh_records: list[Behav
     return "\n".join(lines) + "\n"
 
 
+def run_has_problems(det_records: list[Any], beh_records: list[Any]) -> bool:
+    """True when results.md must be left alone: a call failed, or the run stopped early.
+
+    A run killed halfway leaves a shorter file with no errors in it, and its scores would
+    look like real ones.
+    """
+    if any(r.error for r in det_records) or any(r.error for r in beh_records):
+        return True
+    return len(det_records) != len(load_rows()) or len(beh_records) != len(load_cases())
+
+
 def save_report(
     report: str, run_path: Path, has_errors: bool, results_path: Path = RESULTS_MD
 ) -> Path:
@@ -516,12 +527,12 @@ def main() -> None:
     # The report comes from the saved file, the same path --rescore takes.
     det_records, beh_records = score_run(load_run(run_path), catalog)
     report = build_report(det_records, beh_records)
-    has_errors = any(r.error for r in det_records) or any(r.error for r in beh_records)
+    has_errors = run_has_problems(det_records, beh_records)
     saved_to = save_report(report, run_path, has_errors)  # written before printing
     print(report)
     print(f"Raw results: {run_path}")
     if has_errors:
-        print(f"The run had errors, so evals/results.md was left alone. Report saved to {saved_to}")
+        print(f"The run had errors or stopped early, so evals/results.md was left alone. Report saved to {saved_to}")
     else:
         print(f"Saved to {saved_to}")
 
