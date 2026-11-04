@@ -7,7 +7,7 @@
 // Colors come from Chainlit's own theme variables, so light and dark both work.
 import { useState } from "react";
 
-// 1234.5 -> "$1,234.56"
+// 1234.5 -> "$1,234.50"
 const formatPrice = (price) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(price);
 
@@ -33,7 +33,9 @@ const styles = {
     color: "hsl(var(--card-foreground))",
   },
   // Fixed-shape box, so a missing or slow image never changes the layout.
+  // The image is positioned absolutely inside it, so its own size can't change the box.
   imageBox: {
+    position: "relative",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -42,7 +44,7 @@ const styles = {
     color: "hsl(var(--muted-foreground))",
     fontSize: "13px",
   },
-  image: { width: "100%", height: "100%", objectFit: "contain" },
+  image: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" },
   body: { display: "flex", flexDirection: "column", gap: "6px", padding: "12px" },
   title: { margin: 0, fontSize: "15px", fontWeight: 600, lineHeight: 1.3, overflowWrap: "anywhere" },
   brand: { fontSize: "12px", color: "hsl(var(--muted-foreground))" },
@@ -96,7 +98,7 @@ function ProductCard({ product }) {
         <div style={styles.footer}>
           <span style={styles.price}>{formatPrice(product.price)}</span>
           {typeof product.rating === "number" ? (
-            <span style={styles.rating}>{"★"} {product.rating.toFixed(1)}</span>
+            <span style={styles.rating}>{"★"} {product.rating}</span>
           ) : null}
         </div>
       </div>
