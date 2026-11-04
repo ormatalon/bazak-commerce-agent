@@ -2,6 +2,13 @@
 
 Each entry: what was decided, why, and what else was considered. The Lead keeps this log and reports new entries at the end of each wave.
 
+## Wave 1
+
+- **A broken cache file counts as missing.** The app downloads the catalog again and overwrites it, because the file is only derived data. Alternative: crash with a message.
+- **A failed cache save warns and carries on.** The catalog is already in memory, so stopping would be worse, but every load then downloads again, so it prints a warning. Alternative: fail silently, which the Reviewer rejected.
+- **The cache holds raw API data, validated on load.** That way it doesn't depend on our model's field names. Alternative: save `Product.model_dump()` output.
+- **`CatalogError` is its own exception,** so `app/main.py` can catch it and show the message at startup. Alternative: a bare `RuntimeError`.
+
 ## Wave 0
 
 - **Eval labels for the new language cases.** Added Hebrew and Spanish rows to `datasets/`, with Hebrew chosen because Bazak is Israeli. Alternative: test only Spanish, which would miss right-to-left text.
