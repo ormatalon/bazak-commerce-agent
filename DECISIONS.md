@@ -2,6 +2,19 @@
 
 Each entry: what was decided, why, and what else was considered. The Lead keeps this log and reports new entries at the end of each wave.
 
+## Wave 2
+
+- **Each word of a keyword counts separately.** "Coffee table" must find the only table, and "running shoes" with no category must find shoes. The cost: "face cream" with no category also matches Ice Cream. Alternative: require all words, which returned nothing for those cases.
+- **Loosened results rank by keyword count before distance from the limit.** Otherwise "iphone rated above 5" shows no iPhone and the reply reads as if we don't carry one. Alternative: distance only, as first written in `CLAUDE.md`.
+- **A search with no category and no keywords is never loosened.** Loosening it would return all 194 products as a match. The cost: "anything under 50 cents" finds nothing. Alternative: loosen and show the cheapest, which contradicts the rule against returning the whole catalog.
+- **Non-Latin keywords stay as words and match nothing.** A Hebrew keyword used to vanish, which returned all 194 products. The parser is told to write keywords in English, so this is only a safety net.
+- **Ties on the sort value score as either being right.** Search breaks ties by rating then ID, but a shopper asking for the cheapest can't tell tied products apart, and rows 38, 54 and 57 failed a perfect agent. Alternative: copy search's order into the ground truth, which makes it depend on search.
+- **The prompt rewords every phrase close to a dataset row, including ones `CLAUDE.md` suggested.** The rule against dataset text comes first, and these would inflate scores. A test checks new phrases by similarity. Alternative: keep the suggested phrases.
+- **A `new` search with no field set gets the safe default.** It would otherwise match the whole catalog. Alternative: run it.
+- **The safe default logs a warning with the reason only.** A failed parse otherwise looks like a real clarification and scores as correct on rows expecting one. Alternative: no logging.
+- **The OpenAI client retries once.** A persistent error then shows in about 2 minutes, not 3. Alternative: the client's default of two retries.
+- **`keywords` stays null when the shopper names only the category.** The plan's Hebrew check now only requires any keywords to be English. Alternative: always fill keywords, which adds nothing because a category search doesn't filter on them.
+
 ## Wave 1
 
 - **A broken cache file counts as missing.** The app downloads the catalog again and overwrites it, because the file is only derived data. Alternative: crash with a message.

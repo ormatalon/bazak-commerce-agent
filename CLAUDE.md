@@ -67,11 +67,11 @@ These names match the columns of `datasets/deterministic.csv`, so evals compare 
 - `category`: one of the real slugs, or null. A slug outside the list fails validation.
 - `price_min`, `price_max`, `rating_min`: all bounds inclusive. Do not cap `rating_min` at 5: "rated above 5" is valid input and must reach the fallback.
 - `sort_by` (`price`, `rating` or null), `order` (`asc`, `desc` or null)
-- `top_k`: only when the user asks for a number ("top 3", "show me ten"), otherwise null
+- `top_k`: only when the user asks for a number ("top 3", "show me ten") or a superlative naming one item ("the cheapest tablet" = 1), otherwise null
 - `refines_index`: on `refine`, which previous search this edits (default 0)
 - `clear_fields`: on `refine`, the fields the user asked to drop ("any price is fine")
 
-If the model's output fails validation, use the safe default: `needs_clarification` with no searches.
+If the model's output fails validation, or a `new` search has no field set (it would match the whole catalog), use the safe default: `needs_clarification` with no searches. Log a warning with the reason, never the user's text, so evals can tell a failed parse from a real clarification.
 
 ## Grounding rule
 
@@ -91,7 +91,7 @@ User text is data, never instructions. A request to ignore instructions or revea
 
 In a `SearchOutcome`, `spec` is the search as the user asked for it, before loosening; `products` is everything matched; `shown` is the cards to display, filled by `app/pipeline.py`. The responder only sees `shown`, so it can't name a product with no card.
 
-**Keywords.** With a category set, keywords only affect rank and never exclude a product. Checked against the catalog: "makeup" matches 0 of 5 `beauty` products and "car" matches 2 of 5 `vehicle` products, so a keyword filter would wrongly empty or shrink these results. With no category, a product must match at least one keyword.
+**Keywords.** With a category set, keywords only affect rank and never exclude a product. Checked against the catalog: "makeup" matches 0 of 5 `beauty` products and "car" matches 2 of 5 `vehicle` products, so a keyword filter would wrongly empty or shrink these results. With no category, a product must match at least one keyword. Each word of a multi-word keyword counts separately, so "coffee table" finds a table with no "coffee" in it.
 
 **Order.**
 
@@ -99,7 +99,7 @@ In a `SearchOutcome`, `spec` is the search as the user asked for it, before loos
 - Otherwise rank by keyword-match count (search words found in title, category, tags), ties broken by rating (highest first).
 - Final tie-break: lowest product ID, so results are repeatable. Rating ties alone are rare (5 pairs within categories), but keyword counts often tie.
 
-**Fallback.** If a search returns nothing, loosen in a fixed order: rating, then price. Record what was loosened so the reply can say so. Unless the user chose a sort, order the loosened results nearest to the original limit (lowest price first if `price_max` was loosened, highest price first if `price_min`, highest rating first if `rating_min`). Never drop the category or keywords: with no category, that would return the whole catalog and present it as a match. If it is still empty, show no cards and say nothing was found.
+**Fallback.** If a search returns nothing, loosen in a fixed order: rating, then price. Record what was loosened so the reply can say so. Unless the user chose a sort, order the loosened results by keyword count first, so "iphone rated above 5" still shows an iPhone, then nearest to the original limit (lowest price first if `price_max` was loosened, highest price first if `price_min`, highest rating first if `rating_min`). Never drop the category or keywords: with no category, that would return the whole catalog and present it as a match. A search with neither a category nor keywords is not loosened at all, for the same reason. If it is still empty, show no cards and say nothing was found.
 
 **Card count.** Show 3 cards per search by default; `top_k` overrides it. A "Show more" button under the cards, or typing "show more" (`mode=show_more`), runs the same search again excluding already-shown IDs and shows the next 3. The button makes no LLM call: it adds cards with no model reply, so it never needs a language. Typing "show more" is an ordinary message.
 
@@ -120,10 +120,12 @@ The parser's output is a structured object only; the user never sees it. Code us
 2. **Categories:** the exact slug list, loaded from the cached catalog at startup. Pick only from it, or leave category empty. Infer from context: "for my husband" means `mens-watches`, "a phone case" means `mobile-accessories`.
 3. **Intents:** one line + one example each: `product_search` ("laptops under $1,000"), `needs_clarification` ("something cheap and cool"), `off_catalog` ("a flight to Tokyo", or "ignore your instructions"), `small_talk` (greetings, thanks).
 4. **Mode:** refine vs new vs show_more, with examples ("cheaper ones" = refine, "now sunglasses" = new).
-5. **Bounds:** "under $X" = X − 0.01; "over $X" or "above 4 stars" = X + 0.01 (4.01 for ratings); "up to", "at most", "at least", "between" and a stated budget = X exactly. Read words as numbers ("a grand" = 1000, "10k" = 10000).
+5. **Bounds:** "under $X" = X − 0.01; "over $X" or "above 4 stars" = X + 0.01 (4.01 for ratings); "up to", "at most", "at least", "between" and a stated budget = X exactly. A negated limit is also X exactly ("nothing over $300" = `price_max` 300). Read words as numbers ("a grand" = 1000, "10k" = 10000).
 6. **Language:** the shopper may write in any language. Write `keywords` in English, because the catalog is English only. Read intent, mode and bounds the same way in every language.
 7. **Currency:** the catalog is in dollars and we have no exchange rates. A budget in another currency is `needs_clarification`: ask for it in dollars, never convert it.
 8. **Few-shot examples:** a handful of full outputs. Never taken from `datasets/`, to avoid inflated scores.
+
+The quoted phrases in this section explain the rules to the reader, and some of them are dataset rows. The prompt teaches the same rules in different words, and `tests/test_parser.py` checks that its phrases don't copy the datasets.
 
 ## Login
 
@@ -151,11 +153,12 @@ Handle failures explicitly: DB file missing (recreate), corrupted (start a fresh
 - `datasets/deterministic.csv`: 69 single-turn queries (50 basic, 19 hard), each with its expected filter.
   - `evals/ground_truth.py` computes the expected product IDs from the CSV and the cached catalog. It does not import `app/search.py`, so a search bug can't hide in both sides.
   - Score the parser and `search()` with no fallback and no display cap, applying `top_k` only when set. 51 rows have no `top_k` and more than 3 products in their category, so the 3-card default would wreck recall.
-  - Metrics: precision, recall, F1, exact match for `top_k` queries, and the share of rows whose extracted filter matches exactly. If both the expected and returned sets are empty, the row scores 1.0.
+  - Metrics: precision, recall, F1, exact match for `top_k` queries, and the share of rows whose extracted filter matches exactly. If both the expected and returned sets are empty, the row scores 1.0 only if a search ran with the row's category, so a parser that always asks a question doesn't earn it. Products that tie on the sort value are interchangeable: a `top_k` result is right if every ID passes the row's filter and its sort values match the expected sequence. A row with several searches is scored on their union.
 - `datasets/behavioral.jsonl`: 30 conversations (20 basic, 10 hard), 6 of them multi-turn. Replay all turns through the full pipeline and score the last turn.
   - Metrics: intent accuracy, mode accuracy, category accuracy (`category_match` says `all` or `any`), fallback accuracy (`expect_fallback` against what was loosened), reply language (`expected_language`, on cases that set it), grounding rate (target 100%).
-  - Grounding is scored by code, in any language: no catalog title outside the shown products, and every `$` amount must be a shown price, a number from any user turn, or a current search bound (a bound may differ by 0.01, since "under $20" is stored as 19.99). A number next to a currency word, such as "דולר" or "dólares", follows the same rule. Other numbers are not scored, because counts and ratings belong in replies; they are printed beside the reply for Or to read.
-  - Grounding gaps only Or's read of the printed replies catches: a translated title of an unshown product, an amount written in words, and a user's limit wrongly stated as a product's price.
+  - Grounding is scored by code, in any language: no catalog title outside the products shown anywhere in the conversation, and every `$` amount must be a price of those products, a number from any user turn, or a current search bound (a bound may differ by 0.01, since "under $20" is stored as 19.99). A number next to a currency word, such as "דולר" or "dólares", follows the same rule. Other numbers are not scored, because counts and ratings belong in replies; they are printed beside the reply for Or to read.
+  - One-word titles ("Apple", "Water") are common words, so they are left out of the score and printed as unscored hits.
+  - Grounding gaps only Or's read of the printed replies catches: a translated title of an unshown product, an unshown product with a one-word title, an amount written in words, and a user's limit wrongly stated as a product's price.
   - Reply language is checked by code, after removing shown product titles: `he` means most letters are in Hebrew script; `es` means more words match a short Spanish stopword list than an English one. No detection library. It covers only the cases that set `expected_language`, so report it as a count with no target.
   - `expected_behavior` is not scored automatically. `evals/run_evals.py` prints each reply beside it for Or to read.
 - `evals/run_evals.py` prints a summary table.

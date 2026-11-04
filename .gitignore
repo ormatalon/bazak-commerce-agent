@@ -15,6 +15,7 @@ __pycache__/
 *.sqlite3
 *.db.bak
 catalog_cache.json
+evals/runs/
 
 # Chainlit uploads and generated files
 .files/
