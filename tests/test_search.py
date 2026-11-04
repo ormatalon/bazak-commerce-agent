@@ -30,6 +30,13 @@ def ids(products: list[Product]) -> list[int]:
     return [p.id for p in products]
 
 
+def product(product_id: int, title: str) -> Product:
+    """A small made-up product, for word-matching tests the sample catalog can't cover."""
+    return Product(
+        id=product_id, title=title, description="", category="misc", price=10.0, rating=4.0, tags=[]
+    )
+
+
 def run(catalog: list[Product], **fields: Any) -> list[Product]:
     return search(SearchSpec(**fields), catalog)
 
@@ -146,6 +153,14 @@ def test_default_order_is_rating_highest_first(catalog: list[Product]) -> None:
     assert ids(run(catalog, category="tablets")) == [160, 161, 159]
 
 
+def test_keyword_count_still_breaks_ties_under_an_explicit_sort(catalog: list[Product]) -> None:
+    # Five phones cost $299.99. Without the keyword Vivo V9 (135, rated 3.6) would come after 127 and 129.
+    result = run(
+        catalog, category="smartphones", keywords=["vivo"], price_min=299.99, price_max=299.99, sort_by="price"
+    )
+    assert ids(result) == [135, 127, 129, 122, 131]
+
+
 def test_price_ties_are_broken_by_rating_then_id(catalog: list[Product]) -> None:
     # Five smartphones cost $299.99: 122 (3.41), 127 (4.25), 129 (3.7), 131 (3.3), 135 (3.6).
     result = run(catalog, category="smartphones", price_min=299.99, price_max=299.99, sort_by="price")
@@ -208,7 +223,9 @@ def test_unknown_keyword_without_a_category_returns_nothing(catalog: list[Produc
 
 
 def test_keyword_must_be_a_whole_word(catalog: list[Product]) -> None:
-    # "phone" is inside "smartphones" and "iPhone" but is not a word in any product.
+    # "phone" is inside "smartphones" and "iPhone". It is a word in the full catalog
+    # (product 108), but no sample product has it, so the result is empty only because
+    # the fixture has no mobile-accessories.
     assert run(catalog, keywords=["phone"]) == []
 
 
@@ -224,10 +241,59 @@ def test_keyword_with_an_apostrophe_matches_the_slug(catalog: list[Product]) -> 
     assert sorted(ids(run(catalog, keywords=["men's"]))) == [88, 89, 90, 91, 92]
 
 
-def test_multi_word_keyword_needs_all_its_words_in_one_product(catalog: list[Product]) -> None:
+def test_multi_word_keyword_counts_each_word_separately(catalog: list[Product]) -> None:
+    # "nail polish": product 5 has both words, so it is the only match.
     assert ids(run(catalog, keywords=["nail polish"])) == [5]
-    # "nail" and "powder" each exist, but never in the same product.
-    assert run(catalog, keywords=["nail powder"]) == []
+    # "nail powder": "nail" is only in 5 and "powder" only in 3. Each word counts on its
+    # own, so both match once and the higher rating (3, 4.64) comes first.
+    assert ids(run(catalog, keywords=["nail powder"])) == [3, 5]
+
+
+def test_multi_word_keyword_ranks_within_a_category(catalog: list[Product]) -> None:
+    # "table" is in the title and tag of the bedside table (13), the only match.
+    assert ids(run(catalog, category="furniture", keywords=["coffee table"]))[0] == 13
+    # Samsung phones match "samsung"; "phone" matches no word. Realme XT is rated higher
+    # but matches nothing, so it must not come first.
+    result = run(catalog, category="smartphones", keywords=["samsung phone"])
+    assert ids(result)[:3] == [132, 131, 133]
+
+
+def test_multi_word_keyword_without_a_category_needs_one_word(catalog: list[Product]) -> None:
+    # "running" matches nothing, "shoes" matches the category word of all five.
+    assert ids(run(catalog, keywords=["running shoes"])) == [90, 88, 91, 92, 89]
+
+
+def test_keywords_in_other_scripts_stay_as_words_and_match_nothing(catalog: list[Product]) -> None:
+    assert run(catalog, keywords=["טלפון"]) == []
+    # With a category they only rank, so nothing is excluded.
+    assert len(run(catalog, category="tablets", keywords=["טלפון"])) == 3
+
+
+def test_keywords_are_checked_against_tags(catalog: list[Product]) -> None:
+    # "eyewear" is only in the tags of the five sunglasses, not in a title or category.
+    assert sorted(ids(run(catalog, keywords=["eyewear"]))) == [154, 155, 156, 157, 158]
+    # "perfume" is only in the tag "perfumes" of the fragrances (plus the plural rule).
+    assert sorted(ids(run(catalog, keywords=["perfume"]))) == [6, 7, 8, 9, 10]
+
+
+def test_es_plural_in_both_directions() -> None:
+    dress = product(1, "Red Dress")
+    watch = product(2, "Gold Watch")
+    small = [dress, watch]
+    assert ids(search(SearchSpec(keywords=["dresses"]), small)) == [1]
+    assert ids(search(SearchSpec(keywords=["watches"]), small)) == [2]
+    other = [product(3, "Red Dresses"), product(4, "Gold Watches")]
+    assert ids(search(SearchSpec(keywords=["dress"]), other)) == [3]
+    assert ids(search(SearchSpec(keywords=["watch"]), other)) == [4]
+
+
+def test_s_plural_keyword_finds_a_singular_title(catalog: list[Product]) -> None:
+    # "suns" finds "Sun" in the titles of 154 and 155.
+    assert ids(run(catalog, keywords=["suns"])) == [154, 155]
+
+
+def test_empty_keyword_entries_are_dropped(catalog: list[Product]) -> None:
+    assert ids(run(catalog, keywords=["", "oppo"])) == [127, 125, 126]
 
 
 @pytest.mark.parametrize("keywords", [None, [], [""], ["  ", "!!"]])
@@ -239,6 +305,26 @@ def test_empty_keywords_mean_no_keywords(catalog: list[Product], keywords: list[
 
 
 # ---------------------------------------------------------------- fallback
+
+
+def test_no_category_and_no_keywords_never_loosens(catalog: list[Product]) -> None:
+    # Loosening would return the whole catalog and call it a match.
+    for fields in [{"rating_min": 5.01}, {"price_max": 0.5}, {"price_max": 0.5, "rating_min": 5.01}]:
+        outcome = fallback(catalog, **fields)
+        assert outcome.products == []
+        assert outcome.loosened == []
+
+
+def test_blank_keywords_and_no_category_never_loosen(catalog: list[Product]) -> None:
+    outcome = fallback(catalog, keywords=["", "  "], rating_min=5.01)
+    assert outcome.products == []
+    assert outcome.loosened == []
+
+
+def test_hebrew_keyword_without_a_category_finds_nothing_in_fallback(catalog: list[Product]) -> None:
+    outcome = fallback(catalog, keywords=["טלפון"], price_max=10)
+    assert outcome.products == []
+    assert outcome.loosened == []
 
 
 def test_search_itself_does_not_fall_back(catalog: list[Product]) -> None:
@@ -283,13 +369,36 @@ def test_price_gap_between_both_limits_orders_by_nearest(catalog: list[Product])
 
 
 def test_rating_is_loosened_highest_rating_first(catalog: list[Product]) -> None:
-    # Keywords make the normal order start with the Apple phones, so only the
-    # nearest-to-the-limit rule can put Realme XT (4.58) first.
-    outcome = fallback(catalog, category="smartphones", keywords=["apple"], rating_min=5.01)
+    # No keywords, so only the nearest-to-the-limit rule orders these.
+    outcome = fallback(catalog, category="smartphones", rating_min=5.01)
     assert outcome.loosened == ["rating"]
     assert len(outcome.products) == 16
     assert ids(outcome.products)[:3] == [130, 132, 136]
     assert [p.rating for p in outcome.products] == sorted((p.rating for p in outcome.products), reverse=True)
+
+
+def test_loosened_results_put_keyword_matches_before_the_nearest_rating(catalog: list[Product]) -> None:
+    # "apple" matches the four iPhones. Realme XT (130, 4.58) is nearest to the limit
+    # but does not match, so it comes after them. Among the iPhones, nearest rating first.
+    outcome = fallback(catalog, category="smartphones", keywords=["apple"], rating_min=5.01)
+    assert outcome.loosened == ["rating"]
+    assert len(outcome.products) == 16
+    assert ids(outcome.products)[:7] == [123, 122, 121, 124, 130, 132, 136]
+
+
+def test_iphone_rated_above_5_shows_iphones_first_without_a_category(catalog: list[Product]) -> None:
+    outcome = fallback(catalog, keywords=["iphone"], rating_min=5.01)
+    assert outcome.loosened == ["rating"]
+    assert ids(outcome.products) == [123, 122, 121, 124]
+
+
+def test_equal_distance_on_a_loosened_search_keeps_the_normal_order(catalog: list[Product]) -> None:
+    # Phones cost 149.99, 199.99, 249.99 (x2), 299.99 (x5) ... Equal prices are equally far
+    # from the $100 limit, so they fall back to rating, highest first: 125 (3.94) before 134
+    # (3.5), and 127, 129, 135, 122, 131 for the $299.99 phones.
+    outcome = search_with_fallback(SearchSpec(category="smartphones", price_max=100), list(reversed(catalog)))
+    assert outcome.loosened == ["price"]
+    assert ids(outcome.products)[:9] == [128, 121, 125, 134, 127, 129, 135, 122, 131]
 
 
 def test_rating_stage_keeps_the_price_limit(catalog: list[Product]) -> None:

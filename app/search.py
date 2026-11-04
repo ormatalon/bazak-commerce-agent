@@ -8,7 +8,9 @@ from app.schemas import Product, SearchOutcome, SearchSpec
 
 def words_of(text: str) -> list[str]:
     """Lower-case words of a text. Apostrophes are dropped, so "men's" and "mens" agree."""
-    return re.findall(r"[a-z0-9]+", text.lower().replace("'", ""))
+    # [^\W_]+ is a run of letters or digits in any script, so a Hebrew keyword stays a
+    # word (that matches nothing) instead of vanishing and letting everything through.
+    return re.findall(r"[^\W_]+", text.lower().replace("'", ""))
 
 
 def same_word(a: str, b: str) -> bool:
@@ -25,20 +27,23 @@ def product_words(product: Product) -> list[str]:
     return words_of(" ".join([product.title, product.category, *product.tags]))
 
 
-def keyword_match_count(keywords: list[list[str]], product: Product) -> int:
-    """How many keywords the product matches. A keyword matches when all its words are found."""
+def keyword_match_count(keywords: list[str], product: Product) -> int:
+    """How many of the keyword words the product matches."""
     found = product_words(product)
     count = 0
-    for keyword in keywords:
-        if all(any(same_word(word, f) for f in found) for word in keyword):
+    for word in keywords:
+        if any(same_word(word, f) for f in found):
             count += 1
     return count
 
 
-def clean_keywords(keywords: list[str] | None) -> list[list[str]]:
-    """Split each keyword into words and drop the ones with no words. None means no keywords."""
-    split = [words_of(keyword) for keyword in (keywords or [])]
-    return [words for words in split if words]
+def clean_keywords(keywords: list[str] | None) -> list[str]:
+    """Split every keyword into single words, so "coffee table" counts "coffee" and "table" apart.
+
+    Empty entries disappear, repeated words count once, and None means no keywords.
+    """
+    words = [word for keyword in (keywords or []) for word in words_of(keyword)]
+    return list(dict.fromkeys(words))
 
 
 def passes_filters(spec: SearchSpec, product: Product) -> bool:
@@ -118,6 +123,11 @@ def search_with_fallback(spec: SearchSpec, catalog: list[Product]) -> SearchOutc
     if products:
         return SearchOutcome(spec=spec, products=products)
 
+    # With no category and no keywords, loosening would return the whole catalog as a match.
+    keywords = clean_keywords(spec.keywords)
+    if spec.category is None and not keywords:
+        return SearchOutcome(spec=spec, products=[], loosened=[])
+
     loosened: list[Literal["rating", "price"]] = []
     loose_spec = spec
 
@@ -136,9 +146,12 @@ def search_with_fallback(spec: SearchSpec, catalog: list[Product]) -> SearchOutc
     if not products:
         return SearchOutcome(spec=spec, products=[], loosened=[])
 
-    # Unless the user chose a sort, put the products nearest to the original limits first.
-    # The sort is stable, so equal distances keep the order search() gave them.
+    # Unless the user chose a sort: more keyword matches first (so "iphone rated above 5"
+    # shows iPhones), then nearest to the original limits. The sort is stable, so
+    # equal keys keep the order search() gave them (rating, then lowest ID).
     if spec.sort_by is None:
-        products.sort(key=lambda product: distance_from_limits(spec, product))
+        products.sort(
+            key=lambda product: (-keyword_match_count(keywords, product), *distance_from_limits(spec, product))
+        )
 
     return SearchOutcome(spec=spec, products=products, loosened=loosened)
