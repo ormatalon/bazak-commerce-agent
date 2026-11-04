@@ -14,6 +14,13 @@ Each entry: what was decided, why, and what else was considered. The Lead keeps 
 - **The safe default logs a warning with the reason only.** A failed parse otherwise looks like a real clarification and scores as correct on rows expecting one. Alternative: no logging.
 - **The OpenAI client retries once.** A persistent error then shows in about 2 minutes, not 3. Alternative: the client's default of two retries.
 - **`keywords` stays null when the shopper names only the category.** The plan's Hebrew check now only requires any keywords to be English. Alternative: always fill keywords, which adds nothing because a category search doesn't filter on them.
+- **A row expecting nothing earns 1.0 only if a search ran with its category, and a crashed row earns 0.** Otherwise a parser that always asks a question scores perfectly on those rows. Alternative: both-empty is always 1.0.
+- **A correct `top_k` answer gets F1 1.0.** The returned set is treated as the expected set, because a tied product is equally right. Alternative: add all tied products to the expected set, which is harder to explain.
+- **A currency word before a number has no left word boundary.** That lets the Hebrew prefix in "בדולר 30" match. The cost: "30 dollars 5 results" scores the 5 as an amount, which a read of the failure list would catch. Alternative: require a boundary and miss the Hebrew form.
+- **"No false fallback" is scored over `product_search` rows with no expected fallback, and a crash counts as wrong.** Other intents never search, so including them would inflate the number. Alternative: all 30 cases.
+- **A conversation with an error or missing turns counts as crashed.** Scoring the turns that did run would hide the failure. Alternative: score the last turn that ran.
+- **Every report is built from the saved run file.** A rescore can't disagree with the live run. Alternative: build the live report from memory.
+- **A run with errors, or one that stopped early, leaves `results.md` alone.** The report goes next to the run file instead. Alternative: overwrite, which could replace good numbers with partial ones.
 
 ## Wave 1
 
