@@ -153,7 +153,7 @@ Handle failures explicitly: DB file missing (recreate), corrupted (start a fresh
 
 ## Working rules
 
-- Work one plan wave at a time. The Lead stops at the end of each wave and summarizes what was done and why, in plain words.
+- Work one plan wave at a time. The Lead approves merges to `staging` and reports to Or at the end of each wave, in plain words: what was done and why. The Lead waits for Or only where the plan's Waves table says so.
 - If you are a team member, edit only the files your role owns and follow the Branches and Team rules in `plan/PLAN.md`. Commit only on your own branch, never merge.
 - Before adding a dependency or changing a design decision above, ask Or. Team members raise these with the Lead.
 - Keep functions small, typed and commented where the reason is not obvious.
