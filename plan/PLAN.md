@@ -8,8 +8,8 @@ Build order for a small Claude Code team led by the main session. Follow CLAUDE.
 | --- | --- | --- |
 | Lead | main session | `app/schemas.py`, `CLAUDE.md`, `plan/`, `DECISIONS.md`, `README.md`, `requirements.txt`, `.gitignore`, `.env.example`, every merge, every real-model and browser check |
 | Retrieval | `voltagent-core-dev:backend-developer` | `app/catalog.py`, `app/search.py`, `tests/test_catalog.py`, `tests/test_search.py` |
-| LLM | `voltagent-data-ai:prompt-engineer` | `app/parser.py`, `app/responder.py`, `tests/test_parser.py`, `tests/test_responder.py` |
-| App | `voltagent-core-dev:fullstack-developer` | `app/main.py`, `app/storage.py`, `public/`, `.chainlit/config.toml`, `tests/test_storage.py`, `tests/test_flow.py` |
+| LLM | `voltagent-data-ai:prompt-engineer` | `app/parser.py`, `app/responder.py`, `app/llm.py`, `tests/test_parser.py`, `tests/test_responder.py` |
+| App | `voltagent-core-dev:fullstack-developer` | `app/main.py`, `app/pipeline.py`, `app/storage.py`, `public/`, `.chainlit/config.toml`, `tests/test_storage.py`, `tests/test_flow.py` |
 | Evals | `voltagent-data-ai:data-scientist` | `evals/` |
 | Reviewer | `voltagent-qa-sec:surgeon-reviewer` | nothing; read-only |
 
@@ -24,7 +24,7 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 | 0 | Step 1 (Lead) | No |
 | 1 | Step 2 (Retrieval) | No |
 | 2 | Step 3 (Retrieval), Step 4 (LLM), Step 7 scoring code (Evals), Step 5 card element against sample data (App) | No |
-| 3 | Step 5 responder (LLM), Step 5 wiring in `app/main.py` (App) | Try the merged app in the browser, on desktop and at phone width |
+| 3 | Step 5 responder (LLM), Step 5 wiring in `app/pipeline.py` and `app/main.py` (App) | Try the merged app in the browser, on desktop and at phone width |
 | 4 | Step 6 (App) | Choose the storage approach before work starts; test failures after |
 | 5 | Step 7 full run (Lead, with Evals fixing scoring bugs and owners fixing their modules) | Decide on the 8 dataset rows before the run, then read the replies and results |
 | 6 | Step 8 (Lead drafts) | Rewrite the README and submit |
@@ -65,12 +65,13 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 - [ ] Repo layout: `app/`, `public/elements/`, `tests/`, `evals/`, `DECISIONS.md`. `datasets/` and `README.md` already exist; keep them.
 - [ ] `requirements.txt` (chainlit, openai, pydantic, sqlalchemy, httpx, python-dotenv, pytest)
 - [ ] `.env.example` with every value listed in CLAUDE.md
-- [ ] `app/schemas.py`, the contract all roles build against: `Product`, `SearchSpec`, `ParsedRequest`, `SearchOutcome` (products + what was loosened), `ChatTurn` (one history entry). Category validation takes the slug list at runtime.
+- [ ] `app/schemas.py`, the contract all roles build against: `Product`, `SearchSpec`, `ParsedRequest`, `SearchOutcome`, `ChatTurn`, `ConversationState`, `TurnResult`. Category validation takes the slug list at runtime.
 - [ ] Stub modules with typed signatures and no logic:
   - `load_catalog() -> list[Product]`, `load_categories() -> list[str]`
   - `search(spec, catalog) -> list[Product]`, `search_with_fallback(spec, catalog) -> SearchOutcome`
   - `parse_request(message, history, previous_searches, shown, categories, llm) -> ParsedRequest`, `merge_refine(previous, change) -> SearchSpec`
   - `write_reply(message, parsed, outcomes, llm) -> str`
+  - `run_turn(message, state, catalog, categories, llm) -> TurnResult`, `show_more(state, catalog) -> (outcomes, state)`
   - `llm` is a plain callable, so tests can pass a fake
 - [ ] `tests/fixtures/catalog_sample.json`: a few real products, so tests don't depend on the network
 - [ ] Commit the `.chainlit/config.toml` that Chainlit generates, once, as a baseline. App owns edits to it from then on. Chainlit also generates `.chainlit/translations/` and `chainlit.md`; both are git-ignored
@@ -144,6 +145,7 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 - Topic switches drop old filters. Check: "perfumes under $50" then "ok forget that, I need a dining table" gives `mode=new`, `furniture` and no price limit.
 - Bounds follow the wording. Check: "under $300" → 299.99; "nothing above three hundred bucks" → 300.
 - Bad model output doesn't crash. Check: the fake-LLM test feeding invalid JSON returns the safe default.
+- Invented categories are caught. Check: a fake LLM returning an unknown slug gets the safe default, which proves `parse_request` passes the slug list to validation.
 - `pytest tests/test_parser.py` passes.
 
 ## Step 5: Responder and cards
@@ -156,6 +158,8 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 - [ ] LLM failures show a short error in the chat
 - [ ] Replies use the user's language, with product titles unchanged; Hebrew displays right-to-left in the chat
 - [ ] Cards are responsive: one column on a phone, no sideways scrolling, buttons easy to tap
+- [ ] Set `language = "en-US"` under `[UI]` in `.chainlit/config.toml`, so a Hebrew browser still gets an English UI
+- [ ] Add `app/pipeline.py`: `run_turn` and `show_more`, which `app/main.py` calls
 - [ ] `tests/test_flow.py`: one message from input through a fake model and search to the card data sent to the UI (App owns it)
 
 **Definition of done:**
@@ -194,11 +198,11 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 
 ## Step 7: Evaluation
 
-**Owner: Evals.** Scoring code is written in wave 2 and tested with fake pipeline output. The Lead runs it against the real model in wave 5.
+**Owner: Evals.** Scoring code is written in wave 2 and tested with fake `TurnResult` objects. Tests live in `evals/`, which the full `pytest` also runs. The Lead runs it against the real model in wave 5.
 
 - [ ] `evals/ground_truth.py`: product IDs per CSV row from the cached catalog, independent of `app/search.py`
 - [ ] `evals/run_evals.py`, deterministic set: parser + `search()` with no fallback and no display cap. Precision, recall, F1, exact match for `top_k` queries, exact-filter match rate
-- [ ] `evals/run_evals.py`, behavioral set: replay all turns through the full pipeline and score the last. Intent, mode, category (honoring `category_match`), fallback and reply-language accuracy, grounding rate
+- [ ] `evals/run_evals.py`, behavioral set: replay all turns through `run_turn` and score the last. Intent, mode, category (honoring `category_match`), fallback and reply-language accuracy, grounding rate
 - [ ] Summary table split by `basic` and `hard`; replies printed beside `expected_behavior` for Or to read
 
 **Definition of done:**
