@@ -21,10 +21,10 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 
 | Wave | Work | Stop for Or |
 | --- | --- | --- |
-| 0 | Step 1 (Lead) | Approve the contract in `app/schemas.py` |
+| 0 | Step 1 (Lead) | No |
 | 1 | Step 2 (Retrieval) | Decide on the 8 dataset rows |
-| 2 | Step 3 (Retrieval), Step 4 (LLM), Step 7 scoring code (Evals), Step 5 card element against sample data (App) | Review the search and parser code |
-| 3 | Step 5 responder (LLM), Step 5 wiring in `app/main.py` (App) | Review both branches, then try the merged app in the browser |
+| 2 | Step 3 (Retrieval), Step 4 (LLM), Step 7 scoring code (Evals), Step 5 card element against sample data (App) | No |
+| 3 | Step 5 responder (LLM), Step 5 wiring in `app/main.py` (App) | Try the merged app in the browser |
 | 4 | Step 6 (App) | Choose the storage approach before work starts; test failures after |
 | 5 | Step 7 full run (Lead, with Evals fixing scoring bugs and owners fixing their modules) | Read the replies and results |
 | 6 | Step 8 (Lead drafts) | Rewrite the README and submit |
@@ -40,9 +40,10 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 
 1. The owner commits on its branch, runs its own tests and reports back.
 2. The Reviewer reviews `git diff staging...<branch>`. The owner fixes what it finds on the same branch.
-3. The Lead brings the branches to Or at the wave's stop, in plain words. Or approves or rejects each one.
-4. Only then, the Lead merges each approved branch with `git merge --no-ff`, runs the full `pytest` and removes its worktree.
+3. The Lead approves or rejects the branch. Approval needs a clean Reviewer pass and passing tests; the Lead's own branches need the same. Or does not approve individual branches.
+4. Only then, the Lead merges the branch with `git merge --no-ff`, runs the full `pytest` and removes its worktree.
 5. Real-model and browser checks run on `staging` right after the merge, because only the main folder has `.env`. A failure becomes a new fix branch through the same steps.
+6. At the end of each wave, the Lead reports to Or in plain words: what merged, why, and any decisions made, so Or can still defend every line. The Lead waits for Or only where the Waves table says so.
 
 Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 
