@@ -94,12 +94,25 @@ def test_no_top_k_means_no_cut(rows, catalog):
     assert len(ids_for_row(rows, catalog, 8)) == 5
 
 
-def test_ground_truth_does_not_import_search():
-    tree = ast.parse(Path(ground_truth.__file__).read_text(encoding="utf-8"))
-    imported = []
+def imported_names(path: str) -> set[str]:
+    """Every dotted name a file imports. `from app import search` gives "app" and "app.search"."""
+    tree = ast.parse(Path(path).read_text(encoding="utf-8"))
+    names = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            imported += [alias.name for alias in node.names]
+            names |= {alias.name for alias in node.names}
         elif isinstance(node, ast.ImportFrom):
-            imported.append(node.module or "")
-    assert "app.search" not in imported
+            names.add(node.module or "")
+            names |= {f"{node.module}.{alias.name}" for alias in node.names}
+    return names
+
+
+def test_import_check_catches_from_app_import_search(tmp_path):
+    # Proves the guard below can fail: this form slipped past the first version of it.
+    sneaky = tmp_path / "sneaky.py"
+    sneaky.write_text("from app import search\n", encoding="utf-8")
+    assert "app.search" in imported_names(str(sneaky))
+
+
+def test_ground_truth_does_not_import_search():
+    assert "app.search" not in imported_names(ground_truth.__file__)

@@ -5,15 +5,24 @@ fallback and no display cap. Scored against evals/ground_truth.py.
 Behavioral set (datasets/behavioral.jsonl): replay every turn through run_turn and
 score the last one.
 
-This makes real model calls, so only the Lead runs it (the key lives in the main folder's .env).
-The app modules are imported inside main(), so importing this file needs no key and no network.
-Results are also written to evals/results.md.
+This makes real model calls (about 140), so only the Lead runs it (the key lives in the
+main folder's .env). The app modules are imported inside main(), so importing this file
+needs no key and no network.
+
+To protect the paid run, each raw result is appended to evals/runs/run_<time>.jsonl
+straight after its call. The report is built from that file, so a scoring bug can be
+fixed and the run re-scored for free:
+
+    python evals/run_evals.py --rescore evals/runs/run_<time>.jsonl
 """
 
+import argparse
 import json
+import logging
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -32,37 +41,54 @@ from app.schemas import (  # noqa: E402
 from evals.ground_truth import expected_ids, load_rows, row_to_spec  # noqa: E402
 from evals.scoring import (  # noqa: E402
     CaseScores,
-    exact_match,
+    RetrievalScores,
     filter_matches,
-    precision_recall_f1,
     score_case,
+    score_retrieval,
 )
 
 BEHAVIORAL_JSONL = REPO_ROOT / "datasets" / "behavioral.jsonl"
+RUNS_DIR = Path(__file__).resolve().parent / "runs"
 RESULTS_MD = Path(__file__).resolve().parent / "results.md"
 
 ParseFn = Callable[[str, list[Any], list[SearchSpec], list[Product], list[str], LLM], ParsedRequest]
 SearchFn = Callable[[SearchSpec, list[Product]], list[Product]]
 RunTurnFn = Callable[[str, ConversationState, list[Product], list[str], LLM], TurnResult]
+RecordFn = Callable[[dict[str, Any]], None]
 
 
 # ---------------------------------------------------------------------------
-# Deterministic set
+# Counting the parser's safe-default fallbacks
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class DeterministicRecord:
-    row: dict[str, str]
-    expected: list[int]
-    returned: list[int]
-    got_spec: SearchSpec | None
-    precision: float
-    recall: float
-    f1: float
-    top_k_exact: bool | None  # None on rows without top_k
-    filter_ok: bool
-    error: str | None = None
+class ParseFailureCounter(logging.Handler):
+    """Counts the warnings app.parser logs when it gives up and returns the safe default.
+
+    Why: a row that expects needs_clarification would score correct on garbage output.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.count = 0
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.levelno == logging.WARNING:
+            self.count += 1
+
+
+PARSE_FAILURES = ParseFailureCounter()
+
+
+def start_counting_parse_failures() -> None:
+    logger = logging.getLogger("app.parser")
+    if PARSE_FAILURES not in logger.handlers:
+        logger.addHandler(PARSE_FAILURES)
+
+
+# ---------------------------------------------------------------------------
+# Running: each function returns raw dicts, which are also written to the JSONL file
+# ---------------------------------------------------------------------------
 
 
 def run_deterministic(
@@ -72,70 +98,32 @@ def run_deterministic(
     llm: LLM,
     parse_fn: ParseFn,
     search_fn: SearchFn,
-) -> list[DeterministicRecord]:
-    records = []
+    on_record: RecordFn | None = None,
+) -> list[dict[str, Any]]:
+    raws = []
     for row in rows:
-        expected_spec = row_to_spec(row)
-        expected = expected_ids(expected_spec, catalog)
-        has_top_k = expected_spec.top_k is not None
+        failures_before = PARSE_FAILURES.count
+        raw: dict[str, Any] = {"kind": "deterministic", "row_id": row["id"], "parsed": None,
+                               "returned_ids": [], "error": None}  # fmt: skip
         try:
             parsed = parse_fn(row["query"], [], [], [], categories, llm)
-            # One query should give one search. Score the first; the filter check needs exactly one.
-            got_spec = parsed.searches[0] if parsed.searches else None
-            returned_products = search_fn(got_spec, catalog) if got_spec else []
-            # search() returns every match with no display cap, so cut to top_k here.
-            if got_spec and got_spec.top_k is not None:
-                returned_products = returned_products[: got_spec.top_k]
-            returned = [product.id for product in returned_products]
-            precision, recall, f1 = precision_recall_f1(set(expected), set(returned))
-            filter_ok = len(parsed.searches) == 1 and filter_matches(expected_spec, got_spec)
-            records.append(
-                DeterministicRecord(
-                    row=row,
-                    expected=expected,
-                    returned=returned,
-                    got_spec=got_spec,
-                    precision=precision,
-                    recall=recall,
-                    f1=f1,
-                    top_k_exact=exact_match(expected, returned) if has_top_k else None,
-                    filter_ok=filter_ok,
-                )
-            )
+            raw["parsed"] = parsed.model_dump(mode="json")
+            # Score every search together: the union of their products, no repeats.
+            returned_ids: list[int] = []
+            for spec in parsed.searches:
+                products = search_fn(spec, catalog)
+                # search() returns every match with no display cap, so cut to top_k here.
+                if spec.top_k is not None:
+                    products = products[: spec.top_k]
+                returned_ids += [p.id for p in products if p.id not in returned_ids]
+            raw["returned_ids"] = returned_ids
         except Exception as error:  # noqa: BLE001 - one bad call must not lose the whole run
-            records.append(
-                DeterministicRecord(
-                    row=row,
-                    expected=expected,
-                    returned=[],
-                    got_spec=None,
-                    precision=0.0,
-                    recall=0.0,
-                    f1=0.0,
-                    top_k_exact=False if has_top_k else None,
-                    filter_ok=False,
-                    error=repr(error),
-                )
-            )
-    return records
-
-
-# ---------------------------------------------------------------------------
-# Behavioral set
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class BehavioralRecord:
-    case: dict[str, Any]
-    result: TurnResult | None
-    scores: CaseScores | None
-    error: str | None = None
-
-
-def load_cases(path: Path = BEHAVIORAL_JSONL) -> list[dict[str, Any]]:
-    with path.open(encoding="utf-8") as file:
-        return [json.loads(line) for line in file if line.strip()]
+            raw["error"] = repr(error)
+        raw["parse_failures"] = PARSE_FAILURES.count - failures_before
+        raws.append(raw)
+        if on_record:
+            on_record(raw)
+    return raws
 
 
 def run_behavioral(
@@ -144,22 +132,122 @@ def run_behavioral(
     categories: list[str],
     llm: LLM,
     run_turn_fn: RunTurnFn,
-) -> list[BehavioralRecord]:
-    catalog_titles = [product.title for product in catalog]
-    records = []
+    on_record: RecordFn | None = None,
+) -> list[dict[str, Any]]:
+    raws = []
     for case in cases:
+        failures_before = PARSE_FAILURES.count
+        raw: dict[str, Any] = {"kind": "behavioral", "case_id": case["id"], "results": [], "error": None}
         try:
             state = ConversationState()
-            result = None
             for turn in case["turns"]:
                 result = run_turn_fn(turn, state, catalog, categories, llm)
                 state = result.state  # carry the conversation into the next turn
-            assert result is not None, "a case must have at least one turn"
-            scores = score_case(result, case, case["turns"], catalog_titles)
-            records.append(BehavioralRecord(case=case, result=result, scores=scores))
+                raw["results"].append(result.model_dump(mode="json"))
         except Exception as error:  # noqa: BLE001 - one bad call must not lose the whole run
-            records.append(BehavioralRecord(case=case, result=None, scores=None, error=repr(error)))
-    return records
+            raw["error"] = repr(error)
+        raw["parse_failures"] = PARSE_FAILURES.count - failures_before
+        raws.append(raw)
+        if on_record:
+            on_record(raw)
+    return raws
+
+
+class RunWriter:
+    """Appends each raw result to the JSONL file, then prints one progress line."""
+
+    def __init__(self, path: Path, total: int) -> None:
+        self.path = path
+        self.total = total
+        self.done = 0
+
+    def __call__(self, raw: dict[str, Any]) -> None:
+        with self.path.open("a", encoding="utf-8") as file:
+            file.write(json.dumps(raw, ensure_ascii=False) + "\n")
+        self.done += 1
+        name = f"row {raw['row_id']}" if raw["kind"] == "deterministic" else f"case {raw['case_id']}"
+        status = f"ERROR {raw['error']}" if raw["error"] else "ok"
+        print(f"[{self.done}/{self.total}] {raw['kind']} {name}: {status}", flush=True)
+
+
+def load_run(path: Path) -> list[dict[str, Any]]:
+    with path.open(encoding="utf-8") as file:
+        return [json.loads(line) for line in file if line.strip()]
+
+
+def load_cases(path: Path = BEHAVIORAL_JSONL) -> list[dict[str, Any]]:
+    with path.open(encoding="utf-8") as file:
+        return [json.loads(line) for line in file if line.strip()]
+
+
+# ---------------------------------------------------------------------------
+# Scoring the raw results
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class DeterministicRecord:
+    row: dict[str, str]
+    expected: list[int]
+    returned: list[int]
+    searches: list[SearchSpec]
+    scores: RetrievalScores
+    filter_ok: bool
+    parse_failures: int
+    error: str | None = None
+
+
+def score_deterministic(raw: dict[str, Any], row: dict[str, str], catalog: list[Product]) -> DeterministicRecord:
+    expected_spec = row_to_spec(row)
+    expected = expected_ids(expected_spec, catalog)
+    failures = raw.get("parse_failures", 0)
+    if raw["error"]:
+        # A failed call earns no credit, even on a row where nothing is expected.
+        top_k_ok = False if expected_spec.top_k is not None else None
+        return DeterministicRecord(row, expected, [], [], RetrievalScores(0.0, 0.0, 0.0, top_k_ok),
+                                   False, failures, raw["error"])  # fmt: skip
+    searches = ParsedRequest.model_validate(raw["parsed"]).searches
+    returned = raw["returned_ids"]
+    scores = score_retrieval(expected_spec, catalog, searches, returned)
+    # One query should give exactly one search with exactly the CSV's filter.
+    filter_ok = len(searches) == 1 and filter_matches(expected_spec, searches[0])
+    return DeterministicRecord(row, expected, returned, searches, scores, filter_ok, failures)
+
+
+@dataclass
+class BehavioralRecord:
+    case: dict[str, Any]
+    result: TurnResult | None
+    scores: CaseScores | None
+    parse_failures: int
+    error: str | None = None
+
+
+def score_behavioral(raw: dict[str, Any], case: dict[str, Any], catalog: list[Product]) -> BehavioralRecord:
+    failures = raw.get("parse_failures", 0)
+    if raw["error"] or len(raw["results"]) != len(case["turns"]):
+        return BehavioralRecord(case, None, None, failures, raw["error"] or "not all turns ran")
+    results = [TurnResult.model_validate(r) for r in raw["results"]]
+    last = results[-1]
+    # A reply may talk about a product shown in any turn of the conversation.
+    shown_anywhere = [p for r in results for o in r.outcomes for p in o.shown]
+    titles = [product.title for product in catalog]
+    scores = score_case(last, case, case["turns"], titles, shown_anywhere)
+    return BehavioralRecord(case, last, scores, failures)
+
+
+def score_run(
+    raws: list[dict[str, Any]], catalog: list[Product]
+) -> tuple[list[DeterministicRecord], list[BehavioralRecord]]:
+    rows = {row["id"]: row for row in load_rows()}
+    cases = {case["id"]: case for case in load_cases()}
+    det, beh = [], []
+    for raw in raws:
+        if raw["kind"] == "deterministic":
+            det.append(score_deterministic(raw, rows[raw["row_id"]], catalog))
+        elif raw["kind"] == "behavioral":
+            beh.append(score_behavioral(raw, cases[raw["case_id"]], catalog))
+    return det, beh
 
 
 # ---------------------------------------------------------------------------
@@ -182,33 +270,51 @@ def table(header: list[str], rows: list[list[str]]) -> list[str]:
     return lines
 
 
-def deterministic_report(records: list[DeterministicRecord]) -> list[str]:
-    lines = [f"## Deterministic set ({len(records)} queries)", ""]
-    groups = [("basic", [r for r in records if r.row["difficulty"] == "basic"])]
-    groups += [("hard", [r for r in records if r.row["difficulty"] == "hard"]), ("all", records)]
+DETERMINISTIC_HEADER = ["set", "n", "precision", "recall", "F1", "top_k correct", "filter match",
+                        "errors", "parse fails"]  # fmt: skip
+
+
+def deterministic_table_rows(records: list[DeterministicRecord]) -> list[list[str]]:
+    """One row of cells per group (basic, hard, all). Tests read these cells."""
+    groups = [
+        ("basic", [r for r in records if r.row["difficulty"] == "basic"]),
+        ("hard", [r for r in records if r.row["difficulty"] == "hard"]),
+        ("all", records),
+    ]
     table_rows = []
     for name, group in groups:
-        top_k_rows = [r for r in group if r.top_k_exact is not None]
+        top_k_rows = [r for r in group if r.scores.top_k_ok is not None]
         table_rows.append(
             [
                 name,
                 str(len(group)),
-                mean([r.precision for r in group]),
-                mean([r.recall for r in group]),
-                mean([r.f1 for r in group]),
-                percent(sum(1 for r in top_k_rows if r.top_k_exact), len(top_k_rows)),
+                mean([r.scores.precision for r in group]),
+                mean([r.scores.recall for r in group]),
+                mean([r.scores.f1 for r in group]),
+                percent(sum(1 for r in top_k_rows if r.scores.top_k_ok), len(top_k_rows)),
                 percent(sum(1 for r in group if r.filter_ok), len(group)),
                 str(sum(1 for r in group if r.error)),
+                str(sum(1 for r in group if r.parse_failures)),
             ]
         )
-    lines += table(
-        ["set", "n", "precision", "recall", "F1", "top_k exact", "filter match", "errors"],
-        table_rows,
-    )
+    return table_rows
+
+
+def filter_text(spec: SearchSpec | None) -> str:
+    if spec is None:
+        return "(no search)"
+    names = ["category", "price_min", "price_max", "rating_min", "sort_by", "order", "top_k"]
+    return ", ".join(f"{name}={getattr(spec, name)}" for name in names)
+
+
+def deterministic_report(records: list[DeterministicRecord]) -> list[str]:
+    lines = [f"## Deterministic set ({len(records)} queries)", ""]
+    lines += table(DETERMINISTIC_HEADER, deterministic_table_rows(records))
     lines += ["", "### Failures (any metric below perfect)", ""]
     failures = [
-        r for r in records if r.f1 < 1 or r.top_k_exact is False or not r.filter_ok or r.error
-    ]
+        r for r in records
+        if r.scores.f1 < 1 or r.scores.top_k_ok is False or not r.filter_ok or r.error
+    ]  # fmt: skip
     if not failures:
         lines.append("None.")
     for r in failures:
@@ -220,58 +326,78 @@ def deterministic_report(records: list[DeterministicRecord]) -> list[str]:
         missing = sorted(set(r.expected) - set(r.returned))
         extra = sorted(set(r.returned) - set(r.expected))
         lines.append(
-            f"    P={r.precision:.2f} R={r.recall:.2f} F1={r.f1:.2f}  "
+            f"    P={r.scores.precision:.2f} R={r.scores.recall:.2f} F1={r.scores.f1:.2f}  "
             f"expected {len(r.expected)} IDs, returned {len(r.returned)}; missing {missing}, extra {extra}"
         )
         if not r.filter_ok:
             lines.append(f"    expected filter: {filter_text(row_to_spec(row))}")
-            lines.append(f"    extracted filter: {filter_text(r.got_spec)}")
-        if r.top_k_exact is False:
-            lines.append(f"    top_k order: expected {r.expected}, got {r.returned}")
+            extracted = " | ".join(filter_text(s) for s in r.searches) or "(no search)"
+            lines.append(f"    extracted filter ({len(r.searches)} searches): {extracted}")
+        if r.scores.top_k_ok is False:
+            lines.append(f"    top_k answer is wrong: expected {r.expected}, got {r.returned}")
+    parse_failed = [r.row["id"] for r in records if r.parse_failures]
+    lines += ["", f"Parser returned the safe default on rows: {parse_failed or 'none'}"]
     return lines
 
 
-def filter_text(spec: SearchSpec | None) -> str:
-    if spec is None:
-        return "(no search)"
-    names = ["category", "price_min", "price_max", "rating_min", "sort_by", "order", "top_k"]
-    return ", ".join(f"{name}={getattr(spec, name)}" for name in names)
+BEHAVIORAL_HEADER = ["set", "n", "intent", "mode (rows with a mode)", "category", "fallback fired",
+                     "no false fallback", "language", "grounded", "parse fails"]  # fmt: skip
 
 
-def behavioral_report(records: list[BehavioralRecord]) -> list[str]:
-    lines = [f"## Behavioral set ({len(records)} conversations)", ""]
-    groups = [("basic", [r for r in records if r.case["difficulty"] == "basic"])]
-    groups += [("hard", [r for r in records if r.case["difficulty"] == "hard"]), ("all", records)]
+def behavioral_table_rows(records: list[BehavioralRecord]) -> list[list[str]]:
+    """One row of cells per group. A crashed case counts as wrong on every metric. Tests read these cells."""
+    groups = [
+        ("basic", [r for r in records if r.case["difficulty"] == "basic"]),
+        ("hard", [r for r in records if r.case["difficulty"] == "hard"]),
+        ("all", records),
+        ("multi-turn", [r for r in records if len(r.case["turns"]) > 1]),
+    ]
     table_rows = []
     for name, group in groups:
-        scored = [r.scores for r in group]  # None for a case that crashed
-        # A crashed case counts as wrong on every metric that applies to it.
-        intent = sum(1 for s in scored if s and s.intent_ok)
-        mode = sum(1 for s in scored if s and s.mode_ok)
-        fallback = sum(1 for s in scored if s and s.fallback_ok)
+        intent = sum(1 for r in group if r.scores and r.scores.intent_ok)
+
+        mode_cases = [r for r in group if r.case["expected_mode"]]
+        mode = sum(1 for r in mode_cases if r.scores and r.scores.mode_ok)
+
         category_cases = [r for r in group if r.case["expected_categories"]]
         category = sum(1 for r in category_cases if r.scores and r.scores.category_ok)
+
+        # Fallback is two questions. Did it fire when it should? Did it stay quiet when it should?
+        fired_cases = [r for r in group if r.case["expect_fallback"]]
+        fired = sum(1 for r in fired_cases if r.scores and r.scores.fallback_ok)
+        quiet_cases = [
+            r for r in group
+            if r.case["expected_intent"] == "product_search" and not r.case["expect_fallback"]
+        ]  # fmt: skip
+        quiet = sum(1 for r in quiet_cases if r.scores and r.scores.fallback_ok)
+
         language_cases = [r for r in group if r.case.get("expected_language")]
         language = sum(1 for r in language_cases if r.scores and r.scores.language_ok)
-        replied = [r for r in group if r.scores]  # grounding needs a reply to check
-        grounded = sum(1 for r in replied if r.scores.grounding.ok)
+
+        # Against the whole group, so crashes cannot shrink the denominator.
+        grounded = sum(1 for r in group if r.scores and r.scores.grounding.ok)
+        not_run = sum(1 for r in group if r.scores is None)
+
         table_rows.append(
             [
                 name,
                 str(len(group)),
                 percent(intent, len(group)),
-                percent(mode, len(group)),
+                percent(mode, len(mode_cases)),
                 percent(category, len(category_cases)),
-                percent(fallback, len(group)),
+                f"fired correctly {fired}/{len(fired_cases)}",
+                f"no false fire {quiet}/{len(quiet_cases)}",
                 f"{language}/{len(language_cases)}",
-                percent(grounded, len(replied)),
-                str(sum(1 for r in group if r.error)),
+                f"grounded {grounded} of {len(group)}, {not_run} not run",
+                str(sum(1 for r in group if r.parse_failures)),
             ]
         )
-    lines += table(
-        ["set", "n", "intent", "mode", "category", "fallback", "language", "grounding", "errors"],
-        table_rows,
-    )
+    return table_rows
+
+
+def behavioral_report(records: list[BehavioralRecord]) -> list[str]:
+    lines = [f"## Behavioral set ({len(records)} conversations)", ""]
+    lines += table(BEHAVIORAL_HEADER, behavioral_table_rows(records))
 
     lines += ["", "### Failures", ""]
     any_failure = False
@@ -282,6 +408,8 @@ def behavioral_report(records: list[BehavioralRecord]) -> list[str]:
             lines.append(f"- case {r.case['id']} [{r.case['difficulty']}] {r.case['case']}: {'; '.join(problems)}")
     if not any_failure:
         lines.append("None.")
+    parse_failed = [r.case["id"] for r in records if r.parse_failures]
+    lines += ["", f"Parser returned the safe default on cases: {parse_failed or 'none'}"]
 
     lines += ["", "### Replies, to read beside expected_behavior", ""]
     for r in records:
@@ -330,15 +458,15 @@ def reply_block(record: BehavioralRecord) -> list[str]:
     shown = [f"{p.title} (${p.price})" for o in result.outcomes for p in o.shown]
     lines.append(f"- cards shown: {shown if shown else 'none'}")
     lines.append(f"- reply: {result.reply}")
-    # Counts and ratings are not scored, so Or reads them here.
-    lines.append(f"- other numbers in the reply (not scored): {record.scores.grounding.other_numbers}")
+    # Counts, ratings and one-word product names are not scored, so Or reads them here.
+    grounding = record.scores.grounding
+    lines.append(f"- other numbers in the reply (not scored): {grounding.other_numbers}")
+    lines.append(f"- one-word product names in the reply, unshown (not scored): {grounding.unscored_title_hits}")
     lines.append("")
     return lines
 
 
-def build_report(
-    det_records: list[DeterministicRecord], beh_records: list[BehavioralRecord]
-) -> str:
+def build_report(det_records: list[DeterministicRecord], beh_records: list[BehavioralRecord]) -> str:
     lines = ["# Eval results", ""]
     lines += deterministic_report(det_records)
     lines += [""]
@@ -346,29 +474,56 @@ def build_report(
     return "\n".join(lines) + "\n"
 
 
+def save_report(
+    report: str, run_path: Path, has_errors: bool, results_path: Path = RESULTS_MD
+) -> Path:
+    """Write results.md, unless the run had errors: then save next to the run file instead."""
+    path = run_path.with_suffix(".md") if has_errors else results_path
+    with path.open("w", encoding="utf-8") as file:
+        file.write(report)
+    return path
+
+
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
-    # Imported here so that importing this file needs no key and no network.
+    cli = argparse.ArgumentParser(description="Run the evals, or re-score a saved run for free.")
+    cli.add_argument("--rescore", type=Path, help="an evals/runs/*.jsonl file; makes no model calls")
+    args = cli.parse_args()
+
     from app.catalog import load_catalog, load_categories
-    from app.llm import openai_llm
-    from app.parser import parse_request
-    from app.pipeline import run_turn
-    from app.search import search
 
     catalog = load_catalog()
-    categories = load_categories()
 
-    det_records = run_deterministic(
-        load_rows(), catalog, categories, openai_llm, parse_request, search
-    )
-    beh_records = run_behavioral(load_cases(), catalog, categories, openai_llm, run_turn)
+    if args.rescore:
+        run_path = args.rescore
+    else:
+        # Imported here so that importing this file needs no key and no network.
+        from app.llm import openai_llm
+        from app.parser import parse_request
+        from app.pipeline import run_turn
+        from app.search import search
 
+        categories = load_categories()
+        rows, cases = load_rows(), load_cases()
+        RUNS_DIR.mkdir(exist_ok=True)
+        run_path = RUNS_DIR / f"run_{datetime.now():%Y%m%d_%H%M%S}.jsonl"
+        writer = RunWriter(run_path, total=len(rows) + len(cases))
+        start_counting_parse_failures()
+        run_deterministic(rows, catalog, categories, openai_llm, parse_request, search, writer)
+        run_behavioral(cases, catalog, categories, openai_llm, run_turn, writer)
+
+    # The report comes from the saved file, the same path --rescore takes.
+    det_records, beh_records = score_run(load_run(run_path), catalog)
     report = build_report(det_records, beh_records)
+    has_errors = any(r.error for r in det_records) or any(r.error for r in beh_records)
+    saved_to = save_report(report, run_path, has_errors)  # written before printing
     print(report)
-    with RESULTS_MD.open("w", encoding="utf-8") as file:
-        file.write(report)
-    print(f"Saved to {RESULTS_MD}")
+    print(f"Raw results: {run_path}")
+    if has_errors:
+        print(f"The run had errors, so evals/results.md was left alone. Report saved to {saved_to}")
+    else:
+        print(f"Saved to {saved_to}")
 
 
 if __name__ == "__main__":

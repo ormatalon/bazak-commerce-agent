@@ -61,22 +61,25 @@ def passes_filter(product: Product, spec: SearchSpec) -> bool:
     return True
 
 
+def sort_value(product: Product, spec: SearchSpec) -> float:
+    """The number the spec sorts by: price if sort_by is price, otherwise rating."""
+    return product.price if spec.sort_by == "price" else product.rating
+
+
 def sort_products(products: list[Product], spec: SearchSpec) -> list[Product]:
     """Order the matches. Equal values are broken by the lowest ID, so the result is repeatable.
+
+    The ID tie-break only makes this list the same every time. When scoring, products that
+    tie on the sort value are equally right (see scoring.top_k_is_correct).
 
     With no sort_by the CSV has no keywords, so the default order is rating (highest first),
     as CLAUDE.md says. A sort_by with no order is read as ascending.
     """
-    if spec.sort_by == "price":
-        values = {product.id: product.price for product in products}
-    else:
-        values = {product.id: product.rating for product in products}
-
     # No sort given: highest rating first, which is the same as sorting rating descending.
     descending = spec.order == "desc" if spec.sort_by is not None else True
 
     def sort_key(product: Product) -> tuple[float, int]:
-        value = values[product.id]
+        value = sort_value(product, spec)
         return (-value if descending else value, product.id)
 
     return sorted(products, key=sort_key)
