@@ -154,7 +154,7 @@ Handle failures explicitly: DB file missing (recreate), corrupted (start a fresh
 ## Working rules
 
 - Work one plan wave at a time. The Lead stops at the end of each wave and summarizes what was done and why, in plain words.
-- If you are a team member, edit only the files your role owns and follow the Team rules in `plan/PLAN.md`.
+- If you are a team member, edit only the files your role owns and follow the Branches and Team rules in `plan/PLAN.md`. Commit only on your own branch, never merge.
 - Before adding a dependency or changing a design decision above, ask Or. Team members raise these with the Lead.
 - Keep functions small, typed and commented where the reason is not obvious.
 - Log every decision made without Or in `DECISIONS.md` (what, why, alternatives). Team members report theirs to the Lead, who writes the log.

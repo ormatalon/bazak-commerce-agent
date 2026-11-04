@@ -19,5 +19,6 @@ catalog_cache.json
 # Chainlit uploads
 .files/
 
-# Claude Code personal settings
+# Claude Code personal settings and agent worktrees
 .claude/settings.local.json
+.claude/worktrees/

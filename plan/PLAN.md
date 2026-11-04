@@ -6,7 +6,7 @@ Build order for a small Claude Code team led by the main session. Follow CLAUDE.
 
 | Role | Agent | Owns (only this role edits these) |
 | --- | --- | --- |
-| Lead | main session | `app/schemas.py`, `CLAUDE.md`, `plan/`, `DECISIONS.md`, `README.md`, `requirements.txt`, `.gitignore`, `.env.example`, every git commit, every real-model and browser check |
+| Lead | main session | `app/schemas.py`, `CLAUDE.md`, `plan/`, `DECISIONS.md`, `README.md`, `requirements.txt`, `.gitignore`, `.env.example`, every merge, every real-model and browser check |
 | Retrieval | `voltagent-core-dev:backend-developer` | `app/catalog.py`, `app/search.py`, `tests/test_catalog.py`, `tests/test_search.py` |
 | LLM | `voltagent-data-ai:prompt-engineer` | `app/parser.py`, `app/responder.py`, `tests/test_parser.py`, `tests/test_responder.py` |
 | App | `voltagent-core-dev:fullstack-developer` | `app/main.py`, `app/storage.py`, `public/elements/`, `tests/test_storage.py` |
@@ -24,27 +24,43 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 | 0 | Step 1 (Lead) | Approve the contract in `app/schemas.py` |
 | 1 | Step 2 (Retrieval) | Decide on the 8 dataset rows |
 | 2 | Step 3 (Retrieval), Step 4 (LLM), Step 7 scoring code (Evals), Step 5 card element against sample data (App) | Review the search and parser code |
-| 3 | Step 5 responder (LLM), then Step 5 wiring in `app/main.py` (App) | Try the app in the browser |
+| 3 | Step 5 responder (LLM), Step 5 wiring in `app/main.py` (App) | Review both branches, then try the merged app in the browser |
 | 4 | Step 6 (App) | Choose the storage approach before work starts; test failures after |
 | 5 | Step 7 full run (Lead, with Evals fixing scoring bugs and owners fixing their modules) | Read the replies and results |
 | 6 | Step 8 (Lead drafts) | Rewrite the README and submit |
 
+## Branches
+
+- `staging` is the integration branch and the one the main folder stays on. `master` changes only when Or approves merging `staging` into it for submission.
+- Each team member works on its own branch, cut from the latest `staging`: `<role>/step-<n>-<topic>`, e.g. `retrieval/step-3-search`, `llm/step-4-parser`. A new piece of work gets a new branch.
+- Parallel work needs separate folders, so each agent runs in its own git worktree (`isolation: "worktree"`) and starts by naming its branch with `git switch -c`. The Lead's own work also goes on a branch.
+- Nothing is pushed.
+
+**Getting a branch into `staging`:**
+
+1. The owner commits on its branch, runs its own tests and reports back.
+2. The Reviewer reviews `git diff staging...<branch>`. The owner fixes what it finds on the same branch.
+3. The Lead brings the branches to Or at the wave's stop, in plain words. Or approves or rejects each one.
+4. Only then, the Lead merges each approved branch with `git merge --no-ff`, runs the full `pytest` and removes its worktree.
+5. Real-model and browser checks run on `staging` right after the merge, because only the main folder has `.env`. A failure becomes a new fix branch through the same steps.
+
+Agents can't merge: `git merge` is denied for Bash, the only shell they have.
+
 ## Team rules
 
-- **One checkout, no worktrees.** Agents share the working folder, `.venv` and catalog cache. File ownership keeps them apart, so there is nothing to merge.
 - **Stay in your files.** An agent needing a change elsewhere, including to `app/schemas.py`, reports it to the Lead instead of making it.
-- **Test your own area.** Agents run only their own test files, since a teammate's file may be half-written. The Lead runs the full `pytest` before each commit.
-- **No key for agents.** Agents use the fake LLM and never read `.env`. The Lead runs anything that calls `gpt-6-luna`.
+- **Test your own area.** Agents run only their own test files, from their worktree, with the shared interpreter: `C:/Users/Or/OneDrive/Desktop/repos/bazak-commerce-agent/.venv/Scripts/python -m pytest <file>`. Worktrees have no `.venv` of their own.
+- **No key for agents.** Worktrees have no `.env`. Agents use the fake LLM and `tests/fixtures/catalog_sample.json`. The Lead runs anything that calls `gpt-6-luna`.
 - **Evals stay independent.** Evals works from the datasets and `app/schemas.py`, and does not read `app/search.py` when writing `ground_truth.py`.
 - **Report back.** Each agent ends with what it built and why in plain words, which checks passed with their output, and any decision it made on its own. The Lead records those in `DECISIONS.md`.
-- **End of each wave.** The Lead runs the full tests, the Reviewer checks the wave's changes, owners fix what it finds, and the Lead commits. Then the Lead stops and summarizes for Or, in plain words, so Or can defend every line.
 - **Stop early** if a check can't pass, an agent needs a dependency or a design change, or two roles need the same file.
 
 ## Step 1: Project skeleton
 
 **Owner: Lead**
 
-- [ ] `.gitignore` first, before any `git add`, with `.env`, `.venv`, the SQLite file and the catalog cache
+- [x] `.gitignore`, `staging` branch and baseline commit
+- [ ] Virtualenv at `.venv` in the main folder, shared by all worktrees
 - [ ] Repo layout: `app/`, `public/elements/`, `tests/`, `evals/`, `DECISIONS.md`. `datasets/` and `README.md` already exist; keep them.
 - [ ] `requirements.txt` (chainlit, openai, pydantic, sqlalchemy, httpx, python-dotenv, pytest)
 - [ ] `.env.example` with every value listed in CLAUDE.md
@@ -105,7 +121,7 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 
 ## Step 4: Parser
 
-**Owner: LLM.** The Lead runs the checks that need the real model.
+**Owner: LLM.** The Lead runs the checks that need the real model, on `staging` after the merge.
 
 - [ ] One `gpt-6-luna` call with structured output; category restricted to real slugs. Input = last 6 messages + most recent search + ID, title and price of shown products
 - [ ] Code merges a `refine` into the previous search: non-null fields overwrite, `clear_fields` are removed, everything else is kept
@@ -127,7 +143,7 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 
 ## Step 5: Responder and cards
 
-**Owners: LLM (reply), App (cards and wiring).** The App role builds the card element in wave 2 against `tests/fixtures/catalog_sample.json`, and wires everything in wave 3 once the reply and search code exist. The Lead and Or run the browser checks.
+**Owners: LLM (reply), App (cards and wiring).** The App role builds the card element in wave 2 against `tests/fixtures/catalog_sample.json`, and wires everything in wave 3 against the `write_reply` signature while the LLM role builds it. The Lead and Or run the browser checks on `staging` after both branches merge.
 
 - [ ] Grounded reply from the returned products only; handles clarification, off-catalog, small talk, `unsupported` items and "loosened filters" notes
 - [ ] Chainlit custom element for product cards (title, short description, price, image), in `public/elements/`
@@ -193,4 +209,4 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 - Setup works for a stranger. Check: clone the repo into a new folder, follow only the README, and the app runs.
 - Or can defend it. Check: for each section, Or explains it out loud without reading.
 - No secrets. Check: in PowerShell, `git log -p | Select-String "sk-[A-Za-z0-9_-]{20,}"` returns nothing.
-- Submitted. Check: repo is private, Bazak is invited, and the reply email with the link is sent.
+- Submitted. Check: Or approves merging `staging` into `master` and pushing it, the repo is private, Bazak is invited, and the reply email with the link is sent.
