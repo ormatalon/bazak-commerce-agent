@@ -55,6 +55,15 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 - **Report back.** Each agent ends with what it built and why in plain words, which checks passed with their output, and any decision it made on its own. The Lead records those in `DECISIONS.md`.
 - **Stop early** if a check can't pass, an agent needs a dependency or a design change, or two roles need the same file.
 
+## Parked
+
+Noted by Or, not decided. Nothing here is scheduled until Or says so.
+
+- **Counts and "list all" (found in Or's browser check, 4 Nov 2026).** "How many laptops do you have?" can't be answered, and "list all the laptops" shows only 3.
+  - Why: search finds every match, but the pipeline cuts to 3 cards, and the responder only sees those cards.
+  - Possible fixes: pass the match count to the responder, so it can state it (a number from our code, so still grounded). Teach the parser that "all" sets a large `top_k`, or lean on Show more.
+  - Check before changing: the grounding score and `tests/test_responder.py`, which pin that the responder sees only `shown`.
+
 ## Step 1: Project skeleton
 
 **Owner: Lead**
