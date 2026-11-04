@@ -2,6 +2,23 @@
 
 Each entry: what was decided, why, and what else was considered. The Lead keeps this log and reports new entries at the end of each wave.
 
+## Wave 3
+
+- **The "nothing found" and "no more products" notes are written by code, not inferred by the model.** Whether anything was shown is a fact our code already has. Alternative: tell the model to work it out from the results.
+- **The responder gets search bounds as stored, and the prompt explains them.** `price_max` 19.99 reads as "under $20". Alternative: pass the user's wording, which the schema doesn't carry.
+- **Replies are one to three short sentences.** The cards carry the detail. This is prompt advice, not enforced.
+- **A blank model reply raises an error.** It takes the same path as a failed call, so the chat shows the error. Alternative: send an empty message.
+- **A refine replaces the current searches with the ones it edited.** If "a laptop and a phone case" is followed by "cheaper ones" aimed at one of them, the other is dropped. Alternative: keep every search, which needs rules for which ones still show.
+- **A refine with an out-of-range index edits the first search, and one with no previous search merges into an empty search.** Neither should crash on a model mistake. Alternative: return the safe default.
+- **A search with no field set, a typed "show more" with nothing before it, and a refine that clears everything all become a clarifying question.** Each would otherwise show all 194 products as a match or nothing at all. Alternative: run them.
+- **A search with only a sort or a count still runs.** "The cheapest thing you sell" has an honest answer. The cost: "show me 5" with no earlier search shows the 5 highest rated products. Alternative: require a category, keywords or a bound, which would make the first question a clarification too.
+- **Show more always gives 3 cards, even after a `top_k`.** After "the cheapest tablet", it gives the next 3 cheapest. Alternative: repeat the `top_k` count, which gives one card per click.
+- **Cards from Show more arrive in a message with no text.** A fixed English label would break the rule that the button needs no language.
+- **Show more runs in the click handler, not in a thread.** It is a quick filter, and with no pause between reading and saving the state, a double click can't show the same cards twice. Tested: a double click added 3 cards, not 6.
+- **Errors in the chat use fixed text, and the log holds only the exception's type.** OpenAI errors can contain request details. Alternative: show the exception text.
+- **Right-to-left uses `unicode-bidi: plaintext` in `public/style.css`.** Each paragraph follows its own first strong letter, so Hebrew and English both display correctly with no language detection. Alternative: detect the language and set `dir`, which is more code.
+- **Buttons are at least 44px tall on a phone.** "Show more" measured 36px before the rule. Alternative: leave Chainlit's size.
+
 ## Wave 2
 
 - **Each word of a keyword counts separately.** "Coffee table" must find the only table, and "running shoes" with no category must find shoes. The cost: "face cream" with no category also matches Ice Cream. Alternative: require all words, which returned nothing for those cases.
