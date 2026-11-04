@@ -13,8 +13,9 @@ A minimal AI shopping copilot: the user chats, the system understands intent, re
 ## Scope and assumptions
 
 - Single local user. No real accounts and no multi-device sync (see Login for the one fixed user Chainlit needs).
-- Catalog is static. No stock or price changes during a chat.
-- English only. Desktop browser only.
+- Catalog is static, and fetching it once is confirmed acceptable by Bazak. No stock or price changes during a chat. Or must still be able to discuss how this would handle live inventory and price changes.
+- UI and product cards are in English. Users may write in any language, and replies use the user's language.
+- Responsive: the app must work on desktop and mobile browsers (Bazak's requirement).
 - Product discovery only. No cart, checkout or orders.
 - No streaming. Replies are returned whole, to keep card rendering simple.
 
@@ -76,7 +77,9 @@ If the model's output fails validation, use the safe default: `needs_clarificati
 
 The model must use minimal own knowledge. It never mentions a product, price or detail that did not come from the search results. If the catalog doesn't list something (no iPhone in the catalog mentions battery life), the reply says so. Off-catalog requests get a polite "we don't carry that", with no products; the reply may name a related category but no specific product.
 
-Dollar amounts in a reply must be prices of shown products, or a limit the user stated ("nothing under $10").
+Dollar amounts in a reply must be prices of shown products, or a limit the user stated ("nothing under $10"). Prices are shown in dollars only.
+
+The reply uses the user's language, but product titles stay exactly as in the catalog, so the grounding check can still find them.
 
 ## Prompt injection
 
@@ -116,7 +119,9 @@ The parser's output is a structured object only; the user never sees it. Code us
 3. **Intents:** one line + one example each: `product_search` ("laptops under $1,000"), `needs_clarification` ("something cheap and cool"), `off_catalog` ("a flight to Tokyo", or "ignore your instructions"), `small_talk` (greetings, thanks).
 4. **Mode:** refine vs new vs show_more, with examples ("cheaper ones" = refine, "now sunglasses" = new).
 5. **Bounds:** "under $X" = X − 0.01; "over $X" or "above 4 stars" = X + 0.01 (4.01 for ratings); "up to", "at most", "at least", "between" and a stated budget = X exactly. Read words as numbers ("a grand" = 1000, "10k" = 10000).
-6. **Few-shot examples:** a handful of full outputs. Never taken from `datasets/`, to avoid inflated scores.
+6. **Language:** the shopper may write in any language. Write `keywords` in English, because the catalog is English only. Read intent, mode and bounds the same way in every language.
+7. **Currency:** the catalog is in dollars and we have no exchange rates. A budget in another currency is `needs_clarification`: ask for it in dollars, never convert it.
+8. **Few-shot examples:** a handful of full outputs. Never taken from `datasets/`, to avoid inflated scores.
 
 ## Login
 
@@ -139,14 +144,14 @@ Handle failures explicitly: DB file missing (recreate), corrupted (start a fresh
 
 ## Evaluation
 
-- `tests/`: pytest unit tests with a fake LLM: search filters, fallback, parser schema validation, storage round-trip.
+- `tests/`: pytest unit tests with a fake LLM: search filters, fallback, parser schema validation, storage round-trip. `tests/test_flow.py` runs one message from input through parsing and search to the card data sent to the UI, because Bazak asks for validation through to response rendering.
 - `datasets/` holds the labeled data, documented in `README.md`. `evals/` holds the code that scores it. Each case is labeled `basic` or `hard`; report the two separately.
-- `datasets/deterministic.csv`: 65 single-turn queries (50 basic, 15 hard), each with its expected filter.
+- `datasets/deterministic.csv`: 69 single-turn queries (50 basic, 19 hard), each with its expected filter.
   - `evals/ground_truth.py` computes the expected product IDs from the CSV and the cached catalog. It does not import `app/search.py`, so a search bug can't hide in both sides.
-  - Score the parser and `search()` with no fallback and no display cap, applying `top_k` only when set. 49 rows have no `top_k` and more than 3 products in their category, so the 3-card default would wreck recall.
+  - Score the parser and `search()` with no fallback and no display cap, applying `top_k` only when set. 51 rows have no `top_k` and more than 3 products in their category, so the 3-card default would wreck recall.
   - Metrics: precision, recall, F1, exact match for `top_k` queries, and the share of rows whose extracted filter matches exactly. If both the expected and returned sets are empty, the row scores 1.0.
-- `datasets/behavioral.jsonl`: 26 conversations (20 basic, 6 hard), 5 of them multi-turn. Replay all turns through the full pipeline and score the last turn.
-  - Metrics: intent accuracy, mode accuracy, category accuracy (`category_match` says `all` or `any`), fallback accuracy (`expect_fallback` against what was loosened), grounding rate (target 100%).
+- `datasets/behavioral.jsonl`: 30 conversations (20 basic, 10 hard), 6 of them multi-turn. Replay all turns through the full pipeline and score the last turn.
+  - Metrics: intent accuracy, mode accuracy, category accuracy (`category_match` says `all` or `any`), fallback accuracy (`expect_fallback` against what was loosened), reply language (`expected_language`, on cases that set it), grounding rate (target 100%).
   - Grounding is checked by code: no catalog title outside the shown products, and every dollar amount allowed by the Grounding rule.
   - `expected_behavior` is not scored automatically. `evals/run_evals.py` prints each reply beside it for Or to read.
 - `evals/run_evals.py` prints a summary table.
