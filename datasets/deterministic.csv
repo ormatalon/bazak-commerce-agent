@@ -1,0 +1,66 @@
+id,query,category,price_min,price_max,rating_min,sort_by,order,top_k,difficulty
+1,Show me laptops under $1000,laptops,,999.99,,,,,basic
+2,What smartphones do you have?,smartphones,,,,,,,basic
+3,Smartphones under $300,smartphones,,299.99,,,,,basic
+4,Tablets,tablets,,,,,,,basic
+5,Cheapest tablet,tablets,,,,price,asc,1,basic
+6,Most expensive laptop,laptops,,,,price,desc,1,basic
+7,Perfumes under $50,fragrances,,49.99,,,,,basic
+8,All fragrances,fragrances,,,,,,,basic
+9,Makeup products,beauty,,,,,,,basic
+10,Skin care products rated above 4,skin-care,,,4.01,,,,basic
+11,Furniture,furniture,,,,,,,basic
+12,Furniture under $500,furniture,,499.99,,,,,basic
+13,Groceries under $5,groceries,,4.99,,,,,basic
+14,Home decoration items,home-decoration,,,,,,,basic
+15,Kitchen accessories under $20,kitchen-accessories,,19.99,,,,,basic
+16,Men's shirts,mens-shirts,,,,,,,basic
+17,Men's shoes under $100,mens-shoes,,99.99,,,,,basic
+18,Men's watches,mens-watches,,,,,,,basic
+19,Women's watches rated 4.5 or more,womens-watches,,,4.5,,,,basic
+20,Phone accessories,mobile-accessories,,,,,,,basic
+21,Mobile accessories under $30,mobile-accessories,,29.99,,,,,basic
+22,Motorcycles,motorcycle,,,,,,,basic
+23,Cars,vehicle,,,,,,,basic
+24,Cheapest vehicle,vehicle,,,,price,asc,1,basic
+25,Sports accessories,sports-accessories,,,,,,,basic
+26,Sports gear under $25,sports-accessories,,24.99,,,,,basic
+27,Sunglasses,sunglasses,,,,,,,basic
+28,Sunglasses under $50,sunglasses,,49.99,,,,,basic
+29,Women's tops,tops,,,,,,,basic
+30,Women's bags,womens-bags,,,,,,,basic
+31,Women's bags under $100,womens-bags,,99.99,,,,,basic
+32,Dresses,womens-dresses,,,,,,,basic
+33,Jewellery for women,womens-jewellery,,,,,,,basic
+34,Women's shoes,womens-shoes,,,,,,,basic
+35,Laptops between $500 and $1500,laptops,500,1500,,,,,basic
+36,Smartphones rated above 4.5,smartphones,,,4.51,,,,basic
+37,Top 3 highest-rated fragrances,fragrances,,,,rating,desc,3,basic
+38,Top 5 cheapest groceries,groceries,,,,price,asc,5,basic
+39,Furniture rated 4 or more under $300,furniture,,299.99,4,,,,basic
+40,Highest-rated tablet,tablets,,,,rating,desc,1,basic
+41,Men's watches over $200,mens-watches,200.01,,,,,,basic
+42,Women's watches under $150,womens-watches,,149.99,,,,,basic
+43,"Kitchen accessories, cheapest first",kitchen-accessories,,,,price,asc,,basic
+44,Beauty products under $10,beauty,,9.99,,,,,basic
+45,Skin care under $20,skin-care,,19.99,,,,,basic
+46,Home decor under $30,home-decoration,,29.99,,,,,basic
+47,Women's shoes rated above 4,womens-shoes,,,4.01,,,,basic
+48,Men's shirts under $40,mens-shirts,,39.99,,,,,basic
+49,Motorcycles under $10000,motorcycle,,9999.99,,,,,basic
+50,Most expensive sunglasses,sunglasses,,,,price,desc,1,basic
+51,My laptop just died and I've got about a grand to spend. What can I get without going over?,laptops,,1000,,,,,hard
+52,"I'm after a new phone, nothing above three hundred bucks",smartphones,,300,,,,,hard
+53,"Looking for a fragrance for my girlfriend, budget is tight, under fifty dollars please",fragrances,,49.99,,,,,hard
+54,What's the single cheapest thing you've got for the kitchen?,kitchen-accessories,,,,price,asc,1,hard
+55,"I want a watch for myself (I'm a guy), but only ones people really like, 4.5 stars and up",mens-watches,,,4.5,,,,hard
+56,can u show me sunglases under 50$,sunglasses,,49.99,,,,,hard
+57,"Need some food items, the cheaper the better. Just give me the 3 cheapest",groceries,,,,price,asc,3,hard
+58,I'm furnishing a new apartment. Show me furniture between two hundred and eight hundred dollars,furniture,200,800,,,,,hard
+59,"Any tablet recommendations? I care more about ratings than price, give me the top 2",tablets,,,,rating,desc,2,hard
+60,"Not motorcycle gear, an actual motorcycle, under 10k",motorcycle,,9999.99,,,,,hard
+61,"Shoes for women, but only highly rated ones, above 4 stars, and nothing over $100",womens-shoes,,100,4.01,,,,hard
+62,"I don't want a laptop, I want a tablet. What's the most expensive one you have?",tablets,,,,price,desc,1,hard
+63,"My skin's been really dry lately, any skin care stuff under twenty bucks rated at least 4?",skin-care,,19.99,4,,,,hard
+64,"Show me men's shoes, sorted from cheapest to most expensive",mens-shoes,,,,price,asc,,hard
+65,"Gift idea for my mom: a handbag, budget somewhere between $50 and $150",womens-bags,50,150,,,,,hard
