@@ -19,7 +19,8 @@ def _get_client() -> OpenAI:
         load_dotenv()
         # With no api_key argument the client reads OPENAI_API_KEY itself,
         # so the key never sits in a variable of ours, and is never printed or logged.
-        _client = OpenAI(timeout=60.0)
+        # One retry, so a persistent error shows in about 2 minutes, not 3.
+        _client = OpenAI(timeout=60.0, max_retries=1)
     return _client
 
 
