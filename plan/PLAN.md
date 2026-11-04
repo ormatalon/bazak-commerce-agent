@@ -11,7 +11,7 @@ Build order for a small Claude Code team led by the main session. Follow CLAUDE.
 | LLM | `voltagent-data-ai:prompt-engineer` | `app/parser.py`, `app/responder.py`, `app/llm.py`, `tests/test_parser.py`, `tests/test_responder.py` |
 | App | `voltagent-core-dev:fullstack-developer` | `app/main.py`, `app/pipeline.py`, `app/storage.py`, `public/`, `.chainlit/config.toml`, `tests/test_storage.py`, `tests/test_flow.py` |
 | Evals | `voltagent-data-ai:data-scientist` | `evals/` |
-| Reviewer | `voltagent-qa-sec:surgeon-reviewer` | nothing; read-only |
+| Reviewer | `voltagent-qa-sec:surgeon-reviewer` | nothing; read-only. Runs once, in wave 6 |
 
 `datasets/` changes only with Or's approval.
 
@@ -27,7 +27,7 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 | 3 | Step 5 responder (LLM), Step 5 wiring in `app/pipeline.py` and `app/main.py` (App) | Try the merged app in the browser, on desktop and at phone width |
 | 4 | Step 6 (App) | Choose the storage approach before work starts; test failures after |
 | 5 | Step 7 full run (Lead, with Evals fixing scoring bugs and owners fixing their modules) | Decide on the 8 dataset rows before the run, then read the replies and results |
-| 6 | Step 8 (Lead drafts) | Rewrite the README and submit |
+| 6 | One Reviewer pass over `git diff master...staging`, with fixes on new branches, then Step 8 (Lead drafts) | Rewrite the README and submit |
 
 ## Branches
 
@@ -39,11 +39,10 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 **Getting a branch into `staging`:**
 
 1. The owner commits on its branch, runs its own tests and reports back.
-2. The Reviewer reviews `git diff staging...<branch>`. The owner fixes what it finds on the same branch.
-3. The Lead approves or rejects the branch. Approval needs a clean Reviewer pass and passing tests; the Lead's own branches need the same. Or does not approve individual branches.
-4. Only then, the Lead merges the branch with `git merge --no-ff`, runs the full `pytest` and removes its worktree.
-5. Real-model and browser checks run on `staging` right after the merge, because only the main folder has `.env`. A failure becomes a new fix branch through the same steps.
-6. At the end of each wave, the Lead reports to Or in plain words: what merged, why, and any decisions made, so Or can still defend every line. The Lead waits for Or only where the Waves table says so.
+2. The Lead reads `git diff staging...<branch>` and approves or rejects it. Approval needs passing tests; the Lead's own branches need the same. Or does not approve individual branches.
+3. Only then, the Lead merges the branch with `git merge --no-ff`, runs the full `pytest` and removes its worktree.
+4. Real-model and browser checks run on `staging` right after the merge, because only the main folder has `.env`. A failure becomes a new fix branch through the same steps.
+5. At the end of each wave, the Lead reports to Or in plain words: what merged, why, and any decisions made, so Or can still defend every line. The Lead waits for Or only where the Waves table says so.
 
 Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 
@@ -51,7 +50,7 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 
 - **Stay in your files.** An agent needing a change elsewhere, including to `app/schemas.py`, reports it to the Lead instead of making it.
 - **Test your own area.** Agents run only their own test files, from their worktree, with the shared interpreter: `C:/Users/Or/OneDrive/Desktop/repos/bazak-commerce-agent/.venv/Scripts/python -m pytest <file>`. Worktrees have no `.venv` of their own.
-- **No key for agents.** Worktrees have no `.env`. Agents use the fake LLM and `tests/fixtures/catalog_sample.json`. The Lead runs anything that calls `gpt-6-luna`.
+- **No key for agents.** Worktrees have no `.env`, but `load_dotenv` searches parent folders and worktrees sit inside the main folder, so it can still find the main `.env`. Agents make no real-model calls and use the fake LLM and `tests/fixtures/catalog_sample.json`. The Lead runs anything that calls `gpt-6-luna`.
 - **Evals stay independent.** Evals works from the datasets and `app/schemas.py`, and does not read `app/search.py` when writing `ground_truth.py`.
 - **Report back.** Each agent ends with what it built and why in plain words, which checks passed with their output, and any decision it made on its own. The Lead records those in `DECISIONS.md`.
 - **Stop early** if a check can't pass, an agent needs a dependency or a design change, or two roles need the same file.
@@ -136,7 +135,7 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 **Definition of done:**
 
 - Output is always valid. Check: run the parser on every turn of the 30 behavioral conversations; every output passes the Pydantic schema (0 crashes).
-- Other languages work. Check: the Hebrew perfume request in `datasets/behavioral.jsonl` gives `fragrances` with English keywords. A budget in shekels gives `needs_clarification`, with no converted price.
+- Other languages work. Check: the Hebrew perfume request in `datasets/behavioral.jsonl` gives `fragrances`, and any keywords are in English. A budget in shekels gives `needs_clarification`, with no converted price.
 - Intents are right on the obvious cases. Check: "a flight to Tokyo" → `off_catalog`; "hi" → `small_talk`; "something cheap and cool" → `needs_clarification`.
 - Multi-intent splits. Check: "a laptop and a phone case" returns two searches with categories `laptops` and `mobile-accessories`. "A phone under $500 and a pair of sunglasses" puts the price limit on the phone search only.
 - Mixed requests split. Check: "Book me a flight to Paris and find me sunglasses" gives `product_search`, one `sunglasses` search and the flight in `unsupported`.
@@ -162,6 +161,13 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 - [ ] Add `app/pipeline.py`: `run_turn` and `show_more`, which `app/main.py` calls
 - [ ] `tests/test_flow.py`: one message from input through a fake model and search to the card data sent to the UI (App owns it)
 
+**Known traps:**
+
+- `run_turn` raises on LLM failures, so evals see them; `app/main.py` catches them and shows fixed error text.
+- Guard an out-of-range `refines_index`, and a refine or `show_more` with no previous search.
+- `show_more` must not overwrite `state.searches`. Its state stays on the server, not in the button's payload.
+- `Message.send` sends elements concurrently, so send the message first, then `await el.send(for_id=msg.id)`.
+
 **Definition of done:**
 
 - Cards render. Check: in the browser, ask "laptops under $1,500"; 3 product cards show title, short description, price and image, not plain text.
@@ -185,6 +191,8 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 - [ ] New chat, list of past chats, resume a chat with its cards; each assistant message stores its structured search and the shown products' card fields. Single fixed local user login (from `.env`) to enable Chainlit history
 - [ ] Failure handling: missing, corrupted, unwritable or full DB
 - [ ] Storage round-trip test
+
+**Known traps with Chainlit's data layer:** it needs a storage provider to keep elements, it returns `props` as a string on SQLite so cards vanish on resume unless parsed, and `create_element` is fire-and-forget, so a failed write goes unnoticed.
 
 **Definition of done:**
 
