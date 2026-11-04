@@ -9,7 +9,7 @@ Build order for a small Claude Code team led by the main session. Follow CLAUDE.
 | Lead | main session | `app/schemas.py`, `CLAUDE.md`, `plan/`, `DECISIONS.md`, `README.md`, `requirements.txt`, `.gitignore`, `.env.example`, every merge, every real-model and browser check |
 | Retrieval | `voltagent-core-dev:backend-developer` | `app/catalog.py`, `app/search.py`, `tests/test_catalog.py`, `tests/test_search.py` |
 | LLM | `voltagent-data-ai:prompt-engineer` | `app/parser.py`, `app/responder.py`, `tests/test_parser.py`, `tests/test_responder.py` |
-| App | `voltagent-core-dev:fullstack-developer` | `app/main.py`, `app/storage.py`, `public/elements/`, `tests/test_storage.py`, `tests/test_flow.py` |
+| App | `voltagent-core-dev:fullstack-developer` | `app/main.py`, `app/storage.py`, `public/`, `.chainlit/config.toml`, `tests/test_storage.py`, `tests/test_flow.py` |
 | Evals | `voltagent-data-ai:data-scientist` | `evals/` |
 | Reviewer | `voltagent-qa-sec:surgeon-reviewer` | nothing; read-only |
 
@@ -70,10 +70,10 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
   - `load_catalog() -> list[Product]`, `load_categories() -> list[str]`
   - `search(spec, catalog) -> list[Product]`, `search_with_fallback(spec, catalog) -> SearchOutcome`
   - `parse_request(message, history, previous_searches, shown, categories, llm) -> ParsedRequest`, `merge_refine(previous, change) -> SearchSpec`
-  - `write_reply(parsed, outcomes, llm) -> str`
+  - `write_reply(message, parsed, outcomes, llm) -> str`
   - `llm` is a plain callable, so tests can pass a fake
 - [ ] `tests/fixtures/catalog_sample.json`: a few real products, so tests don't depend on the network
-- [ ] Mobile test: open an empty Chainlit app at 375px wide, including the sidebar and login. If it can't work on a phone, stop and tell Or before anyone builds on it
+- [ ] Mobile test: open a throwaway Chainlit app at 375px wide with a temporary login and an in-memory data layer, because the past-chats sidebar only appears with both. Keep it out of the repo and add no dependency to the project. If it can't work on a phone, stop and tell Or before anyone builds on it
 
 **Definition of done:**
 
@@ -82,6 +82,7 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 - Key is safe. Check: `git status` does not list `.env`; `git check-ignore .env` prints `.env`.
 - Tests run. Check: `pytest` runs and reports 0 failures (even if there are few tests yet).
 - Contract loads. Check: `app/schemas.py` and every stub import cleanly, and a `SearchSpec` built from a row of `datasets/deterministic.csv` validates.
+- Chainlit works on a phone. Check: at 375px wide in the throwaway app, the login, chat and past-chats sidebar are usable and the page doesn't scroll sideways.
 
 ## Step 2: Catalog
 

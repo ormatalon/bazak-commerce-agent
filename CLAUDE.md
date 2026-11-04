@@ -42,7 +42,7 @@ One message flows through four steps, each its own module in `app/`:
 1. **Catalog** (`app/catalog.py`): fetch the full DummyJSON catalog (194 products) and category list (24 slugs) once, cache to a local JSON file, load into memory. Reason: the API's search is keyword-only and has no price or rating filters; filtering the full catalog in our code gives exact, testable results.
 2. **Parser** (`app/parser.py`): one LLM call turns the user message plus recent history into a structured search (Pydantic, see Search schema).
 3. **Search** (`app/search.py`): plain Python filter and rank over the cached catalog, with a fallback that is our code, not the model's.
-4. **Responder** (`app/responder.py`): one LLM call writes a short reply using ONLY the returned products. Products are rendered as cards (title, short description, price, image).
+4. **Responder** (`app/responder.py`): one LLM call receives the user's latest message, the parsed request and the search outcomes, and writes a short reply using ONLY the returned products. Products are rendered as cards (title, short description, price, image).
 
 `app/schemas.py` holds the shared Pydantic models that every module builds against. `app/main.py` wires these together; `app/storage.py` exists only if Chainlit's data layer is not used (see Persistence).
 
@@ -77,9 +77,9 @@ If the model's output fails validation, use the safe default: `needs_clarificati
 
 The model must use minimal own knowledge. It never mentions a product, price or detail that did not come from the search results. If the catalog doesn't list something (no iPhone in the catalog mentions battery life), the reply says so. Off-catalog requests get a polite "we don't carry that", with no products; the reply may name a related category but no specific product.
 
-Dollar amounts in a reply must be prices of shown products, or a limit the user stated ("nothing under $10"). Prices are shown in dollars only.
+Dollar amounts in a reply must be prices of shown products, or a limit the user stated ("nothing under $10"). Prices are shown in dollars only, written like `$1,234.56` in every language.
 
-The reply uses the user's language, but product titles stay exactly as in the catalog, so the grounding check can still find them.
+The reply uses the language of the user's latest message, but product titles stay exactly as in the catalog. A clarifying question works the same way: the responder reads the latest message to see what to ask, such as the budget in dollars.
 
 ## Prompt injection
 
@@ -152,7 +152,8 @@ Handle failures explicitly: DB file missing (recreate), corrupted (start a fresh
   - Metrics: precision, recall, F1, exact match for `top_k` queries, and the share of rows whose extracted filter matches exactly. If both the expected and returned sets are empty, the row scores 1.0.
 - `datasets/behavioral.jsonl`: 30 conversations (20 basic, 10 hard), 6 of them multi-turn. Replay all turns through the full pipeline and score the last turn.
   - Metrics: intent accuracy, mode accuracy, category accuracy (`category_match` says `all` or `any`), fallback accuracy (`expect_fallback` against what was loosened), reply language (`expected_language`, on cases that set it), grounding rate (target 100%).
-  - Grounding is checked by code: no catalog title outside the shown products, and every dollar amount allowed by the Grounding rule.
+  - Grounding is checked by code, in any language: no catalog title outside the shown products, and every number in the reply must appear in a shown product's fields or the user's message, or be the number of cards shown. A translated title of an unshown product can slip past this; only Or's read of the printed replies catches it.
+  - Reply language is checked by code, after removing shown product titles: `he` means most letters are in Hebrew script; `es` means more words match a short Spanish stopword list than an English one. No detection library. It covers only the cases that set `expected_language`, so report it as a count with no target.
   - `expected_behavior` is not scored automatically. `evals/run_evals.py` prints each reply beside it for Or to read.
 - `evals/run_evals.py` prints a summary table.
 
@@ -162,4 +163,5 @@ Handle failures explicitly: DB file missing (recreate), corrupted (start a fresh
 - If you are a team member, edit only the files your role owns and follow the Branches and Team rules in `plan/PLAN.md`. Commit only on your own branch, never merge.
 - Before adding a dependency or changing a design decision above, ask Or. Team members raise these with the Lead.
 - Keep functions small, typed and commented where the reason is not obvious.
+- Text is UTF-8. Pass `encoding="utf-8"` on every file open, because the datasets contain Hebrew and Python on Windows defaults to cp1252. Scripts that print replies call `sys.stdout.reconfigure(encoding="utf-8")`.
 - Log every decision made without Or in `DECISIONS.md` (what, why, alternatives). Team members report theirs to the Lead, who writes the log.
