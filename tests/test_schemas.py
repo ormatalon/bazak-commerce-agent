@@ -46,3 +46,38 @@ def test_non_search_intent_needs_no_mode_or_searches() -> None:
     parsed = ParsedRequest(intent="small_talk")
     assert parsed.mode is None
     assert parsed.searches == []
+
+
+def test_off_catalog_can_never_carry_a_search() -> None:
+    parsed = ParsedRequest(intent="off_catalog", mode="new", searches=[SearchSpec(category="laptops")])
+    assert parsed.mode is None
+    assert parsed.searches == []
+
+
+def test_unset_keywords_are_null_so_a_refine_can_keep_them() -> None:
+    assert SearchSpec().keywords is None
+
+
+def test_clear_fields_only_accepts_real_fields() -> None:
+    assert SearchSpec(clear_fields=["price_max"]).clear_fields == ["price_max"]
+    with pytest.raises(ValidationError):
+        SearchSpec(clear_fields=["price"])
+
+
+def test_top_k_must_be_positive() -> None:
+    with pytest.raises(ValidationError):
+        SearchSpec(top_k=0)
+
+
+def test_unknown_category_inside_a_parsed_request_is_rejected() -> None:
+    raw = '{"intent": "product_search", "mode": "new", "searches": [{"category": "flights"}]}'
+    with pytest.raises(ValidationError):
+        ParsedRequest.model_validate_json(raw, context={"categories": CATEGORIES})
+
+
+def test_strict_schema_has_no_default_or_minimum_keys() -> None:
+    from openai.lib._pydantic import to_strict_json_schema
+
+    text = json.dumps(to_strict_json_schema(ParsedRequest))
+    assert '"default"' not in text
+    assert "exclusiveMinimum" not in text

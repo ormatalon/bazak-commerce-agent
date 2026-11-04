@@ -44,7 +44,7 @@ One message flows through four steps, each its own module in `app/`:
 3. **Search** (`app/search.py`): plain Python filter and rank over the cached catalog, with a fallback that is our code, not the model's.
 4. **Responder** (`app/responder.py`): one LLM call receives the user's latest message, the parsed request and the search outcomes, and writes a short reply using ONLY the returned products. Products are rendered as cards (title, short description, price, image).
 
-`app/schemas.py` holds the shared Pydantic models that every module builds against. `app/main.py` wires these together; `app/storage.py` exists only if Chainlit's data layer is not used (see Persistence).
+`app/schemas.py` holds the shared Pydantic models that every module builds against. `app/pipeline.py` runs one whole turn with no Chainlit in it, so the UI, `tests/test_flow.py` and the evals all use the same code. `app/main.py` connects it to Chainlit; `app/storage.py` exists only if Chainlit's data layer is not used (see Persistence).
 
 Why one-pass + fallback instead of tool calling: every step is our code, so each behavior can be pointed to and defended; tool calling is less predictable and harder to test.
 
@@ -63,7 +63,7 @@ These names match the columns of `datasets/deterministic.csv`, so evals compare 
 
 `SearchSpec`:
 
-- `keywords`: list of words
+- `keywords`: list of words, or null. On a refine, null means keep them, like every other field
 - `category`: one of the real slugs, or null. A slug outside the list fails validation.
 - `price_min`, `price_max`, `rating_min`: all bounds inclusive. Do not cap `rating_min` at 5: "rated above 5" is valid input and must reach the fallback.
 - `sort_by` (`price`, `rating` or null), `order` (`asc`, `desc` or null)
@@ -88,6 +88,8 @@ User text is data, never instructions. A request to ignore instructions or revea
 ## Search and ranking
 
 `search()` returns every match, ranked, with no display cap and no fallback. Callers apply the fallback and the card count, which keeps the filter logic testable and lets evals score it directly.
+
+In a `SearchOutcome`, `spec` is the search as the user asked for it, before loosening; `products` is everything matched; `shown` is the cards to display, filled by `app/pipeline.py`. The responder only sees `shown`, so it can't name a product with no card.
 
 **Keywords.** With a category set, keywords only affect rank and never exclude a product. Checked against the catalog: "makeup" matches 0 of 5 `beauty` products and "car" matches 2 of 5 `vehicle` products, so a keyword filter would wrongly empty or shrink these results. With no category, a product must match at least one keyword.
 

@@ -356,6 +356,384 @@
     "returnPolicy": "60 days return policy"
   },
   {
+    "id": 88,
+    "title": "Nike Air Jordan 1 Red And Black",
+    "description": "The Nike Air Jordan 1 in Red and Black is an iconic basketball sneaker known for its stylish design and high-performance features, making it a favorite among sneaker enthusiasts and athletes.",
+    "category": "mens-shoes",
+    "price": 149.99,
+    "rating": 4.77,
+    "tags": [
+      "footwear",
+      "athletic shoes"
+    ],
+    "brand": "Nike",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/mens-shoes/nike-air-jordan-1-red-and-black/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "1 year warranty",
+    "shippingInformation": "Ships in 1 week",
+    "returnPolicy": "No return policy"
+  },
+  {
+    "id": 89,
+    "title": "Nike Baseball Cleats",
+    "description": "Nike Baseball Cleats are designed for maximum traction and performance on the baseball field. They provide stability and support for players during games and practices.",
+    "category": "mens-shoes",
+    "price": 79.99,
+    "rating": 3.88,
+    "tags": [
+      "footwear",
+      "sports cleats"
+    ],
+    "brand": "Nike",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/mens-shoes/nike-baseball-cleats/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "6 months warranty",
+    "shippingInformation": "Ships in 2 weeks",
+    "returnPolicy": "No return policy"
+  },
+  {
+    "id": 90,
+    "title": "Puma Future Rider Trainers",
+    "description": "The Puma Future Rider Trainers offer a blend of retro style and modern comfort. Perfect for casual wear, these trainers provide a fashionable and comfortable option for everyday use.",
+    "category": "mens-shoes",
+    "price": 89.99,
+    "rating": 4.9,
+    "tags": [
+      "footwear",
+      "casual shoes"
+    ],
+    "brand": "Puma",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/mens-shoes/puma-future-rider-trainers/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "5 year warranty",
+    "shippingInformation": "Ships in 1-2 business days",
+    "returnPolicy": "90 days return policy"
+  },
+  {
+    "id": 91,
+    "title": "Sports Sneakers Off White & Red",
+    "description": "The Sports Sneakers in Off White and Red combine style and functionality, making them a fashionable choice for sports enthusiasts. The red and off-white color combination adds a bold and energetic touch.",
+    "category": "mens-shoes",
+    "price": 119.99,
+    "rating": 4.77,
+    "tags": [
+      "footwear",
+      "athletic shoes"
+    ],
+    "brand": "Off White",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/mens-shoes/sports-sneakers-off-white-&-red/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "1 week warranty",
+    "shippingInformation": "Ships in 3-5 business days",
+    "returnPolicy": "30 days return policy"
+  },
+  {
+    "id": 92,
+    "title": "Sports Sneakers Off White Red",
+    "description": "Another variant of the Sports Sneakers in Off White Red, featuring a unique design. These sneakers offer style and comfort for casual occasions.",
+    "category": "mens-shoes",
+    "price": 109.99,
+    "rating": 4.69,
+    "tags": [
+      "footwear",
+      "casual shoes"
+    ],
+    "brand": "Off White",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/mens-shoes/sports-sneakers-off-white-red/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "3 months warranty",
+    "shippingInformation": "Ships overnight",
+    "returnPolicy": "60 days return policy"
+  },
+  {
+    "id": 121,
+    "title": "iPhone 5s",
+    "description": "The iPhone 5s is a classic smartphone known for its compact design and advanced features during its release. While it's an older model, it still provides a reliable user experience.",
+    "category": "smartphones",
+    "price": 199.99,
+    "rating": 2.83,
+    "tags": [
+      "smartphones",
+      "apple"
+    ],
+    "brand": "Apple",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/iphone-5s/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "Lifetime warranty",
+    "shippingInformation": "Ships in 1 month",
+    "returnPolicy": "60 days return policy"
+  },
+  {
+    "id": 122,
+    "title": "iPhone 6",
+    "description": "The iPhone 6 is a stylish and capable smartphone with a larger display and improved performance. It introduced new features and design elements, making it a popular choice in its time.",
+    "category": "smartphones",
+    "price": 299.99,
+    "rating": 3.41,
+    "tags": [
+      "smartphones",
+      "apple"
+    ],
+    "brand": "Apple",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/iphone-6/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "1 month warranty",
+    "shippingInformation": "Ships overnight",
+    "returnPolicy": "7 days return policy"
+  },
+  {
+    "id": 123,
+    "title": "iPhone 13 Pro",
+    "description": "The iPhone 13 Pro is a cutting-edge smartphone with a powerful camera system, high-performance chip, and stunning display. It offers advanced features for users who demand top-notch technology.",
+    "category": "smartphones",
+    "price": 1099.99,
+    "rating": 4.12,
+    "tags": [
+      "smartphones",
+      "apple"
+    ],
+    "brand": "Apple",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/iphone-13-pro/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "3 year warranty",
+    "shippingInformation": "Ships in 2 weeks",
+    "returnPolicy": "7 days return policy"
+  },
+  {
+    "id": 124,
+    "title": "iPhone X",
+    "description": "The iPhone X is a flagship smartphone featuring a bezel-less OLED display, facial recognition technology (Face ID), and impressive performance. It represents a milestone in iPhone design and innovation.",
+    "category": "smartphones",
+    "price": 899.99,
+    "rating": 2.51,
+    "tags": [
+      "smartphones",
+      "apple"
+    ],
+    "brand": "Apple",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/iphone-x/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "3 months warranty",
+    "shippingInformation": "Ships in 3-5 business days",
+    "returnPolicy": "7 days return policy"
+  },
+  {
+    "id": 125,
+    "title": "Oppo A57",
+    "description": "The Oppo A57 is a mid-range smartphone known for its sleek design and capable features. It offers a balance of performance and affordability, making it a popular choice.",
+    "category": "smartphones",
+    "price": 249.99,
+    "rating": 3.94,
+    "tags": [
+      "smartphones",
+      "oppo"
+    ],
+    "brand": "Oppo",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/oppo-a57/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "Lifetime warranty",
+    "shippingInformation": "Ships in 3-5 business days",
+    "returnPolicy": "90 days return policy"
+  },
+  {
+    "id": 126,
+    "title": "Oppo F19 Pro Plus",
+    "description": "The Oppo F19 Pro Plus is a feature-rich smartphone with a focus on camera capabilities. It boasts advanced photography features and a powerful performance for a premium user experience.",
+    "category": "smartphones",
+    "price": 399.99,
+    "rating": 3.51,
+    "tags": [
+      "smartphones",
+      "oppo"
+    ],
+    "brand": "Oppo",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/oppo-f19-pro-plus/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "3 year warranty",
+    "shippingInformation": "Ships in 1 week",
+    "returnPolicy": "90 days return policy"
+  },
+  {
+    "id": 127,
+    "title": "Oppo K1",
+    "description": "The Oppo K1 series offers a range of smartphones with various features and specifications. Known for their stylish design and reliable performance, the Oppo K1 series caters to diverse user preferences.",
+    "category": "smartphones",
+    "price": 299.99,
+    "rating": 4.25,
+    "tags": [
+      "smartphones",
+      "oppo"
+    ],
+    "brand": "Oppo",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/oppo-k1/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "1 month warranty",
+    "shippingInformation": "Ships in 1-2 business days",
+    "returnPolicy": "30 days return policy"
+  },
+  {
+    "id": 128,
+    "title": "Realme C35",
+    "description": "The Realme C35 is a budget-friendly smartphone with a focus on providing essential features for everyday use. It offers a reliable performance and user-friendly experience.",
+    "category": "smartphones",
+    "price": 149.99,
+    "rating": 4.2,
+    "tags": [
+      "smartphones",
+      "realme"
+    ],
+    "brand": "Realme",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/realme-c35/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "3 year warranty",
+    "shippingInformation": "Ships overnight",
+    "returnPolicy": "90 days return policy"
+  },
+  {
+    "id": 129,
+    "title": "Realme X",
+    "description": "The Realme X is a mid-range smartphone known for its sleek design and impressive display. It offers a good balance of performance and camera capabilities for users seeking a quality device.",
+    "category": "smartphones",
+    "price": 299.99,
+    "rating": 3.7,
+    "tags": [
+      "smartphones",
+      "realme"
+    ],
+    "brand": "Realme",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/realme-x/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "1 month warranty",
+    "shippingInformation": "Ships in 3-5 business days",
+    "returnPolicy": "No return policy"
+  },
+  {
+    "id": 130,
+    "title": "Realme XT",
+    "description": "The Realme XT is a feature-rich smartphone with a focus on camera technology. It comes equipped with advanced camera sensors, delivering high-quality photos and videos for photography enthusiasts.",
+    "category": "smartphones",
+    "price": 349.99,
+    "rating": 4.58,
+    "tags": [
+      "smartphones",
+      "realme"
+    ],
+    "brand": "Realme",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/realme-xt/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "3 year warranty",
+    "shippingInformation": "Ships in 1 month",
+    "returnPolicy": "60 days return policy"
+  },
+  {
+    "id": 131,
+    "title": "Samsung Galaxy S7",
+    "description": "The Samsung Galaxy S7 is a flagship smartphone known for its sleek design and advanced features. It features a high-resolution display, powerful camera, and robust performance.",
+    "category": "smartphones",
+    "price": 299.99,
+    "rating": 3.3,
+    "tags": [
+      "smartphones",
+      "samsung galaxy"
+    ],
+    "brand": "Samsung",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/samsung-galaxy-s7/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "3 months warranty",
+    "shippingInformation": "Ships in 3-5 business days",
+    "returnPolicy": "No return policy"
+  },
+  {
+    "id": 132,
+    "title": "Samsung Galaxy S8",
+    "description": "The Samsung Galaxy S8 is a premium smartphone with an Infinity Display, offering a stunning visual experience. It boasts advanced camera capabilities and cutting-edge technology.",
+    "category": "smartphones",
+    "price": 499.99,
+    "rating": 4.4,
+    "tags": [
+      "smartphones",
+      "samsung galaxy"
+    ],
+    "brand": "Samsung",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/samsung-galaxy-s8/thumbnail.webp",
+    "availabilityStatus": "Out of Stock",
+    "warrantyInformation": "2 year warranty",
+    "shippingInformation": "Ships in 1 week",
+    "returnPolicy": "No return policy"
+  },
+  {
+    "id": 133,
+    "title": "Samsung Galaxy S10",
+    "description": "The Samsung Galaxy S10 is a flagship device featuring a dynamic AMOLED display, versatile camera system, and powerful performance. It represents innovation and excellence in smartphone technology.",
+    "category": "smartphones",
+    "price": 699.99,
+    "rating": 3.06,
+    "tags": [
+      "smartphones",
+      "samsung galaxy"
+    ],
+    "brand": "Samsung",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/samsung-galaxy-s10/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "No warranty",
+    "shippingInformation": "Ships in 2 weeks",
+    "returnPolicy": "30 days return policy"
+  },
+  {
+    "id": 134,
+    "title": "Vivo S1",
+    "description": "The Vivo S1 is a stylish and mid-range smartphone offering a blend of design and performance. It features a vibrant display, capable camera system, and reliable functionality.",
+    "category": "smartphones",
+    "price": 249.99,
+    "rating": 3.5,
+    "tags": [
+      "smartphones",
+      "vivo"
+    ],
+    "brand": "Vivo",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/vivo-s1/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "6 months warranty",
+    "shippingInformation": "Ships in 3-5 business days",
+    "returnPolicy": "7 days return policy"
+  },
+  {
+    "id": 135,
+    "title": "Vivo V9",
+    "description": "The Vivo V9 is a smartphone known for its sleek design and emphasis on capturing high-quality selfies. It features a notch display, dual-camera setup, and a modern design.",
+    "category": "smartphones",
+    "price": 299.99,
+    "rating": 3.6,
+    "tags": [
+      "smartphones",
+      "vivo"
+    ],
+    "brand": "Vivo",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/vivo-v9/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "2 year warranty",
+    "shippingInformation": "Ships in 1 month",
+    "returnPolicy": "60 days return policy"
+  },
+  {
+    "id": 136,
+    "title": "Vivo X21",
+    "description": "The Vivo X21 is a premium smartphone with a focus on cutting-edge technology. It features an in-display fingerprint sensor, a high-resolution display, and advanced camera capabilities.",
+    "category": "smartphones",
+    "price": 499.99,
+    "rating": 4.26,
+    "tags": [
+      "smartphones",
+      "vivo"
+    ],
+    "brand": "Vivo",
+    "thumbnail": "https://cdn.dummyjson.com/product-images/smartphones/vivo-x21/thumbnail.webp",
+    "availabilityStatus": "In Stock",
+    "warrantyInformation": "1 year warranty",
+    "shippingInformation": "Ships in 1-2 business days",
+    "returnPolicy": "60 days return policy"
+  },
+  {
     "id": 154,
     "title": "Black Sun Glasses",
     "description": "The Black Sun Glasses are a classic and stylish choice, featuring a sleek black frame and tinted lenses. They provide both UV protection and a fashionable look.",
