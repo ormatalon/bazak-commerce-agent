@@ -16,8 +16,10 @@ __pycache__/
 *.db.bak
 catalog_cache.json
 
-# Chainlit uploads
+# Chainlit uploads and generated files
 .files/
+.chainlit/translations/
+chainlit.md
 
 # Claude Code personal settings and agent worktrees
 .claude/settings.local.json
