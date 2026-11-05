@@ -5,6 +5,7 @@ what it was given, because the real one is another module's job. Nothing here ca
 """
 
 import json
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -178,6 +179,21 @@ def test_a_refine_keeps_show_all(recorder):
     result = turn("cheaper", search_parse(SearchSpec(price_max=500), mode="refine"), state)
     assert result.state.searches[0].show_all is True
     assert len(result.outcomes[0].shown) > CARDS_PER_SEARCH
+
+
+def test_a_number_stated_after_list_all_sets_the_card_count(recorder):
+    state = turn("all phones", search_parse(SearchSpec(category="smartphones", show_all=True))).state
+    change = SearchSpec(sort_by="price", order="asc", top_k=2)
+    result = turn("just the 2 cheapest", search_parse(change, mode="refine"), state)
+    assert len(result.outcomes[0].shown) == 2
+    assert result.state.searches[0].show_all is None
+
+
+def test_editing_a_sent_message_is_switched_off():
+    # An edit re-runs the turn, but the state would keep the filters of the turn it replaced.
+    config = Path(__file__).parent.parent / ".chainlit" / "config.toml"
+    with config.open("rb") as file:
+        assert tomllib.load(file)["features"]["edit_message"] is False
 
 
 def test_the_total_counts_all_matches_though_three_cards_show(recorder):

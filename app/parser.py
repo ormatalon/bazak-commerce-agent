@@ -649,6 +649,9 @@ def merge_refine(previous: SearchSpec, change: SearchSpec) -> SearchSpec:
     # Then drop the fields the shopper asked to clear.
     for name in change.clear_fields:
         setattr(merged, name, None)
+    # A number stated now replaces an earlier "list them all", which would otherwise win.
+    if change.top_k is not None:
+        merged.show_all = None
     # These steer the merge only. They are not part of the merged search.
     merged.refines_index = None
     merged.clear_fields = []
