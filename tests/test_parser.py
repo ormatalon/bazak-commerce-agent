@@ -86,6 +86,91 @@ def make_product(product_id: int, title: str, price: float) -> Product:
     )
 
 
+# parse_request: other currencies. 1 USD = 3.1633 ILS = 0.88755 EUR in app/currency.py.
+
+
+def test_a_budget_in_another_currency_is_converted_to_whole_dollars() -> None:
+    reply = (
+        '{"intent": "product_search", "mode": "new", '
+        '"searches": [{"category": "laptops", "price_max": 3000, "currency": "ILS"}]}'
+    )
+    parsed = parse(FakeLLM(reply))
+    assert parsed.searches[0].price_max == 948
+    assert parsed.searches[0].currency is None  # no other code ever sees another currency
+    assert parsed.conversions == ["3,000 ILS is roughly $948"]
+
+
+def test_both_limits_of_a_range_are_converted() -> None:
+    reply = (
+        '{"intent": "product_search", "mode": "new", "searches": '
+        '[{"category": "laptops", "price_min": 1000, "price_max": 2000, "currency": "eur"}]}'
+    )
+    parsed = parse(FakeLLM(reply))
+    assert (parsed.searches[0].price_min, parsed.searches[0].price_max) == (1127, 2253)
+    assert parsed.conversions == ["1,000 EUR is roughly $1,127", "2,000 EUR is roughly $2,253"]
+
+
+def test_a_budget_with_no_currency_or_in_dollars_is_left_alone() -> None:
+    for currency in ["null", '"USD"']:
+        reply = (
+            '{"intent": "product_search", "mode": "new", '
+            f'"searches": [{{"category": "laptops", "price_max": 999.99, "currency": {currency}}}]}}'
+        )
+        parsed = parse(FakeLLM(reply))
+        assert parsed.searches[0].price_max == 999.99
+        assert parsed.searches[0].currency is None
+        assert parsed.conversions == []
+
+
+def test_a_currency_we_have_no_rate_for_asks_for_dollars_and_is_not_a_parse_failure(caplog) -> None:  # noqa: ANN001
+    reply = (
+        '{"intent": "product_search", "mode": "new", '
+        '"searches": [{"category": "smartphones", "price_max": 2000, "currency": "BRL"}]}'
+    )
+    with caplog.at_level(logging.WARNING, logger="app.parser"):
+        parsed = parse(FakeLLM(reply))
+    assert parsed.intent == "needs_clarification"
+    assert parsed.searches == []
+    assert caplog.records == []
+
+
+def test_a_refine_in_another_currency_is_converted_before_the_merge() -> None:
+    reply = (
+        '{"intent": "product_search", "mode": "refine", '
+        '"searches": [{"price_max": 1000, "currency": "ILS", "refines_index": 0}]}'
+    )
+    parsed = parse(FakeLLM(reply), previous=[SearchSpec(category="smartphones")])
+    merged = merge_refine(SearchSpec(category="smartphones"), parsed.searches[0])
+    assert (merged.category, merged.price_max, merged.currency) == ("smartphones", 316, None)
+
+
+def test_the_model_cannot_write_its_own_conversion() -> None:
+    reply = (
+        '{"intent": "product_search", "mode": "new", "conversions": ["everything is $1"], '
+        '"searches": [{"category": "laptops"}]}'
+    )
+    assert parse(FakeLLM(reply)).conversions == []
+
+
+# parse_request: requests that fit more than one category
+
+
+def test_category_options_reach_the_reply_and_invented_slugs_are_dropped() -> None:
+    reply = '{"intent": "needs_clarification", "category_options": ["mens-watches", "womens-watches", "clocks"]}'
+    parsed = parse(FakeLLM(reply))
+    assert parsed.intent == "needs_clarification"
+    assert parsed.category_options == ["mens-watches", "womens-watches"]
+    assert parsed.searches == []
+
+
+def test_category_options_only_go_with_a_clarifying_question() -> None:
+    reply = (
+        '{"intent": "product_search", "mode": "new", "category_options": ["laptops"], '
+        '"searches": [{"category": "tablets"}]}'
+    )
+    assert parse(FakeLLM(reply)).category_options == []
+
+
 # parse_request: output handling
 
 

@@ -61,6 +61,9 @@ class SearchSpec(BaseModel):
     order: Literal["asc", "desc"] | None = None
     # Checked in a validator, not Field(gt=0), to keep exclusiveMinimum out of the schema.
     top_k: int | None = None
+    # Set by the model when the budget is not in dollars. The parser converts the price
+    # limits to dollars and clears this, so no other code ever sees another currency.
+    currency: str | None = None
     # Which previous search a refine edits; None means the first.
     refines_index: int | None = None
     clear_fields: list[ClearableField] = Field(default_factory=list)
@@ -97,6 +100,10 @@ class ParsedRequest(BaseModel):
     searches: list[SearchSpec] = Field(default_factory=list)
     # What we can't do, e.g. "book a flight", so a mixed request can still show products.
     unsupported: list[str] = Field(default_factory=list)
+    # On needs_clarification: the categories the request could mean, for the reply to offer.
+    category_options: list[str] = Field(default_factory=list)
+    # Written by code, not the model: one line per amount converted to dollars.
+    conversions: list[str] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod

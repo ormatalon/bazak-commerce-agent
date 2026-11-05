@@ -4,6 +4,14 @@ Each entry: what was decided, why, and what else was considered. The Lead keeps 
 
 ## Before wave 5
 
+- **Exchange rates are a fixed table in `app/currency.py`, dated 4 Nov 2026.** Or asked for conversion and "roughly" fits a snapshot. It adds no network call or failure, and tests can check every number. Alternatives: a live rates API, which adds a failure on every message, or the model's own knowledge, which breaks the grounding rule and can't be tested.
+- **The model reads the currency and code does the arithmetic.** The model writes the number as stated, with no 0.01 adjustment, and code converts. Alternative: let the model convert.
+- **Converted limits are whole dollars.** The rate is rough, and the reply states the same number the search uses. The cost: "under 3,000 NIS" searches up to and including $948. Alternative: keep cents, which reads as false precision.
+- **Seven currencies have rates: AUD, CAD, CHF, EUR, GBP, ILS, JPY.** Any other asks for the budget in dollars. Alternative: list more, each one more rate to keep current.
+- **A question for a broad request asks only about the category, not the budget.** This replaces the earlier rule for shoes and watches, which also asked for a budget. Or's newer instruction is about finding the category. Alternative: also ask the budget.
+- **Case 3, "Something nice for my living room", now expects a question.** It fits furniture and home decoration, so Or's rule applies. It used to expect cards from either.
+- **Case 30, the shekel budget, now expects a converted search.** It used to expect a question, and four new cases cover both rules.
+
 - **Or's rule for shoes and watches names only those two kinds.** They're the only kinds the catalog sells in both a men's and a women's category. Alternative: a general rule the model applies, which is harder to test.
 - **The two-card eval cases check the exact product IDs.** `both` alone can't tell two suggestions from a search that dropped both limits. Alternative: read the replies by hand.
 - **When one limit works alone, only that limit is dropped.** "Laptops rated 1 or more under $10" now keeps the rating and drops the price. Or's rule set the two-product case; this follows from it. Before, both limits were dropped. Alternative: keep the old order, rating then price.

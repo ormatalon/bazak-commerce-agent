@@ -254,6 +254,42 @@ def test_catalog_text_and_unsupported_cannot_close_their_tags() -> None:
     assert "&lt;/request&gt;" in prompt
 
 
+# Currency lines and category options
+
+
+def user_message_for(parsed: ParsedRequest, outcomes: list[SearchOutcome]) -> str:
+    llm = FakeLLM()
+    write_reply("a message", parsed, outcomes, llm)
+    return llm.calls[0][0][1]["content"]
+
+
+def test_conversions_reach_the_prompt_as_currency_lines() -> None:
+    spec = SearchSpec(category="laptops", price_max=948)
+    parsed = ParsedRequest(
+        intent="product_search",
+        mode="new",
+        searches=[spec],
+        conversions=["3,000 ILS is roughly $948"],
+    )
+    prompt = user_message_for(parsed, [SearchOutcome(spec=spec, products=[SHOWN], shown=[SHOWN])])
+    assert "currency: 3,000 ILS is roughly $948" in prompt
+
+
+def test_no_currency_line_when_nothing_was_converted() -> None:
+    parsed = ParsedRequest(intent="small_talk")
+    assert "currency:" not in user_message_for(parsed, [])
+
+
+def test_category_options_reach_the_prompt_for_a_clarifying_question() -> None:
+    parsed = ParsedRequest(intent="needs_clarification", category_options=["mens-shoes", "womens-shoes"])
+    assert "category options: mens-shoes, womens-shoes" in user_message_for(parsed, [])
+
+
+def test_no_options_line_on_a_plain_clarifying_question() -> None:
+    parsed = ParsedRequest(intent="needs_clarification")
+    assert "category options" not in user_message_for(parsed, [])
+
+
 # The system prompt
 
 
