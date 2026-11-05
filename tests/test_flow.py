@@ -106,6 +106,92 @@ def test_the_reply_writer_gets_the_parse_and_the_outcomes(recorder):
     assert got_outcomes == result.outcomes
 
 
+# --- which products get a card ---------------------------------------------------
+
+
+def product(product_id: int, title: str, category: str = "gear", price: float = 10.0, rating: float = 4.0) -> Product:
+    return Product(id=product_id, title=title, description="", category=category, price=price, rating=rating)
+
+
+# Two hats and three scarves in one category. The scarves have the higher ratings, so the
+# rating alone would put them first.
+GEAR = [
+    product(1, "Wool Hat", rating=3.0, price=30.0),
+    product(2, "Straw Hat", rating=3.5, price=20.0),
+    product(3, "Silk Scarf", rating=4.9),
+    product(4, "Cotton Scarf", rating=4.8),
+    product(5, "Linen Scarf", rating=4.7),
+]
+
+
+def gear_turn(spec: SearchSpec, state: ConversationState | None = None):
+    return run_turn("gear", state or ConversationState(), GEAR, ["gear"], fake_llm_returning(search_parse(spec)))
+
+
+def test_only_products_matching_a_keyword_get_cards_when_any_match(recorder):
+    outcome = gear_turn(SearchSpec(category="gear", keywords=["hat"])).outcomes[0]
+    assert [p.id for p in outcome.shown] == [2, 1]
+    assert outcome.total == 2
+    assert len(outcome.products) == 5  # search still finds all of them
+
+
+def test_a_keyword_matching_nothing_shows_the_category(recorder):
+    outcome = gear_turn(SearchSpec(category="gear", keywords=["gloves"])).outcomes[0]
+    assert [p.id for p in outcome.shown] == [3, 4, 5]
+    assert outcome.total == 5
+
+
+def test_a_requested_sort_applies_among_the_matching_products(recorder):
+    spec = SearchSpec(category="gear", keywords=["hat"], sort_by="price", order="asc", top_k=1)
+    assert [p.id for p in gear_turn(spec).outcomes[0].shown] == [2]
+
+
+def test_show_more_gives_the_matches_first_and_then_the_rest_of_the_category(recorder):
+    state = gear_turn(SearchSpec(category="gear", keywords=["hat"])).state
+    outcomes, state = show_more(state, GEAR)
+    assert [p.id for p in outcomes[0].shown] == [3, 4, 5]
+    assert outcomes[0].total == 2
+
+
+def test_the_two_limit_suggestions_keep_a_product_that_misses_the_keyword(recorder):
+    catalog = [
+        product(1, "Leather Bag", rating=4.9, price=130.0),
+        product(2, "Faux Backpack", rating=3.4, price=40.0),
+    ]
+    spec = SearchSpec(category="gear", keywords=["bag"], price_max=49.99, rating_min=4.5)
+    result = run_turn("bag", ConversationState(), catalog, ["gear"], fake_llm_returning(search_parse(spec)))
+    assert {p.id for p in result.outcomes[0].shown} == {1, 2}
+
+
+# --- how many cards ---------------------------------------------------------------
+
+
+def test_show_all_gives_every_match_a_card_and_leaves_nothing_for_show_more(recorder):
+    result = turn("all phones", search_parse(SearchSpec(category="smartphones", show_all=True)))
+    outcome = result.outcomes[0]
+    assert len(outcome.shown) == outcome.total == 16
+    assert not has_more(outcome)
+
+
+def test_a_refine_keeps_show_all(recorder):
+    state = turn("all phones", search_parse(SearchSpec(category="smartphones", show_all=True))).state
+    result = turn("cheaper", search_parse(SearchSpec(price_max=500), mode="refine"), state)
+    assert result.state.searches[0].show_all is True
+    assert len(result.outcomes[0].shown) > CARDS_PER_SEARCH
+
+
+def test_the_total_counts_all_matches_though_three_cards_show(recorder):
+    outcome = turn("phones", search_parse(SearchSpec(category="smartphones"))).outcomes[0]
+    assert outcome.total == 16
+    assert len(outcome.shown) == 3
+
+
+def test_show_all_alone_is_not_a_search_of_the_whole_catalog(recorder):
+    result = turn("show me everything", search_parse(SearchSpec(show_all=True)))
+    assert result.parsed.intent == "needs_clarification"
+    assert result.outcomes == []
+
+
 # --- fallback -----------------------------------------------------------------
 
 

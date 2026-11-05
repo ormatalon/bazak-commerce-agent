@@ -42,6 +42,8 @@ shopper's amount, in the shopper's name for that currency, is roughly the dollar
 given. Use those exact numbers. Then continue with the rest of the reply.
 - Products shown: say briefly what you found, and point to the cards. With several \
 searches, give one short sentence for each.
+- How many: if the shopper asks how many there are, state the "total matches" number and \
+how many cards are shown. It is the only count you may state as a total.
 - Loosened: the "loosened" line names the limits that nothing matched. Say plainly that \
 no product of the kind the shopper asked for met that limit (state the limit) and that \
 the cards are the closest products. Never say the whole catalog or store has nothing, \
@@ -122,10 +124,13 @@ def _format_outcome(number: int, outcome: SearchOutcome) -> str:
     """One search: what was asked, what was loosened and the shown products only.
 
     outcome.products is never read here. The reply may only name products with a card.
+    A loosened search gives no total, because its products don't meet what was asked.
     """
     lines = [f"Search {number}: {_format_spec(outcome.spec)}"]
     if outcome.loosened:
         lines.append(f"loosened: {', '.join(outcome.loosened)}")
+    elif outcome.total:
+        lines.append(f"total matches: {outcome.total}")
     if outcome.shown:
         lines.append("Shown products:")
         lines += [_format_product(product) for product in outcome.shown]
@@ -183,15 +188,32 @@ def _outcome(
     spec: SearchSpec,
     shown: list[Product],
     loosened: list[Literal["rating", "price"]] | None = None,
+    total: int = 0,
 ) -> SearchOutcome:
-    """A made-up search outcome. Only the shown products matter to the reply."""
-    return SearchOutcome(spec=spec, shown=shown, products=shown, loosened=loosened or [])
+    """A made-up search outcome. Only the shown products and the total matter to the reply."""
+    return SearchOutcome(spec=spec, shown=shown, products=shown, loosened=loosened or [], total=total)
 
 
 # Each example is (message, parsed request, outcomes, the reply to write).
 # They are written for this prompt and must not repeat a query from datasets/. A test
 # checks that.
 EXAMPLES: list[tuple[str, ParsedRequest, list[SearchOutcome], str]] = [
+    (
+        "How many desk lamps have you got?",
+        ParsedRequest(
+            intent="product_search",
+            mode="new",
+            searches=[SearchSpec(keywords=["desk lamp"], category="home-decoration")],
+        ),
+        [
+            _outcome(
+                SearchSpec(keywords=["desk lamp"], category="home-decoration"),
+                [_product("Sample Desk Light", 24.0), _product("Sample Brass Lamp", 41.0)],
+                total=7,
+            )
+        ],
+        "We have 7 desk lamps. The cards show 2 of them.",
+    ),
     (
         "A travel mug with a lid, nothing over $25",
         ParsedRequest(

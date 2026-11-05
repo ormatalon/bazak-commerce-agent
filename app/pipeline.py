@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from app.parser import MERGE_FIELDS, merge_refine, parse_request
+from app.parser import merge_refine, parse_request, search_is_empty
 from app.responder import write_reply
 from app.schemas import (
     LLM,
@@ -17,7 +17,7 @@ from app.schemas import (
     SearchSpec,
     TurnResult,
 )
-from app.search import search_with_fallback
+from app.search import relevant_products, search_with_fallback
 
 # Cards shown per search unless the user asked for a number (top_k).
 CARDS_PER_SEARCH = 3
@@ -34,15 +34,6 @@ def card_props(outcome: SearchOutcome) -> dict[str, Any]:
 def has_more(outcome: SearchOutcome) -> bool:
     """True when the outcome matched products that have no card yet."""
     return len(outcome.products) > len(outcome.shown)
-
-
-def _search_is_empty(spec: SearchSpec) -> bool:
-    """True when no search field is set. Run on it, this would match the whole catalog."""
-    for name in MERGE_FIELDS:
-        value = getattr(spec, name)
-        if value is not None and value != []:
-            return False
-    return True
 
 
 def _add_unique(shown: list[Product], new: list[Product]) -> list[Product]:
@@ -78,13 +69,26 @@ def _merge_refines(changes: list[SearchSpec], previous: list[SearchSpec]) -> lis
     return merged
 
 
+def _card_candidates(outcome: SearchOutcome) -> list[Product]:
+    """The products that may get a card next: those matching a keyword, when any do.
+
+    Not when both limits were loosened: those products answer the limits, not the keywords,
+    so a backpack can still be the suggestion for "a bag".
+    """
+    if len(outcome.loosened) == 2:
+        return outcome.products
+    return relevant_products(outcome.spec, outcome.products)
+
+
 def _run_searches(specs: list[SearchSpec], catalog: list[Product]) -> list[SearchOutcome]:
-    """Search each spec with the fallback and choose its cards: the first top_k, or 3."""
+    """Search each spec with the fallback and choose its cards: all, the first top_k, or 3."""
     outcomes = []
     for spec in specs:
         outcome = search_with_fallback(spec, catalog)
-        count = spec.top_k or CARDS_PER_SEARCH
-        outcome.shown = outcome.products[:count]
+        candidates = _card_candidates(outcome)
+        outcome.total = len(candidates)
+        count = len(candidates) if spec.show_all else spec.top_k or CARDS_PER_SEARCH
+        outcome.shown = candidates[:count]
         outcomes.append(outcome)
     return outcomes
 
@@ -105,10 +109,11 @@ def show_more(
     new_cards: list[Product] = []
     for spec in state.searches:
         outcome = search_with_fallback(spec, catalog)
+        outcome.total = len(_card_candidates(outcome))
         # Everything still unseen. Cards from an earlier search in this loop count as seen.
         seen = shown_ids | {p.id for p in new_cards}
         outcome.products = [p for p in outcome.products if p.id not in seen]
-        outcome.shown = outcome.products[:CARDS_PER_SEARCH]
+        outcome.shown = _card_candidates(outcome)[:CARDS_PER_SEARCH]
         new_cards = _add_unique(new_cards, outcome.shown)
         outcomes.append(outcome)
 
@@ -145,7 +150,7 @@ def run_turn(
                 specs = _merge_refines(parsed.searches, state.searches)
             else:
                 specs = list(parsed.searches)
-            if not specs or any(_search_is_empty(s) for s in specs):
+            if not specs or any(search_is_empty(s) for s in specs):
                 # Running it would match all 194 products and present them as a match.
                 parsed = ParsedRequest(intent="needs_clarification")
             else:

@@ -96,6 +96,18 @@ def search(spec: SearchSpec, catalog: list[Product]) -> list[Product]:
     return [product for product, _ in matches]
 
 
+def relevant_products(spec: SearchSpec, products: list[Product]) -> list[Product]:
+    """The products matching a keyword, or all of them when none do.
+
+    For choosing cards and counting, not for search(): a keyword must not empty a category
+    ("makeup" matches no beauty product), but one phone case should not come with two
+    speakers just because they share its category.
+    """
+    keywords = clean_keywords(spec.keywords)
+    matching = [p for p in products if keyword_match_count(keywords, p) > 0]
+    return matching or products
+
+
 def distance_from_limits(spec: SearchSpec, product: Product) -> tuple[float, float]:
     """How far a product is outside the original price and rating limits (0 when inside).
 
