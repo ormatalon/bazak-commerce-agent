@@ -374,9 +374,19 @@ def loosened_fields(result: TurnResult) -> set[str]:
 
 
 def score_fallback(result: TurnResult, case: dict[str, Any]) -> bool:
-    """The loosened fields must be exactly the expected one, or none when null is expected."""
-    expected = {case["expect_fallback"]} if case["expect_fallback"] else set()
-    return loosened_fields(result) == expected
+    """The loosened fields must be exactly the expected one, both, or none when null is expected."""
+    value = case["expect_fallback"]
+    if value == "both":
+        return loosened_fields(result) == {"rating", "price"}
+    return loosened_fields(result) == ({value} if value else set())
+
+
+def score_cards(result: TurnResult, case: dict[str, Any]) -> bool | None:
+    """The cards shown must be exactly these products. None when the case doesn't list any."""
+    expected = case.get("expected_card_ids")
+    if not expected:
+        return None
+    return {product.id for product in shown_products(result)} == set(expected)
 
 
 def score_language(
@@ -397,6 +407,7 @@ class CaseScores:
     mode_ok: bool
     category_ok: bool | None
     fallback_ok: bool
+    cards_ok: bool | None
     language_ok: bool | None
     grounding: GroundingResult
 
@@ -414,6 +425,7 @@ def score_case(
         mode_ok=score_mode(result, case),
         category_ok=score_category(result, case),
         fallback_ok=score_fallback(result, case),
+        cards_ok=score_cards(result, case),
         language_ok=score_language(result, case, shown),
         grounding=check_grounding(result, user_turns, catalog_titles, shown),
     )

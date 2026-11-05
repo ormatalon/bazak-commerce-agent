@@ -7,6 +7,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Asks one clarifying question (category or budget); no cards
 
@@ -17,6 +18,7 @@
 - Mode: new
 - Categories: ['fragrances'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Shows fragrance cards
 
@@ -27,6 +29,7 @@
 - Mode: new
 - Categories: ['furniture', 'home-decoration'] (match: any)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Shows furniture or home decoration cards
 
@@ -37,6 +40,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Asks what he likes or the budget; no cards
 
@@ -47,6 +51,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Politely says we don't sell that; no cards
 
@@ -57,6 +62,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Politely says we don't sell that; no cards
 
@@ -67,6 +73,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Says it only helps with products; no cards
 
@@ -77,6 +84,7 @@
 - Mode: new
 - Categories: ['laptops', 'mobile-accessories'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Two searches, cards for both
 
@@ -87,6 +95,7 @@
 - Mode: new
 - Categories: ['sunglasses', 'mens-watches'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Two searches, cards for both
 
@@ -97,6 +106,7 @@
 - Mode: new
 - Categories: ['groceries', 'kitchen-accessories'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Two searches, cards for both
 
@@ -108,6 +118,7 @@
 - Mode: refine
 - Categories: ['smartphones'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Keeps smartphones and sets a max price
 
@@ -119,6 +130,7 @@
 - Mode: refine
 - Categories: ['laptops'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Keeps laptops and sorts by rating, descending
 
@@ -130,6 +142,7 @@
 - Mode: new
 - Categories: ['womens-shoes'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Switches to women's shoes
 
@@ -140,6 +153,7 @@
 - Mode: new
 - Categories: ['laptops'] (match: all)
 - Fallback: price
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Fallback loosens price; says nothing was under $10
 
@@ -150,6 +164,7 @@
 - Mode: new
 - Categories: ['smartphones'] (match: all)
 - Fallback: rating
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Fallback loosens rating; explains
 
@@ -160,6 +175,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Says we don't carry consoles; may suggest tablets or laptops
 
@@ -170,6 +186,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Short friendly reply, invites a product question; no cards
 
@@ -180,6 +197,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Polite close; no search
 
@@ -190,6 +208,7 @@
 - Mode: new
 - Categories: ['smartphones'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Answers only from catalog fields; no invented specs
 
@@ -200,6 +219,7 @@
 - Mode: new
 - Categories: ['womens-shoes', 'sports-accessories'] (match: any)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Shows women's shoes (sports accessories also acceptable)
 
@@ -210,6 +230,7 @@
 - Mode: new
 - Categories: ['smartphones', 'sunglasses'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Two searches; the $500 limit applies only to the phone
 
@@ -221,6 +242,7 @@
 - Mode: refine
 - Categories: ['laptops'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Resolves 'the second one' from shown products; keeps laptops, max price below its price
 
@@ -231,6 +253,7 @@
 - Mode: new
 - Categories: ['sunglasses'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Says it can't book flights, still shows sunglasses
 
@@ -241,6 +264,7 @@
 - Mode: new
 - Categories: ['laptops'] (match: all)
 - Fallback: price
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Notes nothing matches under $200; fallback shows the closest laptops
 
@@ -251,6 +275,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Stays on task; offers product help; reveals nothing
 
@@ -263,6 +288,7 @@
 - Mode: new
 - Categories: ['furniture'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: not checked
 - Expected behavior: Last turn starts a new search; price limit from perfumes is not carried over
 
@@ -273,6 +299,7 @@
 - Mode: new
 - Categories: ['fragrances'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: he
 - Expected behavior: Shows fragrance cards; replies in Hebrew; product titles stay as in the catalog
 
@@ -283,6 +310,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: es
 - Expected behavior: Politely says in Spanish that we don't sell that; no cards
 
@@ -294,6 +322,7 @@
 - Mode: refine
 - Categories: ['laptops'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: he
 - Expected behavior: Keeps laptops and lowers the max price; replies in Hebrew
 
@@ -304,8 +333,31 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: he
 - Expected behavior: Asks in Hebrew for the budget in dollars; converts nothing; no cards
+
+## Case 31 [hard]: two_limits
+
+- User turn 1: Furniture rated 4 or more under $300
+- Intent: product_search
+- Mode: new
+- Categories: ['furniture'] (match: all)
+- Fallback: both
+- Exact cards (product IDs): [14, 13]
+- Reply language: not checked
+- Expected behavior: Says nothing meets both limits; suggests the cheapest rated 4 or above ($499.99) and the highest rated under $300 ($299.99), and says which limit each one meets
+
+## Case 32 [hard]: two_limits
+
+- User turn 1: I'm after a women's bag for less than $50, 4.5 stars minimum
+- Intent: product_search
+- Mode: new
+- Categories: ['womens-bags'] (match: all)
+- Fallback: both
+- Exact cards (product IDs): [173, 175]
+- Reply language: not checked
+- Expected behavior: Says nothing meets both limits; suggests the cheapest rated 4.5 or above ($129.99) and the highest rated under $50 ($39.99), and says which limit each one meets
 
 ## Case h6 [basic]: off_catalog
 
@@ -314,6 +366,7 @@
 - Mode: None
 - Categories: none (match: None)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: he
 - Expected behavior: Declines politely in Hebrew and offers product help; no cards
 
@@ -325,6 +378,7 @@
 - Mode: refine
 - Categories: ['womens-dresses'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: he
 - Expected behavior: Keeps dresses and sets the max price to $100; replies in Hebrew
 
@@ -335,6 +389,7 @@
 - Mode: new
 - Categories: ['laptops'] (match: all)
 - Fallback: price
+- Exact cards (product IDs): not checked
 - Reply language: he
 - Expected behavior: Says in Hebrew that nothing is under $500 and shows the cheapest laptops, with titles as in the catalog
 
@@ -346,6 +401,7 @@
 - Mode: refine
 - Categories: ['laptops'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: he
 - Expected behavior: Treats $1500 as the budget for laptops; stays in Hebrew though the last message has no words
 
@@ -356,5 +412,6 @@
 - Mode: new
 - Categories: ['sunglasses'] (match: all)
 - Fallback: None
+- Exact cards (product IDs): not checked
 - Reply language: he
 - Expected behavior: Shows sunglasses with their real prices in Hebrew; does not say they cost one dollar

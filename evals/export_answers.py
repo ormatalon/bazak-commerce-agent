@@ -66,6 +66,7 @@ def behavioral_answers(cases: list[dict[str, Any]]) -> str:
             f"- Mode: {case['expected_mode']}",
             f"- Categories: {case['expected_categories'] or 'none'} (match: {case['category_match']})",
             f"- Fallback: {case['expect_fallback']}",
+            f"- Exact cards (product IDs): {case.get('expected_card_ids') or 'not checked'}",
             f"- Reply language: {case.get('expected_language') or 'not checked'}",
             f"- Expected behavior: {case['expected_behavior']}",
             "",

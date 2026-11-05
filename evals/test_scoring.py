@@ -498,6 +498,25 @@ def test_fallback_expected_price(catalog, titles):
     assert not score_case(make_result("ok", [catalog[81]]), expected_price, [], titles).fallback_ok
 
 
+def test_fallback_expected_both_needs_both_loosened(catalog, titles):
+    both = case(expect_fallback="both")
+    two = make_result("ok", [catalog[81]], loosened=["rating", "price"])
+    assert score_case(two, both, [], titles).fallback_ok
+    assert not score_case(make_result("ok", [catalog[81]], loosened=["price"]), both, [], titles).fallback_ok
+    assert not score_case(make_result("ok", [catalog[81]]), both, [], titles).fallback_ok
+
+
+def test_exact_cards_must_be_exactly_the_listed_products(catalog, titles):
+    two_cards = case(expected_card_ids=[81, 80])
+    assert score_case(make_result("ok", [catalog[80], catalog[81]]), two_cards, [], titles).cards_ok is True
+    # A missing card and an extra card both fail.
+    assert score_case(make_result("ok", [catalog[81]]), two_cards, [], titles).cards_ok is False
+    extra = make_result("ok", [catalog[80], catalog[81], catalog[82]])
+    assert score_case(extra, two_cards, [], titles).cards_ok is False
+    # Cases that don't list cards aren't scored on them.
+    assert score_case(make_result("ok", [catalog[81]]), case(), [], titles).cards_ok is None
+
+
 def test_fallback_null_means_nothing_loosened(catalog, titles):
     assert score_case(make_result("ok", [catalog[81]]), case(), [], titles).fallback_ok
     assert not score_case(make_result("ok", [catalog[81]], loosened=["price"]), case(), [], titles).fallback_ok

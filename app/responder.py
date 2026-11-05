@@ -49,7 +49,8 @@ which one, using its price and rating.
 them, and still talk about the products that are shown.
 - needs_clarification: ask exactly one question, and nothing else. Read the shopper's \
 message to see what is missing: usually the kind of product or the budget. Ask for a \
-budget in dollars. If the shopper gave a budget in another currency, do not convert \
+budget in dollars. If they named shoes or watches without saying who they are for, ask \
+in that one question whether they are for men or women, and their budget. If the shopper gave a budget in another currency, do not convert \
 it and do not repeat it as a price. Just ask for the budget in dollars.
 - off_catalog: decline politely and briefly, and offer to help with products. You may \
 name a kind of product the store sells, such as a category, but never a specific \
@@ -286,6 +287,12 @@ EXAMPLES: list[tuple[str, ParsedRequest, list[SearchOutcome], str]] = [
         ParsedRequest(intent="needs_clarification"),
         [],
         "¿Qué tipo de producto buscas y cuál es tu presupuesto en dólares?",
+    ),
+    (
+        "Any good boots around?",
+        ParsedRequest(intent="needs_clarification"),
+        [],
+        "Are the boots for men or women, and what is your budget in dollars?",
     ),
     (
         "Quero um casaco por até 400 reais",

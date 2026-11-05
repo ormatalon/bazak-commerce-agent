@@ -424,9 +424,9 @@ def test_the_run_covers_every_dataset_with_no_id_clashes():
     rows = load_all_rows()
     cases = run_evals.load_all_cases()
     assert len(rows) == 74
-    assert len(cases) == 35
+    assert len(cases) == 37
     assert len({row["id"] for row in rows}) == 74
-    assert len({case["id"] for case in cases}) == 35
+    assert len({case["id"] for case in cases}) == 37
     assert sum(1 for row in rows if row["id"].startswith("h")) == 5
     assert sum(1 for case in cases if str(case["id"]).startswith("h")) == 5
 
