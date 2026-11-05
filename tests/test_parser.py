@@ -334,6 +334,11 @@ def dataset_texts() -> list[str]:
     with path.open(encoding="utf-8") as f:
         for line in f:
             texts += json.loads(line)["turns"]
+    path = ROOT / "datasets" / "hebrew.jsonl"
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            row = json.loads(line)
+            texts += [row["query"]] if row["type"] == "deterministic" else row["turns"]
     return [text.strip().lower() for text in texts]
 
 

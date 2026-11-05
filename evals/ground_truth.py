@@ -1,12 +1,13 @@
-"""Expected product IDs for each row of datasets/deterministic.csv.
+"""Expected product IDs for each deterministic row of datasets/.
 
-This file works only from the CSV and the catalog. It must not import app/search.py,
+This file works only from the datasets and the catalog. It must not import app/search.py,
 so a bug in search() cannot hide on both sides of the comparison.
 
-Run `python evals/ground_truth.py` to print the expected IDs for all 69 rows.
+Run `python evals/ground_truth.py` to print the expected IDs for all 74 rows.
 """
 
 import csv
+import json
 import sys
 from pathlib import Path
 
@@ -17,12 +18,35 @@ sys.path.insert(0, str(REPO_ROOT))
 from app.schemas import Product, SearchSpec  # noqa: E402
 
 DETERMINISTIC_CSV = REPO_ROOT / "datasets" / "deterministic.csv"
+HEBREW_JSONL = REPO_ROOT / "datasets" / "hebrew.jsonl"
 
 
 def load_rows(path: Path = DETERMINISTIC_CSV) -> list[dict[str, str]]:
     """Read the CSV as a list of dicts. Empty cells stay as empty strings."""
     with path.open(encoding="utf-8", newline="") as file:
         return list(csv.DictReader(file))
+
+
+def is_hebrew_id(row_id: object) -> bool:
+    """Lines of hebrew.jsonl get IDs like "h3", so they can't clash with the other datasets."""
+    return str(row_id).startswith("h")
+
+
+def load_hebrew_rows(path: Path = HEBREW_JSONL) -> list[dict[str, str]]:
+    """The deterministic lines of hebrew.jsonl, in the shape of a CSV row: all text, null is empty."""
+    rows = []
+    with path.open(encoding="utf-8") as file:
+        for line in file:
+            data = json.loads(line)
+            if data["type"] == "deterministic":
+                row = {key: "" if value is None else str(value) for key, value in data.items()}
+                rows.append({**row, "id": f"h{data['id']}"})
+    return rows
+
+
+def load_all_rows() -> list[dict[str, str]]:
+    """Every deterministic row of every dataset."""
+    return load_rows() + load_hebrew_rows()
 
 
 def _float_or_none(text: str) -> float | None:
@@ -99,7 +123,7 @@ def main() -> None:
 
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     catalog = load_catalog()
-    for row in load_rows():
+    for row in load_all_rows():
         spec = row_to_spec(row)
         ids = expected_ids(spec, catalog)
         print(f"{row['id']:>3} [{row['difficulty']}] {len(ids):>2} products  {row['query']}")

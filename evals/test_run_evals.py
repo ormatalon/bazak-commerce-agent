@@ -18,7 +18,7 @@ from app.schemas import (
     TurnResult,
 )
 from evals import run_evals
-from evals.ground_truth import load_rows
+from evals.ground_truth import load_all_rows
 
 SAMPLE = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "catalog_sample.json"
 HEADER_OF_DET = run_evals.DETERMINISTIC_HEADER
@@ -31,7 +31,7 @@ def load_sample() -> dict[int, Product]:
 
 
 def rows_by_id(*ids: str) -> list[dict[str, str]]:
-    return [row for row in load_rows() if row["id"] in ids]
+    return [row for row in load_all_rows() if row["id"] in ids]
 
 
 def det_cells(records) -> dict[str, dict[str, str]]:
@@ -411,10 +411,49 @@ def test_results_md_is_not_overwritten_when_the_run_had_errors(tmp_path):
 
 def test_a_run_that_stopped_early_counts_as_a_problem():
     clean = SimpleNamespace(error=None)
-    full_det = [clean] * len(load_rows())
-    full_beh = [clean] * len(run_evals.load_cases())
+    full_det = [clean] * len(load_all_rows())
+    full_beh = [clean] * len(run_evals.load_all_cases())
     assert run_evals.run_has_problems(full_det, full_beh) is False
     # A killed run leaves a shorter file with no errors in it.
     assert run_evals.run_has_problems(full_det[:-1], full_beh) is True
     assert run_evals.run_has_problems(full_det, full_beh[:-1]) is True
     assert run_evals.run_has_problems([SimpleNamespace(error="boom")] + full_det[1:], full_beh) is True
+
+
+def test_the_run_covers_every_dataset_with_no_id_clashes():
+    rows = load_all_rows()
+    cases = run_evals.load_all_cases()
+    assert len(rows) == 74
+    assert len(cases) == 35
+    assert len({row["id"] for row in rows}) == 74
+    assert len({case["id"] for case in cases}) == 35
+    assert sum(1 for row in rows if row["id"].startswith("h")) == 5
+    assert sum(1 for case in cases if str(case["id"]).startswith("h")) == 5
+
+
+def test_hebrew_lines_get_their_own_row_and_count_in_the_others():
+    parsed = ParsedRequest(
+        intent="product_search",
+        mode="new",
+        searches=[SearchSpec(category="womens-watches", price_max=999.99)],
+    ).model_dump(mode="json")
+    raws = [
+        {"kind": "deterministic", "row_id": "h1", "parsed": parsed, "returned_ids": [], "error": None},
+        {"kind": "deterministic", "row_id": "1", "parsed": parsed, "returned_ids": [], "error": None},
+        {"kind": "behavioral", "case_id": "h8", "results": [], "error": "boom"},
+        {"kind": "behavioral", "case_id": 1, "results": [], "error": "boom"},
+    ]
+    det, beh = run_evals.score_run(raws, list(load_sample().values()))
+
+    det_table = det_cells(det)
+    assert det_table["hebrew"]["n"] == "1"
+    assert det_table["basic"]["n"] == "2"
+    assert det_table["all"]["n"] == "2"
+
+    beh_table = beh_cells(beh)
+    assert beh_table["hebrew"]["n"] == "1"
+    assert beh_table["hard"]["n"] == "1"
+    assert beh_table["all"]["n"] == "2"
+
+    # The Hebrew turns are printed for Or to read, like every other case.
+    assert "יש לכם מחשב נייד" in "\n".join(run_evals.behavioral_report(beh))

@@ -8,7 +8,7 @@ import pytest
 
 from app.schemas import Product, SearchSpec
 from evals import ground_truth
-from evals.ground_truth import expected_ids, load_rows, row_to_spec
+from evals.ground_truth import expected_ids, load_hebrew_rows, load_rows, row_to_spec
 
 SAMPLE = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "catalog_sample.json"
 
@@ -33,6 +33,20 @@ def test_csv_has_69_rows_50_basic_and_19_hard(rows):
     assert len(rows) == 69
     assert difficulties.count("basic") == 50
     assert difficulties.count("hard") == 19
+
+
+def test_hebrew_rows_have_the_shape_of_a_csv_row():
+    rows = {row["id"]: row for row in load_hebrew_rows()}
+    assert list(rows) == ["h1", "h2", "h3", "h4", "h5"]
+    assert all(isinstance(value, str) for row in rows.values() for value in row.values())
+
+    between = row_to_spec(rows["h2"])
+    assert (between.category, between.price_min, between.price_max) == ("womens-bags", 50.0, 150.0)
+    assert between.rating_min is None
+    assert between.top_k is None
+
+    top_three = row_to_spec(rows["h4"])
+    assert (top_three.sort_by, top_three.order, top_three.top_k) == ("price", "desc", 3)
 
 
 def test_every_row_becomes_a_valid_spec(rows):
