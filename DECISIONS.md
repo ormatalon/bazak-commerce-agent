@@ -4,6 +4,8 @@ Each entry: what was decided, why, and what else was considered. The Lead keeps 
 
 ## Before wave 5
 
+- **Or's rule for shoes and watches names only those two kinds.** They're the only kinds the catalog sells in both a men's and a women's category. Alternative: a general rule the model applies, which is harder to test.
+- **The two-card eval cases check the exact product IDs.** `both` alone can't tell two suggestions from a search that dropped both limits. Alternative: read the replies by hand.
 - **When one limit works alone, only that limit is dropped.** "Laptops rated 1 or more under $10" now keeps the rating and drops the price. Or's rule set the two-product case; this follows from it. Before, both limits were dropped. Alternative: keep the old order, rating then price.
 - **The user's sort doesn't choose the two suggestions.** Each one answers its own limit, so "cheapest first" could otherwise pick the wrong one. Alternative: follow the sort.
 - **The two suggestions can't grow with Show more.** There are exactly two, so no button appears. Alternative: add more products for each limit.

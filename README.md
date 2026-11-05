@@ -10,12 +10,13 @@ The repo includes three small datasets of questions with expected answers, used 
 
 ### `behavioral.jsonl`
 
-30 conversations (20 basic, 10 hard), some with several turns, that test how the agent handles situations such as ambiguous requests, off-catalog requests, follow-ups, empty results, prompt injection and other languages. Each case lists the user's `turns` and the expected outcome:
+32 conversations (20 basic, 12 hard), some with several turns, that test how the agent handles situations such as ambiguous requests, off-catalog requests, follow-ups, empty results, prompt injection and other languages. Each case lists the user's `turns` and the expected outcome:
 
 - `expected_intent`: the intent the agent should identify
 - `expected_mode`: whether the search is new or refines the previous one
 - `expected_categories` and `category_match`: the categories to show, and whether all or any of them must appear
-- `expect_fallback`: the filter the agent should loosen when nothing matches
+- `expect_fallback`: the filter the agent should loosen when nothing matches, or `both` when a rating and a price limit can't be met together
+- `expected_card_ids`: the exact products to show, set only on the cases where a rating and a price limit can't be met together
 - `expected_language`: the language the reply should use, set only on cases that test language
 - `expected_behavior`: a plain-language description of the correct response
 

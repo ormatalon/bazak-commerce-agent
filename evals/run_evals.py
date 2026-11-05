@@ -361,7 +361,7 @@ def deterministic_report(records: list[DeterministicRecord]) -> list[str]:
 
 
 BEHAVIORAL_HEADER = ["set", "n", "intent", "mode (rows with a mode)", "category", "fallback fired",
-                     "no false fallback", "language", "grounded", "parse fails"]  # fmt: skip
+                     "no false fallback", "exact cards", "language", "grounded", "parse fails"]  # fmt: skip
 
 
 def behavioral_table_rows(records: list[BehavioralRecord]) -> list[list[str]]:
@@ -392,6 +392,9 @@ def behavioral_table_rows(records: list[BehavioralRecord]) -> list[list[str]]:
         ]  # fmt: skip
         quiet = sum(1 for r in quiet_cases if r.scores and r.scores.fallback_ok)
 
+        card_cases = [r for r in group if r.case.get("expected_card_ids")]
+        cards = sum(1 for r in card_cases if r.scores and r.scores.cards_ok)
+
         language_cases = [r for r in group if r.case.get("expected_language")]
         language = sum(1 for r in language_cases if r.scores and r.scores.language_ok)
 
@@ -408,6 +411,7 @@ def behavioral_table_rows(records: list[BehavioralRecord]) -> list[list[str]]:
                 percent(category, len(category_cases)),
                 f"fired correctly {fired}/{len(fired_cases)}",
                 f"no false fire {quiet}/{len(quiet_cases)}",
+                f"{cards}/{len(card_cases)}",
                 f"{language}/{len(language_cases)}",
                 f"grounded {grounded} of {len(group)}, {not_run} not run",
                 str(sum(1 for r in group if r.parse_failures)),
@@ -456,6 +460,9 @@ def behavioral_problems(record: BehavioralRecord) -> list[str]:
     if not scores.fallback_ok:
         loosened = sorted({name for o in result.outcomes for name in o.loosened})
         problems.append(f"fallback loosened {loosened}, expected {case['expect_fallback']!r}")
+    if scores.cards_ok is False:
+        shown_ids = sorted(p.id for o in result.outcomes for p in o.shown)
+        problems.append(f"cards shown {shown_ids}, expected exactly {sorted(case['expected_card_ids'])}")
     if scores.language_ok is False:
         problems.append(f"reply language is not {case['expected_language']!r}")
     if not scores.grounding.ok:

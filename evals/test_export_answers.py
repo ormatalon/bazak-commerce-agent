@@ -27,6 +27,7 @@ def test_every_deterministic_row_has_a_section_with_its_answer():
 
 def test_every_behavioral_case_has_a_section_with_its_expected_fields():
     text = behavioral_answers(load_all_cases())
-    assert text.count("## Case ") == 35
+    assert text.count("## Case ") == 37
     assert "- User turn 2: $1500" in text
+    assert "- Exact cards (product IDs): [14, 13]" in text
     assert "Expected behavior: Treats $1500 as the budget" in text
