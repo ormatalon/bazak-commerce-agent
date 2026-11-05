@@ -313,7 +313,9 @@ def test_system_prompt_has_the_rules() -> None:
         "$1,234.56",
         "not translate",
         "Never say the whole catalog",
-        "do not write it",
+        "do not write it, rounded or not",
+        "do not repeat that amount",
+        "Call a product what its title says",
     ]:
         assert rule in system, rule
 
