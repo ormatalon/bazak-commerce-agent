@@ -33,7 +33,8 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 
 - `staging` is the integration branch and the one the main folder stays on. `master` changes only when Or approves merging `staging` into it for submission.
 - Each team member works on its own branch, cut from the latest `staging`: `<role>/step-<n>-<topic>`, e.g. `retrieval/step-3-search`, `llm/step-4-parser`. A new piece of work gets a new branch.
-- Parallel work needs separate folders, so each agent runs in its own git worktree (`isolation: "worktree"`) and starts by naming its branch with `git switch -c`. The Lead's own work also goes on a branch.
+- Parallel work needs separate folders, so each agent runs in its own git worktree (`isolation: "worktree"`) and starts by naming its branch with `git switch -c`. The Lead's code also goes on a branch; its docs and logs go straight on `staging`.
+- Commit sparingly: one commit per finished piece of work. The Lead groups docs, logs and small notes into one commit per wave.
 - Nothing is pushed.
 
 **Getting a branch into `staging`:**
@@ -63,6 +64,8 @@ Noted by Or, not decided. Nothing here is scheduled until Or says so.
   - Why: search finds every match, but the pipeline cuts to 3 cards, and the responder only sees those cards.
   - Possible fixes: pass the match count to the responder, so it can state it (a number from our code, so still grounded). Teach the parser that "all" sets a large `top_k`, or lean on Show more.
   - Check before changing: the grounding score and `tests/test_responder.py`, which pin that the responder sees only `shown`.
+- **Refresh on a phone (found by the App role, 5 Nov 2026).** At 375px, refreshing before the past-chats drawer has ever been opened gives a blank new chat; the old chat stays in past chats. The URL only becomes `/thread/<id>` once the drawer has mounted. Desktop is fine.
+- **Deleting the DB while the app runs (found by the App role, 5 Nov 2026).** The app recreates the file and keeps working, but shows no message, though Step 6 expects one. That chat also never appears in the sidebar after a restart, because Chainlit attaches a thread to the user only on its first message and the user row is gone.
 
 ## Step 1: Project skeleton
 

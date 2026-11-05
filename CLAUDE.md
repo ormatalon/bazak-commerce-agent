@@ -44,7 +44,7 @@ One message flows through four steps, each its own module in `app/`:
 3. **Search** (`app/search.py`): plain Python filter and rank over the cached catalog, with a fallback that is our code, not the model's.
 4. **Responder** (`app/responder.py`): one LLM call receives the user's latest message, the parsed request and the search outcomes, and writes a short reply using ONLY the returned products. Products are rendered as cards (title, short description, price, image).
 
-`app/schemas.py` holds the shared Pydantic models that every module builds against. `app/pipeline.py` runs one whole turn with no Chainlit in it, so the UI, `tests/test_flow.py` and the evals all use the same code. `app/main.py` connects it to Chainlit; `app/storage.py` exists only if Chainlit's data layer is not used (see Persistence).
+`app/schemas.py` holds the shared Pydantic models that every module builds against. `app/pipeline.py` runs one whole turn with no Chainlit in it, so the UI, `tests/test_flow.py` and the evals all use the same code. `app/main.py` connects it to Chainlit; `app/storage.py` sets up Chainlit's data layer on SQLite (see Persistence).
 
 Why one-pass + fallback instead of tool calling: every step is our code, so each behavior can be pointed to and defended; tool calling is less predictable and harder to test.
 
@@ -135,12 +135,11 @@ The quoted phrases in this section explain the rules to the reader, and some of 
 
 ## Persistence
 
-First check whether Chainlit's built-in SQLAlchemy data layer works with SQLite for the sidebar and resume; use it if it does (it brings its own tables), otherwise write `app/storage.py` ourselves. Ask Or before choosing.
+Or chose Chainlit's built-in SQLAlchemy data layer on a SQLite file. It gives us the sidebar and resume. The layer is asynchronous, so it needs `aiosqlite` and SQLAlchemy's `asyncio` extra, which installs `greenlet`; both are only the connection to SQLite, and our code never calls them. `app/storage.py` holds a small subclass and the table definitions, which the layer expects us to create.
 
-A custom `app/storage.py` uses a SQLite file with two tables:
+Each assistant message keeps its structured search and the shown products' card fields in its metadata. On resume, code rebuilds the conversation state and redraws the cards from that, so no file storage provider is needed for elements.
 
-- `conversations`: id, title, created_at
-- `messages`: id, conversation_id, role, text, search (JSON string), products (JSON string with the card fields, so cards redraw exactly), created_at
+Rejected: our own two tables (`conversations`, `messages`). You can explain every column, but the sidebar would still need all of Chainlit's data-layer methods written by hand.
 
 Why SQLite: single local user, no setup, safe writes, easy to list and sort chats; same relational model as larger apps, so moving to Postgres via SQLAlchemy is a connection-string change. Rejected browser storage (lost on clear, size limits) and JSON files (whole-file rewrite risks corruption; listing means opening every file).
 

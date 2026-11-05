@@ -2,6 +2,21 @@
 
 Each entry: what was decided, why, and what else was considered. The Lead keeps this log and reports new entries at the end of each wave.
 
+## Wave 4
+
+- **A login page, not auto-login.** Chainlit's only password-free route is header auth, which lets in anyone who can reach the port and makes `APP_PASSWORD` meaningless. Alternative: header auth.
+- **No Show more button on a resumed chat.** Chainlit sends the thread to the UI after `on_chat_resume`, so a button sent during resume is lost. Typing "show more" still works. Alternative: override more of Chainlit.
+- **Cards are redrawn from message metadata, not stored as elements.** Chainlit only stores elements with a file storage provider. This keeps it to one SQLite file. Alternative: add a file provider.
+- **Only shown products are saved, never every match.** All matches can be most of the catalog.
+- **No connection stays open between statements (`NullPool`).** On Windows an open connection locks the file, so it couldn't be deleted or replaced while the app runs. The cost is one connection per statement, which is fine for one local user.
+- **A failed statement is retried once after recreating any missing table, and a failed write shows one notice per outage.** Chainlit's writes run in the background and its layer swallows errors, so a failure would otherwise be silent. Alternative: log only.
+- **A locked or unreadable file stops the app; only a damaged one is backed up.** Moving a healthy file away would look like lost chats. One backup is kept, and a newer one replaces it.
+- **Notices and errors aren't saved.** They aren't part of the conversation, and saving a "could not save" notice would fail again.
+- **Login values are checked for presence only.** A placeholder such as `choose-a-password` is accepted. Alternative: reject known placeholders, which adds a list to maintain.
+- **Chainlit's thumbs buttons stay.** Their data goes into the `feedbacks` table, and nothing reads it.
+- **Chainlit's warnings for failed statements stay in the console.** They include the SQL and its parameters, so chat text, but no secrets. Alternative: silence them, which hides the reason for a failure.
+- **`greenlet` added with Or's approval,** through `sqlalchemy[asyncio]`. Chainlit's async layer can't load without it.
+
 ## Wave 3
 
 - **The "nothing found" and "no more products" notes are written by code, not inferred by the model.** Whether anything was shown is a fact our code already has. Alternative: tell the model to work it out from the results.
