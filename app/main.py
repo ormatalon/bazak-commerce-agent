@@ -1,17 +1,35 @@
 """Chainlit entry point. Run with: chainlit run app/main.py"""
 
 import logging
+import os
+import sqlite3
 import sys
 from pathlib import Path
 
 # chainlit run only puts app/ on the import path, so `from app...` needs the repo root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import chainlit as cl  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
 
+# Read .env before anything needs a value from it (Chainlit reads CHAINLIT_AUTH_SECRET
+# when someone logs in). An explicit path: the default would search parent folders.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+import chainlit as cl  # noqa: E402
+from chainlit.types import ThreadDict  # noqa: E402
+
+import app.storage as storage  # noqa: E402
 from app.catalog import CatalogError, load_catalog, load_categories  # noqa: E402
 from app.llm import openai_llm  # noqa: E402
-from app.pipeline import card_props, has_more, run_turn, show_more  # noqa: E402
+from app.pipeline import (  # noqa: E402
+    card_props,
+    has_more,
+    more_metadata,
+    rebuild_state,
+    run_turn,
+    show_more,
+    turn_metadata,
+)
 from app.schemas import ConversationState, SearchOutcome  # noqa: E402
 
 logger = logging.getLogger("app.main")
@@ -20,19 +38,73 @@ logger = logging.getLogger("app.main")
 ERROR_TEXT = "Sorry, something went wrong while handling your message. Please try again."
 NO_MORE_TEXT = "There are no more products to show."
 
-# Load the catalog once, when the app starts. Without it the app cannot work, so stop
-# with the loader's plain-words message instead of a traceback.
+# --- Startup: stop with a plain message if something the app needs is missing -------------
+# Nothing below prints a login value, only the names of missing ones.
+
+try:
+    LOGIN = storage.load_login_settings(os.environ)
+except storage.LoginConfigError as error:
+    raise SystemExit(str(error)) from None
+
+# Load the catalog once, when the app starts. Without it the app cannot work.
 try:
     CATALOG = load_catalog()
     CATEGORIES = load_categories()
 except CatalogError as error:
     raise SystemExit(str(error)) from None
 
+# Create the chat database, or start a new one if the old file is damaged.
+try:
+    DB_NOTICE = storage.prepare_database(storage.DB_PATH)
+except (OSError, sqlite3.Error) as error:
+    raise SystemExit(
+        f"Could not open the chat database at {storage.DB_PATH} ({type(error).__name__}). "
+        "Close anything else using it and check the folder is writable."
+    ) from None
+if DB_NOTICE:
+    print(DB_NOTICE, file=sys.stderr)
+_notice_shown = False  # the notice goes into the first new chat only
+
+
+@cl.password_auth_callback
+def authenticate(username: str, password: str) -> cl.User | None:
+    """The one fixed local user. Chainlit needs a login to show past chats."""
+    if storage.check_login(LOGIN, username, password):
+        return cl.User(identifier=LOGIN.username)
+    return None
+
+
+@cl.data_layer
+def data_layer() -> storage.ChatDataLayer:
+    """Save chats in SQLite. Chainlit calls this once, the first time it needs the database."""
+    return storage.ChatDataLayer(storage.DB_PATH)
+
+
+async def send_notice(text: str) -> None:
+    """A message that is shown but not saved: errors and notices are not part of a chat."""
+    message = cl.Message(content=text)
+    message.persisted = True  # tells Chainlit it is already saved, so it skips the write
+    await message.send()
+
 
 @cl.on_chat_start
 async def on_chat_start() -> None:
-    """Every chat starts with an empty conversation. It lives on the server, in the session."""
+    """Every new chat starts with an empty conversation. It lives on the server, in the session."""
+    global _notice_shown
     cl.user_session.set("state", ConversationState())
+    if DB_NOTICE and not _notice_shown:
+        _notice_shown = True
+        await send_notice(DB_NOTICE)
+
+
+@cl.on_chat_resume
+async def on_chat_resume(thread: ThreadDict) -> None:
+    """Rebuild the conversation from the saved messages. The cards are redrawn by the data layer.
+
+    There is no "Show more" button after a resume. Typing "show more" works, because the
+    searches and the shown products are rebuilt.
+    """
+    cl.user_session.set("state", rebuild_state(thread["steps"]))  # type: ignore[arg-type]
 
 
 async def remove_button(action: cl.Action) -> None:
@@ -82,11 +154,12 @@ async def on_message(message: cl.Message) -> None:
     except Exception as error:
         # Keep the old state and the app running. Log only the type, never the text.
         logger.warning("Turn failed: %s", type(error).__name__)
-        await cl.Message(content=ERROR_TEXT).send()
+        await send_notice(ERROR_TEXT)
         return
 
     cl.user_session.set("state", result.state)
-    msg = cl.Message(content=result.reply)
+    # The metadata is saved with the message: it is what a resumed chat is rebuilt from.
+    msg = cl.Message(content=result.reply, metadata=turn_metadata(result))
     await msg.send()
     await send_cards(msg, result.outcomes)
 
@@ -97,7 +170,7 @@ async def on_show_more(action: cl.Action) -> None:
     await remove_old_buttons(action)  # one click, one use: a second click finds no button
     state = cl.user_session.get("state")
     if state is None:  # e.g. a button left over from before the server restarted
-        await cl.Message(content=NO_MORE_TEXT).send()
+        await send_notice(NO_MORE_TEXT)
         return
 
     # show_more is a quick filter over 194 products, so it runs right here with no await
@@ -105,11 +178,11 @@ async def on_show_more(action: cl.Action) -> None:
     # both read the same state and show the same cards twice.
     outcomes, new_state = show_more(state, CATALOG)
     if not any(o.shown for o in outcomes):
-        await cl.Message(content=NO_MORE_TEXT).send()
+        await send_notice(NO_MORE_TEXT)
         return
     cl.user_session.set("state", new_state)
 
     # The message has no text: the cards are the answer, so no language is needed.
-    msg = cl.Message(content="")
+    msg = cl.Message(content="", metadata=more_metadata(outcomes, new_state))
     await msg.send()
     await send_cards(msg, outcomes)

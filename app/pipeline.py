@@ -1,6 +1,9 @@
 """One conversation turn with no Chainlit in it, so the UI, tests and evals share the same code."""
 
+import json
 from typing import Any
+
+from pydantic import ValidationError
 
 from app.parser import MERGE_FIELDS, merge_refine, parse_request
 from app.responder import write_reply
@@ -158,3 +161,133 @@ def run_turn(
     ]
     new_state = ConversationState(history=history, searches=searches, shown=shown)
     return TurnResult(parsed=parsed, outcomes=outcomes, reply=reply, state=new_state)
+
+
+# --- Saving and resuming a chat -------------------------------------------------------
+#
+# Every assistant message is saved with a small `metadata` dict (built below). When a chat
+# is resumed, `rebuild_state` reads those dicts back and `card_elements` redraws the cards.
+# Nothing here imports Chainlit, so tests can run it on plain dicts.
+
+# Marks metadata written by this app. A message without it (an error or notice) is skipped.
+METADATA_VERSION = 1
+
+
+def message_metadata(
+    outcomes: list[SearchOutcome],
+    state: ConversationState,
+    parsed: ParsedRequest | None,
+    in_history: bool,
+) -> dict[str, Any]:
+    """What to save with one assistant message, so a resumed chat can rebuild itself.
+
+    Only what was SHOWN is saved, never `outcome.products` (everything that matched),
+    which can be most of the catalog. `parsed` is None for a "Show more" button click.
+    """
+    metadata: dict[str, Any] = {
+        "app": METADATA_VERSION,
+        # False for a "Show more" button click: it adds cards but no turn of conversation.
+        "in_history": in_history,
+        # One list of cards per search that has cards. Each list is one card element.
+        "cards": [card_props(o)["products"] for o in outcomes if o.shown],
+    }
+    # A product search also stores the current searches. Typed or clicked "show more" keeps
+    # the old shown cards and adds to them; any other search replaces them (as run_turn does).
+    if parsed is None or parsed.intent == "product_search":
+        metadata["searches"] = [s.model_dump(mode="json") for s in state.searches]
+        metadata["replace_shown"] = parsed is not None and parsed.mode != "show_more"
+    return metadata
+
+
+def turn_metadata(result: TurnResult) -> dict[str, Any]:
+    """Metadata for the reply to a typed message."""
+    return message_metadata(result.outcomes, result.state, result.parsed, in_history=True)
+
+
+def more_metadata(outcomes: list[SearchOutcome], state: ConversationState) -> dict[str, Any]:
+    """Metadata for the cards a "Show more" click added. They are not part of the history."""
+    return message_metadata(outcomes, state, None, in_history=False)
+
+
+def metadata_of(step: dict[str, Any]) -> dict[str, Any]:
+    """A step's metadata as a dict. SQLite hands it back as a JSON string."""
+    metadata = step.get("metadata")
+    if isinstance(metadata, str):
+        try:
+            metadata = json.loads(metadata)
+        except json.JSONDecodeError:
+            return {}
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def rebuild_state(steps: list[dict[str, Any]]) -> ConversationState:
+    """Rebuild the conversation state from a saved chat's steps, oldest first.
+
+    History comes from the user and assistant text. `searches` and `shown` come from the
+    assistant messages' metadata. A step that can't be read is skipped, so one bad row
+    can't stop a chat from resuming.
+    """
+    history: list[ChatTurn] = []
+    searches: list[SearchSpec] = []
+    shown: list[Product] = []
+    pending_user: str | None = None
+
+    for step in steps:
+        if step.get("type") == "user_message":
+            pending_user = step.get("output") or ""
+            continue
+        if step.get("type") != "assistant_message":
+            continue
+        metadata = metadata_of(step)
+        if metadata.get("app") != METADATA_VERSION:
+            continue  # an error or notice, not a reply
+        try:
+            cards = [Product.model_validate(c) for group in metadata.get("cards", []) for c in group]
+            new_searches = (
+                [SearchSpec.model_validate(s) for s in metadata["searches"]]
+                if "searches" in metadata
+                else None
+            )
+        except (ValidationError, TypeError):
+            pending_user = None
+            continue
+        if new_searches is not None:
+            searches = new_searches
+        # Same rule as run_turn: a new or refined search replaces the shown cards, "show more" adds.
+        shown = _add_unique([] if metadata.get("replace_shown") else shown, cards)
+        if metadata.get("in_history") and pending_user is not None:
+            history += [
+                ChatTurn(role="user", text=pending_user),
+                ChatTurn(role="assistant", text=step.get("output") or ""),
+            ]
+        pending_user = None
+
+    return ConversationState(history=history, searches=searches, shown=shown)
+
+
+def card_elements(steps: list[dict[str, Any]], thread_id: str) -> list[dict[str, Any]]:
+    """Chainlit element dicts that redraw the saved cards under their messages.
+
+    Chainlit would store elements itself only with a file storage provider, which we don't
+    use. The cards are in the messages' metadata, so we rebuild the elements from there.
+    """
+    elements = []
+    for step in steps:
+        groups = metadata_of(step).get("cards")
+        if step.get("type") != "assistant_message" or not isinstance(groups, list):
+            continue
+        for number, products in enumerate(groups):
+            elements.append(
+                {
+                    # Fixed, so the same chat always gets the same element IDs.
+                    "id": f"{step['id']}-cards-{number}",
+                    "threadId": thread_id,
+                    "type": "custom",
+                    "name": "ProductCards",
+                    "display": "inline",
+                    "forId": step["id"],
+                    "props": {"products": products},
+                    "mime": "application/json",
+                }
+            )
+    return elements
