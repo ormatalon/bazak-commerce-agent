@@ -438,6 +438,68 @@ def sent_messages(monkeypatch) -> list[FakeMessage]:
     return FakeMessage.sent
 
 
+# --- the file deleted while a chat is open ------------------------------------------------
+
+OPEN_CHAT = storage.OpenChat(thread_id="thread-1", user_id="user-1", user_identifier="local")
+
+
+def test_a_deleted_file_tells_the_user_once_and_keeps_the_chat_in_the_sidebar(db_path, sent_messages, monkeypatch):
+    monkeypatch.setattr(storage, "_open_chat", lambda: OPEN_CHAT)
+
+    async def go():
+        layer = ChatDataLayer(db_path)
+        chat = Chat(layer)
+        await chat.start()
+        os.remove(db_path)
+
+        await chat.save("user_message", "after the delete")
+        await chat.save("assistant_message", "a reply")
+
+        assert [m.content for m in sent_messages] == [storage.FILE_MISSING_TEXT]
+        assert sent_messages[0].persisted is True
+        rows = await layer.execute_sql('SELECT "userId", "userIdentifier", "name" FROM threads', {})
+        assert rows == [{"userId": "user-1", "userIdentifier": "local", "name": storage.RESTORED_CHAT_NAME}]
+        # This is the lookup the sidebar makes, by way of the user's ID.
+        assert (await layer.get_user("local")).id == "user-1"
+        thread = await layer.get_thread("thread-1")
+        assert [s["output"] for s in thread["steps"]] == ["after the delete", "a reply"]
+        await layer.engine.dispose()
+
+    run(go())
+
+
+def test_a_file_deleted_outside_a_chat_is_mentioned_in_the_next_chat(db_path, sent_messages, monkeypatch):
+    monkeypatch.setattr(storage, "_open_chat", lambda: None)
+
+    async def go():
+        layer = ChatDataLayer(db_path)
+        os.remove(db_path)
+        assert await layer.get_user("local") is None  # as a login does
+        assert db_path.exists()
+        assert sent_messages == []
+
+        monkeypatch.setattr(storage, "_open_chat", lambda: OPEN_CHAT)
+        await layer.get_user("local")
+        await layer.get_user("local")
+        assert [m.content for m in sent_messages] == [storage.FILE_MISSING_TEXT]
+        await layer.engine.dispose()
+
+    run(go())
+
+
+def test_a_healthy_file_gives_no_notice_and_adds_no_rows(db_path, sent_messages, monkeypatch):
+    monkeypatch.setattr(storage, "_open_chat", lambda: OPEN_CHAT)
+
+    async def go():
+        layer = ChatDataLayer(db_path)
+        await layer.get_user("local")
+        assert sent_messages == []
+        assert await layer.execute_sql("SELECT * FROM users", {}) == []
+        await layer.engine.dispose()
+
+    run(go())
+
+
 def test_a_failed_write_shows_one_error_and_the_chat_keeps_working(db_path, sent_messages, monkeypatch):
     async def go():
         layer = ChatDataLayer(db_path)
