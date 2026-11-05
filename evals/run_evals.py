@@ -7,7 +7,7 @@ score the last one.
 datasets/hebrew.jsonl has lines of both kinds. They are scored the same way, count in
 the basic, hard and all rows, and also get a row of their own.
 
-This makes real model calls (about 160), so only the Lead runs it (the key lives in the
+This makes real model calls (about 175), so only the Lead runs it (the key lives in the
 main folder's .env). The app modules are imported inside main(), so importing this file
 needs no key and no network.
 

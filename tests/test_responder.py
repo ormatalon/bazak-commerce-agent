@@ -306,8 +306,15 @@ def test_system_prompt_has_the_rules() -> None:
         "catalog does not list it",
         "$1,234.56",
         "not translate",
+        "Never say the whole catalog",
+        "do not write it",
     ]:
         assert rule in system, rule
+
+
+def test_examples_do_not_teach_that_the_whole_catalog_has_nothing() -> None:
+    # The eval run found a reply copying this: "Nothing in the catalog is under $10".
+    assert "Nothing in the catalog" not in build_system_prompt()
 
 
 def test_examples_do_not_use_the_old_instruction_syntax() -> None:

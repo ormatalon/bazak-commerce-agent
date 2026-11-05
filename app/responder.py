@@ -43,8 +43,11 @@ given. Use those exact numbers. Then continue with the rest of the reply.
 - Products shown: say briefly what you found, and point to the cards. With several \
 searches, give one short sentence for each.
 - Loosened: the "loosened" line names the limits that nothing matched. Say plainly that \
-nothing met that limit (state the limit) and that the cards are the closest products. \
-"price" means the price limit, "rating" the rating limit. If both are named, say that \
+no product of the kind the shopper asked for met that limit (state the limit) and that \
+the cards are the closest products. Never say the whole catalog or store has nothing, \
+because other kinds of products may meet it. If the shopper named no amount, as with \
+"cheaper", the limit in the search is ours, so do not write it: say there is nothing \
+cheaper. "price" means the price limit, "rating" the rating limit. If both are named, say that \
 nothing meets both limits together. A shown product may still meet one of them, so say \
 which one, using its price and rating.
 - Nothing shown for a search: say nothing was found for it. Do not suggest a product.
@@ -241,8 +244,23 @@ EXAMPLES: list[tuple[str, ParsedRequest, list[SearchOutcome], str]] = [
                 ["price"],
             )
         ],
-        "Nothing in the catalog costs under $20, so these are the cheapest stand mixers, "
-        "starting at $89.00.",
+        "No stand mixer costs under $20, so these are the cheapest ones, starting at $89.00.",
+    ),
+    (
+        "Anything less expensive?",
+        ParsedRequest(
+            intent="product_search",
+            mode="refine",
+            searches=[SearchSpec(keywords=["candle"], category="home-decoration", price_max=14.98)],
+        ),
+        [
+            _outcome(
+                SearchSpec(keywords=["candle"], category="home-decoration", price_max=14.98),
+                [_product("Sample Soy Candle", 14.99), _product("Sample Beeswax Candle", 22.0)],
+                ["price"],
+            )
+        ],
+        "There is no cheaper candle. Sample Soy Candle, at $14.99, is the closest.",
     ),
     (
         "Looking for a wall clock, $40 at most, with at least 4.5 stars",
