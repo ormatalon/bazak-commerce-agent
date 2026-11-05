@@ -61,6 +61,9 @@ class SearchSpec(BaseModel):
     order: Literal["asc", "desc"] | None = None
     # Checked in a validator, not Field(gt=0), to keep exclusiveMinimum out of the schema.
     top_k: int | None = None
+    # True when the shopper asks to see all of a kind. A separate field, because "top_k"
+    # is a number the shopper stated and the evals compare it. Null on a refine means keep.
+    show_all: bool | None = None
     # Set by the model when the budget is not in dollars. The parser converts the price
     # limits to dollars and clears this, so no other code ever sees another currency.
     currency: str | None = None
@@ -128,6 +131,8 @@ class SearchOutcome(BaseModel):
     products: list[Product] = Field(default_factory=list)
     # The cards to display. The pipeline fills this; the responder may only mention these.
     shown: list[Product] = Field(default_factory=list)
+    # How many products fit the search, for "how many do you have?". The pipeline fills this.
+    total: int = 0
     # In the order they were loosened, so the reply can say what changed.
     loosened: list[Literal["rating", "price"]] = Field(default_factory=list)
 

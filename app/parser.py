@@ -25,6 +25,7 @@ MERGE_FIELDS = (
     "sort_by",
     "order",
     "top_k",
+    "show_all",
 )
 
 SYSTEM_TEMPLATE = """\
@@ -46,8 +47,8 @@ Set category to one of these exact slugs, or to null. Never write any other valu
 Infer the category from context: "my brother needs trainers" means mens-shoes, \
 "a USB cable" means mobile-accessories. If nothing in the list fits what the \
 shopper wants, the request is off_catalog. Do not pick the nearest category instead. \
-Questions about the details of a product type we carry are a product_search for that \
-category.
+Questions about the details of a product type we carry, or how many of it we have, are \
+a product_search for that category.
 keywords: specific product words the shopper used, in English (for example ["lamp"]). \
 Use null when the shopper named only the category.
 
@@ -114,6 +115,8 @@ because "best reviewed bracelets" still asks for one item.
 by price, lowest at the top", "arranged from low price to high", "best rated first".
 - A stated number sets top_k, together with any sort: "the 4 lowest priced" is top_k 4, \
 sort_by price, order asc. "give me eight" is top_k 8.
+- Asking to see all of a kind sets show_all to true and leaves top_k null: "every X you \
+stock", "list them all". Otherwise show_all is null.
 
 # Language
 The shopper may write in any language. Write keywords and unsupported in English, \
@@ -413,6 +416,42 @@ EXAMPLES: list[tuple[list[ChatTurn], list[SearchSpec], list[Product], str, Parse
         [],
         [],
         [],
+        "How many stand mixers do you stock?",
+        ParsedRequest(
+            intent="product_search",
+            mode="new",
+            searches=[SearchSpec(keywords=["stand mixer"], category="kitchen-accessories")],
+        ),
+    ),
+    (
+        [],
+        [],
+        [],
+        "Let me see every bracelet you stock",
+        ParsedRequest(
+            intent="product_search",
+            mode="new",
+            searches=[SearchSpec(keywords=["bracelet"], category="womens-jewellery", show_all=True)],
+        ),
+    ),
+    (
+        [
+            ChatTurn(role="user", text="looking for sandals"),
+            ChatTurn(role="assistant", text="Here are three pairs."),
+        ],
+        [SearchSpec(keywords=["sandals"], category="womens-shoes")],
+        [_example_product(931, "Sample Sandal", 40.00)],
+        "list them all",
+        ParsedRequest(
+            intent="product_search",
+            mode="refine",
+            searches=[SearchSpec(show_all=True, refines_index=0)],
+        ),
+    ),
+    (
+        [],
+        [],
+        [],
         "I need a birthday present, no idea what",
         ParsedRequest(intent="needs_clarification"),
     ),
@@ -523,9 +562,14 @@ def safe_default(reason: str) -> ParsedRequest:
     return ParsedRequest(intent="needs_clarification")
 
 
-def _search_is_empty(spec: SearchSpec) -> bool:
-    """True when no search field is set. Run on it, this would return the whole catalog."""
+def search_is_empty(spec: SearchSpec) -> bool:
+    """True when no search field is set. Run on it, this would return the whole catalog.
+
+    show_all only says how many cards to show, so "show me everything" alone is still empty.
+    """
     for name in MERGE_FIELDS:
+        if name == "show_all":
+            continue
         value = getattr(spec, name)
         if value is not None and value != []:
             return False
@@ -573,7 +617,7 @@ def parse_request(
     if parsed.intent == "product_search" and parsed.mode != "show_more" and not parsed.searches:
         return safe_default("product_search with no search")
     # A new search with no field set would match the whole catalog.
-    if parsed.mode == "new" and any(_search_is_empty(s) for s in parsed.searches):
+    if parsed.mode == "new" and any(search_is_empty(s) for s in parsed.searches):
         return safe_default("new search with no field set")
     return _finish(parsed, categories)
 

@@ -179,6 +179,12 @@ def test_loosened_reaches_the_prompt() -> None:
     assert "loosened: rating, price" in prompt
 
 
+def test_the_total_reaches_the_prompt_unless_the_search_was_loosened() -> None:
+    assert "total matches: 5" in reply_prompt(run(outcomes=[laptops_outcome().model_copy(update={"total": 5})]))
+    loosened = laptops_outcome(loosened=["price"]).model_copy(update={"total": 5})
+    assert "total matches" not in reply_prompt(run(outcomes=[loosened]))
+
+
 def test_nothing_loosened_leaves_no_loosened_line() -> None:
     assert "loosened:" not in reply_prompt(run(outcomes=[laptops_outcome()]))
 
