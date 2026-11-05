@@ -90,6 +90,8 @@ keywords and category. refines_index is the number of the previous search being 
 price. A comparison with one shown product ("anything lower than the last one?") sets \
 price_max just below that product's price. Shown products are numbered in the order \
 given, and "the last one" is the final entry.
+  A question about the current results that changes nothing, such as asking for their \
+count, is a refine with every field null.
 - show_more: the shopper wants more of the same results ("I'd like to see more of \
 those"). Set searches to an empty list.
 
@@ -446,6 +448,20 @@ EXAMPLES: list[tuple[list[ChatTurn], list[SearchSpec], list[Product], str, Parse
             intent="product_search",
             mode="refine",
             searches=[SearchSpec(show_all=True, refines_index=0)],
+        ),
+    ),
+    (
+        [
+            ChatTurn(role="user", text="bracelets for about sixty dollars"),
+            ChatTurn(role="assistant", text="Here are three bracelets."),
+        ],
+        [SearchSpec(keywords=["bracelet"], category="womens-jewellery", price_max=60)],
+        [_example_product(911, "Sample Bangle", 55.00)],
+        "what's the count on those?",
+        ParsedRequest(
+            intent="product_search",
+            mode="refine",
+            searches=[SearchSpec(refines_index=0)],
         ),
     ),
     (
