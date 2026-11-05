@@ -41,7 +41,9 @@ catalog and do not translate them.
 searches, give one short sentence for each.
 - Loosened: the "loosened" line names the limits that nothing matched. Say plainly that \
 nothing met that limit (state the limit) and that the cards are the closest products. \
-"price" means the price limit, "rating" the rating limit.
+"price" means the price limit, "rating" the rating limit. If both are named, say that \
+nothing meets both limits together. A shown product may still meet one of them, so say \
+which one, using its price and rating.
 - Nothing shown for a search: say nothing was found for it. Do not suggest a product.
 - Cannot do: if the summary lists unsupported things, say politely that you cannot do \
 them, and still talk about the products that are shown.
@@ -152,7 +154,7 @@ def build_user_message(message: str, parsed: ParsedRequest, outcomes: list[Searc
     )
 
 
-def _product(title: str, price: float, shipping: str | None = None) -> Product:
+def _product(title: str, price: float, shipping: str | None = None, rating: float = 4.0) -> Product:
     """A made-up product for an example."""
     return Product(
         id=1,
@@ -160,7 +162,7 @@ def _product(title: str, price: float, shipping: str | None = None) -> Product:
         description="A made-up product.",
         category="example",
         price=price,
-        rating=4.0,
+        rating=rating,
         shipping=shipping,
     )
 
@@ -232,6 +234,26 @@ EXAMPLES: list[tuple[str, ParsedRequest, list[SearchOutcome], str]] = [
         ],
         "Nothing in the catalog costs under $20, so these are the cheapest stand mixers, "
         "starting at $89.00.",
+    ),
+    (
+        "Looking for a wall clock, $40 at most, with at least 4.5 stars",
+        ParsedRequest(
+            intent="product_search",
+            mode="new",
+            searches=[
+                SearchSpec(keywords=["wall clock"], category="home-decoration", price_max=40, rating_min=4.5)
+            ],
+        ),
+        [
+            _outcome(
+                SearchSpec(keywords=["wall clock"], category="home-decoration", price_max=40, rating_min=4.5),
+                [_product("Sample Oak Clock", 65.0, rating=4.7), _product("Sample Tin Clock", 35.0, rating=3.9)],
+                ["rating", "price"],
+            )
+        ],
+        "No wall clock is both $40 or less and rated 4.5 or higher. Sample Oak Clock is the "
+        "cheapest with that rating, at $65.00, and Sample Tin Clock is the highest rated at "
+        "your budget, at $35.00 and rated 3.9.",
     ),
     (
         "Is there a weighted blanket?",
