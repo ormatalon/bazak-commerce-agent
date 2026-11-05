@@ -12,11 +12,14 @@ import os
 import sqlite3
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import chainlit as cl
+from chainlit.context import ChainlitContextException
 from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
+from chainlit.session import WebsocketSession
 from chainlit.types import ThreadDict
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -33,6 +36,12 @@ SAVE_FAILED_TEXT = (
     "Your last message could not be saved, so it may be missing from your past chats. "
     "You can keep chatting here."
 )
+FILE_MISSING_TEXT = (
+    "The file with your past chats disappeared, so I started a new, empty one. "
+    "This chat is being saved from now on, and you can keep chatting here."
+)
+# The sidebar needs a name for a chat whose first message was in the deleted file.
+RESTORED_CHAT_NAME = "Restored chat"
 
 # The tables Chainlit's data layer reads and writes. SQLite has no UUID or JSON type,
 # so those columns are TEXT (Chainlit stores JSON as text). Column names are quoted
@@ -158,6 +167,50 @@ def prepare_database(path: Path = DB_PATH) -> str | None:
     return notice
 
 
+@dataclass(frozen=True)
+class OpenChat:
+    """The chat a write belongs to, and who owns it."""
+
+    thread_id: str
+    user_id: str
+    user_identifier: str
+
+
+def restore_owner(path: Path, chat: OpenChat) -> None:
+    """Put back the user and the open chat after the file was deleted.
+
+    Chainlit links a chat to its user only on the chat's first message, and looks up a user
+    only at login. Without these rows the chat would be saved but never reach the sidebar.
+    """
+    now = datetime.now(UTC).isoformat()
+    connection = sqlite3.connect(path)
+    try:
+        with connection:
+            connection.execute(
+                'INSERT OR IGNORE INTO users ("id", "identifier", "metadata", "createdAt") VALUES (?, ?, ?, ?)',
+                (chat.user_id, chat.user_identifier, "{}", now),
+            )
+            connection.execute(
+                'INSERT OR IGNORE INTO threads ("id", "createdAt", "name", "userId", "userIdentifier") '
+                "VALUES (?, ?, ?, ?, ?)",
+                (chat.thread_id, now, RESTORED_CHAT_NAME, chat.user_id, chat.user_identifier),
+            )
+    finally:
+        connection.close()
+
+
+def _open_chat() -> OpenChat | None:
+    """The chat this write belongs to, or None when it comes from outside a chat, such as a login."""
+    try:
+        session = cl.context.session
+    except ChainlitContextException:
+        return None
+    user_id = getattr(session.user, "id", None)
+    if not isinstance(session, WebsocketSession) or user_id is None:
+        return None
+    return OpenChat(session.thread_id, user_id, session.user.identifier)
+
+
 # --- The data layer -----------------------------------------------------------------------
 
 
@@ -166,14 +219,16 @@ def _is_write(query: str) -> bool:
 
 
 class ChatDataLayer(SQLAlchemyDataLayer):
-    """Chainlit's SQLAlchemy data layer with three changes.
+    """Chainlit's SQLAlchemy data layer with four changes.
 
     1. No connection stays open between statements (NullPool). On Windows an open
        connection locks the file, so it could not be deleted or replaced while the app runs.
     2. A failed statement is retried once after recreating any missing table, and a failed
        WRITE tells the user in the chat. Chainlit runs its writes as background tasks and
        the base class swallows database errors, so without this a failure is silent.
-    3. A resumed thread gets its card elements back, rebuilt from the messages' metadata
+    3. A file deleted while the app runs is noticed before SQLite can recreate it empty.
+       The user and the open chat are put back, and the user is told once.
+    4. A resumed thread gets its card elements back, rebuilt from the messages' metadata
        (Chainlit's own element storage needs a file provider, so create_element does nothing).
     """
 
@@ -184,9 +239,12 @@ class ChatDataLayer(SQLAlchemyDataLayer):
         self.async_session = sessionmaker(bind=self.engine, expire_on_commit=False, class_=AsyncSession)  # type: ignore
         # True after a failed write was reported, so one outage gives one message.
         self._failure_reported = False
+        # True from finding the file gone until a chat is open to say so in.
+        self._missing_file_notice_pending = False
 
     async def execute_sql(self, query: str, parameters: dict) -> Any:
         """Run one statement. The base class returns None when it failed (and logged why)."""
+        await self._recover_deleted_file()
         result = await super().execute_sql(query, parameters)
         if result is None:
             # The file may have been deleted or replaced while the app runs: make the
@@ -205,18 +263,42 @@ class ChatDataLayer(SQLAlchemyDataLayer):
                 self._failure_reported = False  # saving works again
         return result
 
+    async def _recover_deleted_file(self) -> None:
+        """If the file is gone, make it again, then tell the user once a chat is open.
+
+        No await between the check and the rows being back, so of several writes running
+        together only the first one does this, and none can save a chat before its owner.
+        """
+        chat = _open_chat()
+        if not self.db_path.exists():
+            logger.warning("The chat database file disappeared. Starting a new one.")
+            self._missing_file_notice_pending = True
+            try:
+                ensure_schema(self.db_path)
+                if chat is not None:
+                    restore_owner(self.db_path, chat)
+            except (sqlite3.Error, OSError) as error:
+                logger.warning("Could not recreate the chat database: %s", type(error).__name__)
+        if self._missing_file_notice_pending and chat is not None:
+            self._missing_file_notice_pending = False
+            await self._show_notice(FILE_MISSING_TEXT)
+
     async def _report_failed_write(self) -> None:
         """Show one short error in the chat. The chat itself keeps working."""
         logger.warning("A chat write failed, so this chat may not be saved.")
         if self._failure_reported:
             return
         self._failure_reported = True
+        await self._show_notice(SAVE_FAILED_TEXT)
+
+    async def _show_notice(self, text: str) -> None:
+        """A message in the chat that is not saved itself, or a failure would just repeat."""
         try:
-            message = cl.Message(content=SAVE_FAILED_TEXT)
-            message.persisted = True  # an error notice is not saved, or it would fail again
+            message = cl.Message(content=text)
+            message.persisted = True
             await message.send()
         except Exception as error:  # e.g. no chat open (a write during login)
-            logger.warning("Could not show the save error: %s", type(error).__name__)
+            logger.warning("Could not show a storage notice: %s", type(error).__name__)
 
     async def create_element(self, element: Any) -> None:
         """Do nothing. Without a file storage provider Chainlit can't keep elements anyway
