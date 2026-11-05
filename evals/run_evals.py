@@ -4,8 +4,10 @@ Deterministic set (datasets/deterministic.csv): parse_request, then search(), wi
 fallback and no display cap. Scored against evals/ground_truth.py.
 Behavioral set (datasets/behavioral.jsonl): replay every turn through run_turn and
 score the last one.
+datasets/hebrew.jsonl has lines of both kinds. They are scored the same way, count in
+the basic, hard and all rows, and also get a row of their own.
 
-This makes real model calls (about 140), so only the Lead runs it (the key lives in the
+This makes real model calls (about 160), so only the Lead runs it (the key lives in the
 main folder's .env). The app modules are imported inside main(), so importing this file
 needs no key and no network.
 
@@ -38,7 +40,13 @@ from app.schemas import (  # noqa: E402
     SearchSpec,
     TurnResult,
 )
-from evals.ground_truth import expected_ids, load_rows, row_to_spec  # noqa: E402
+from evals.ground_truth import (  # noqa: E402
+    HEBREW_JSONL,
+    expected_ids,
+    is_hebrew_id,
+    load_all_rows,
+    row_to_spec,
+)
 from evals.scoring import (  # noqa: E402
     CaseScores,
     RetrievalScores,
@@ -180,6 +188,17 @@ def load_cases(path: Path = BEHAVIORAL_JSONL) -> list[dict[str, Any]]:
         return [json.loads(line) for line in file if line.strip()]
 
 
+def load_hebrew_cases(path: Path = HEBREW_JSONL) -> list[dict[str, Any]]:
+    """The behavioral lines of hebrew.jsonl, with IDs like "h6"."""
+    lines = load_cases(path)
+    return [{**line, "id": f"h{line['id']}"} for line in lines if line["type"] == "behavioral"]
+
+
+def load_all_cases() -> list[dict[str, Any]]:
+    """Every behavioral case of every dataset."""
+    return load_cases() + load_hebrew_cases()
+
+
 # ---------------------------------------------------------------------------
 # Scoring the raw results
 # ---------------------------------------------------------------------------
@@ -239,8 +258,8 @@ def score_behavioral(raw: dict[str, Any], case: dict[str, Any], catalog: list[Pr
 def score_run(
     raws: list[dict[str, Any]], catalog: list[Product]
 ) -> tuple[list[DeterministicRecord], list[BehavioralRecord]]:
-    rows = {row["id"]: row for row in load_rows()}
-    cases = {case["id"]: case for case in load_cases()}
+    rows = {row["id"]: row for row in load_all_rows()}
+    cases = {case["id"]: case for case in load_all_cases()}
     det, beh = [], []
     for raw in raws:
         if raw["kind"] == "deterministic":
@@ -280,6 +299,7 @@ def deterministic_table_rows(records: list[DeterministicRecord]) -> list[list[st
         ("basic", [r for r in records if r.row["difficulty"] == "basic"]),
         ("hard", [r for r in records if r.row["difficulty"] == "hard"]),
         ("all", records),
+        ("hebrew", [r for r in records if is_hebrew_id(r.row["id"])]),
     ]
     table_rows = []
     for name, group in groups:
@@ -351,6 +371,7 @@ def behavioral_table_rows(records: list[BehavioralRecord]) -> list[list[str]]:
         ("hard", [r for r in records if r.case["difficulty"] == "hard"]),
         ("all", records),
         ("multi-turn", [r for r in records if len(r.case["turns"]) > 1]),
+        ("hebrew", [r for r in records if is_hebrew_id(r.case["id"])]),
     ]
     table_rows = []
     for name, group in groups:
@@ -482,7 +503,7 @@ def run_has_problems(det_records: list[Any], beh_records: list[Any]) -> bool:
     """
     if any(r.error for r in det_records) or any(r.error for r in beh_records):
         return True
-    return len(det_records) != len(load_rows()) or len(beh_records) != len(load_cases())
+    return len(det_records) != len(load_all_rows()) or len(beh_records) != len(load_all_cases())
 
 
 def save_report(
@@ -516,7 +537,7 @@ def main() -> None:
         from app.search import search
 
         categories = load_categories()
-        rows, cases = load_rows(), load_cases()
+        rows, cases = load_all_rows(), load_all_cases()
         RUNS_DIR.mkdir(exist_ok=True)
         run_path = RUNS_DIR / f"run_{datetime.now():%Y%m%d_%H%M%S}.jsonl"
         writer = RunWriter(run_path, total=len(rows) + len(cases))

@@ -160,6 +160,7 @@ Handle failures explicitly: DB file missing (recreate), corrupted (start a fresh
   - Grounding gaps only Or's read of the printed replies catches: a translated title of an unshown product, an unshown product with a one-word title, an amount written in words, and a user's limit wrongly stated as a product's price.
   - Reply language is checked by code, after removing shown product titles: `he` means most letters are in Hebrew script; `es` means more words match a short Spanish stopword list than an English one. No detection library. It covers only the cases that set `expected_language`, so report it as a count with no target.
   - `expected_behavior` is not scored automatically. `evals/run_evals.py` prints each reply beside it for Or to read.
+- `datasets/hebrew.jsonl`: 10 Hebrew cases (5 basic, 5 hard), added by Or. A `type` field marks 5 as `deterministic` and 5 as `behavioral`, each with the fields of its matching dataset. They are scored the same way, count in the basic, hard and all rows, and also get a `hebrew` row of their own. Their replies are printed for Or to read like the others.
 - `evals/run_evals.py` prints a summary table.
 
 ## Working rules

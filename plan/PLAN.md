@@ -228,8 +228,8 @@ Noted by Or, not decided. Nothing here is scheduled until Or says so.
 **Definition of done:**
 
 - One command runs everything. Check: `python evals/run_evals.py` finishes and prints a summary table.
-- Deterministic set scored. Check: the table covers 69 queries (50 basic, 19 hard); per-query failures are listed. Rows with an empty expected set score 1.0 only if the agent also returns nothing.
-- Behavioral set scored. Check: the table covers 30 conversations (20 basic, 10 hard).
+- Deterministic set scored. Check: the table covers 74 queries (53 basic, 21 hard), including the 5 Hebrew rows, which also get their own row; per-query failures are listed. Rows with an empty expected set score 1.0 only if the agent also returns nothing.
+- Behavioral set scored. Check: the table covers 35 conversations (22 basic, 13 hard), including the 5 Hebrew cases, which also get their own row, and their replies are printed for Or to read.
 - Ground truth is real. Check: pick 3 queries at random and confirm their expected IDs by hand in the catalog file.
 - Targets (adjust after first run): basic F1 ≥ 0.9, basic intent accuracy ≥ 0.9, grounding rate = 100%. Hard cases are reported, without a target until the first run. Results saved to `evals/results.md`.
 

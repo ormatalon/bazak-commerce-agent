@@ -1,6 +1,6 @@
 ## Test datasets
 
-The repo includes two small datasets of questions with expected answers, used to evaluate the agent. Each case is labeled `basic` or `hard`.
+The repo includes three small datasets of questions with expected answers, used to evaluate the agent. Each case is labeled `basic` or `hard`.
 
 ### `deterministic.csv`
 
@@ -16,3 +16,7 @@ The repo includes two small datasets of questions with expected answers, used to
 - `expect_fallback`: the filter the agent should loosen when nothing matches
 - `expected_language`: the language the reply should use, set only on cases that test language
 - `expected_behavior`: a plain-language description of the correct response
+
+### `hebrew.jsonl`
+
+10 Hebrew cases (5 basic, 5 hard). Each line has a `type`: 5 are `deterministic`, with the same fields as `deterministic.csv`, and 5 are `behavioral`, with the same fields as `behavioral.jsonl`. They cover filters, sorting, a price written as a word, refining, off-catalog requests, the fallback, an answer with no words in it ("$1500") and prompt injection.
