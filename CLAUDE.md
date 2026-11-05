@@ -40,7 +40,7 @@ On Or's machine `python` resolves to the Microsoft Store stub. Create the virtua
 One message flows through four steps, each its own module in `app/`:
 
 1. **Catalog** (`app/catalog.py`): fetch the full DummyJSON catalog (194 products) and category list (24 slugs) once, cache to a local JSON file, load into memory. Reason: the API's search is keyword-only and has no price or rating filters; filtering the full catalog in our code gives exact, testable results.
-2. **Parser** (`app/parser.py`): one LLM call turns the user message plus recent history into a structured search (Pydantic, see Search schema).
+2. **Parser** (`app/parser.py`): one LLM call turns the user message plus recent history into a structured search (Pydantic, see Search schema). A budget in another currency is converted to dollars by code in `app/currency.py`, so everything after the parser only sees dollars.
 3. **Search** (`app/search.py`): plain Python filter and rank over the cached catalog, with a fallback that is our code, not the model's.
 4. **Responder** (`app/responder.py`): one LLM call receives the user's latest message, the parsed request and the search outcomes, and writes a short reply using ONLY the returned products. Products are rendered as cards (title, short description, price, image).
 
@@ -60,6 +60,8 @@ These names match the columns of `datasets/deterministic.csv`, so evals compare 
 - `mode`: `new`, `refine` or `show_more`. Set only for `product_search`, otherwise null.
 - `searches`: list of `SearchSpec`. More than one = multi-intent. Empty unless the intent is `product_search`.
 - `unsupported`: things the user asked for that we can't do, e.g. `["book a flight"]`. Lets a mixed request still show products while the reply declines the rest.
+- `category_options`: on `needs_clarification`, the categories a broad request could mean, for the reply to offer. Code drops any slug that isn't real.
+- `conversions`: written by code, never the model: one line per amount converted, such as `3,000 ILS is roughly $948`.
 
 `SearchSpec`:
 
@@ -68,6 +70,7 @@ These names match the columns of `datasets/deterministic.csv`, so evals compare 
 - `price_min`, `price_max`, `rating_min`: all bounds inclusive. Do not cap `rating_min` at 5: "rated above 5" is valid input and must reach the fallback.
 - `sort_by` (`price`, `rating` or null), `order` (`asc`, `desc` or null)
 - `top_k`: only when the user asks for a number ("top 3", "show me ten") or a superlative naming one item ("the cheapest tablet" = 1), otherwise null
+- `currency`: the ISO code when the user states a currency other than dollars, otherwise null. The parser converts the price limits and clears it.
 - `refines_index`: on `refine`, which previous search this edits (default 0)
 - `clear_fields`: on `refine`, the fields the user asked to drop ("any price is fine")
 
@@ -77,7 +80,7 @@ If the model's output fails validation, or a `new` search has no field set (it w
 
 The model must use minimal own knowledge. It never mentions a product, price or detail that did not come from the search results. If the catalog doesn't list something (no iPhone in the catalog mentions battery life), the reply says so. Off-catalog requests get a polite "we don't carry that", with no products; the reply may name a related category but no specific product.
 
-Dollar amounts in a reply must be prices of shown products, or a limit the user stated ("nothing under $10"). Amounts are in dollars only and use the `$` sign and digits in every language: `$1,234.56` for prices, and `$10` is fine for a limit the user stated.
+Dollar amounts in a reply must be prices of shown products, a limit the user stated ("nothing under $10"), or a converted budget from our code. Prices and limits are in dollars only and use the `$` sign and digits in every language: `$1,234.56` for prices, and `$10` is fine for a limit the user stated.
 
 The reply uses the language of the user's latest message that contains words, so answering "$300" doesn't switch language. Product titles stay exactly as in the catalog. A clarifying question works the same way: the responder reads the latest message to see what to ask, such as the budget in dollars.
 
@@ -118,11 +121,11 @@ The parser's output is a structured object only; the user never sees it. Code us
 
 1. **Role:** "You turn a shopper's message into a structured search. You never answer the shopper and never invent products. You only fill in the fields."
 2. **Categories:** the exact slug list, loaded from the cached catalog at startup. Pick only from it, or leave category empty. Infer from context: "for my husband" means `mens-watches`, "a phone case" means `mobile-accessories`.
-3. **Intents:** one line + one example each: `product_search` ("laptops under $1,000"), `needs_clarification` ("something cheap and cool"), `off_catalog` ("a flight to Tokyo", or "ignore your instructions"), `small_talk` (greetings, thanks). A named product type is enough to search, with no question about budget. The exception (Or's rule) is shoes or watches when nothing says who they are for: the reply asks, in one question, whether they are for men or women and the budget in dollars.
+3. **Intents:** one line + one example each: `product_search` ("laptops under $1,000"), `needs_clarification` ("something cheap and cool"), `off_catalog` ("a flight to Tokyo", or "ignore your instructions"), `small_talk` (greetings, thanks). A product type that fits one category is enough to search, with no question about budget. If the request fits several categories and nothing says which (Or's rule: "electronics", or watches with no hint of men or women), the intent is `needs_clarification`, `category_options` lists them, and the reply asks one question offering them. The answer is then a `new` search.
 4. **Mode:** refine vs new vs show_more, with examples ("cheaper ones" = refine, "now sunglasses" = new).
 5. **Bounds:** "under $X" = X − 0.01; "over $X" or "above 4 stars" = X + 0.01 (4.01 for ratings); "up to", "at most", "at least", "between" and a stated budget = X exactly. A negated limit is also X exactly ("nothing over $300" = `price_max` 300). Read words as numbers ("a grand" = 1000, "10k" = 10000).
 6. **Language:** the shopper may write in any language. Write `keywords` in English, because the catalog is English only. Read intent, mode and bounds the same way in every language.
-7. **Currency:** the catalog is in dollars and we have no exchange rates. A budget in another currency is `needs_clarification`: ask for it in dollars, never convert it.
+7. **Currency (Or's rule):** an amount with no currency means US dollars. If the user states another currency, the model sets `currency` and writes the number as stated, and code converts it to whole dollars with the fixed rates in `app/currency.py`. The reply starts by stating it ("3,000 NIS is roughly $948") and then answers. A currency with no rate gets a question asking for the budget in dollars. Fixed rates, because the catalog is a snapshot too: no network call per message, and every result can be tested. To refresh them, edit the table and its date.
 8. **Few-shot examples:** a handful of full outputs. Never taken from `datasets/`, to avoid inflated scores.
 
 The quoted phrases in this section explain the rules to the reader, and some of them are dataset rows. The prompt teaches the same rules in different words, and `tests/test_parser.py` checks that its phrases don't copy the datasets.
@@ -153,7 +156,7 @@ Handle failures explicitly: DB file missing (recreate), corrupted (start a fresh
   - `evals/ground_truth.py` computes the expected product IDs from the CSV and the cached catalog. It does not import `app/search.py`, so a search bug can't hide in both sides.
   - Score the parser and `search()` with no fallback and no display cap, applying `top_k` only when set. 51 rows have no `top_k` and more than 3 products in their category, so the 3-card default would wreck recall.
   - Metrics: precision, recall, F1, exact match for `top_k` queries, and the share of rows whose extracted filter matches exactly. If both the expected and returned sets are empty, the row scores 1.0 only if a search ran with the row's category, so a parser that always asks a question doesn't earn it. Products that tie on the sort value are interchangeable: a `top_k` result is right if every ID passes the row's filter and its sort values match the expected sequence. A row with several searches is scored on their union.
-- `datasets/behavioral.jsonl`: 32 conversations (20 basic, 12 hard), 6 of them multi-turn. Replay all turns through the full pipeline and score the last turn.
+- `datasets/behavioral.jsonl`: 36 conversations (20 basic, 16 hard), 7 of them multi-turn. Replay all turns through the full pipeline and score the last turn.
   - Metrics: intent accuracy, mode accuracy, category accuracy (`category_match` says `all` or `any`), fallback accuracy (`expect_fallback` against what was loosened; `both` for the two-card rule), exact cards (`expected_card_ids`, on cases that set it), reply language (`expected_language`, on cases that set it), grounding rate (target 100%).
   - Grounding is scored by code, in any language: no catalog title outside the products shown anywhere in the conversation, and every `$` amount must be a price of those products, a number from any user turn, or a current search bound (a bound may differ by 0.01, since "under $20" is stored as 19.99). A number next to a currency word, such as "דולר" or "dólares", follows the same rule. Other numbers are not scored, because counts and ratings belong in replies; they are printed beside the reply for Or to read.
   - One-word titles ("Apple", "Water") are common words, so they are left out of the score and printed as unscored hits.

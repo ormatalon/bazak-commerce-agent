@@ -22,16 +22,16 @@
 - Reply language: not checked
 - Expected behavior: Shows fragrance cards
 
-## Case 3 [basic]: inferred_category
+## Case 3 [basic]: broad_request
 
 - User turn 1: Something nice for my living room
-- Intent: product_search
-- Mode: new
-- Categories: ['furniture', 'home-decoration'] (match: any)
+- Intent: needs_clarification
+- Mode: None
+- Categories: none (match: None)
 - Fallback: None
 - Exact cards (product IDs): not checked
 - Reply language: not checked
-- Expected behavior: Shows furniture or home decoration cards
+- Expected behavior: Asks one question offering furniture or home decoration; no cards
 
 ## Case 4 [basic]: ambiguous
 
@@ -329,13 +329,13 @@
 ## Case 30 [hard]: other_currency
 
 - User turn 1: אני רוצה טלפון עד 1000 שקל
-- Intent: needs_clarification
-- Mode: None
-- Categories: none (match: None)
+- Intent: product_search
+- Mode: new
+- Categories: ['smartphones'] (match: all)
 - Fallback: None
 - Exact cards (product IDs): not checked
 - Reply language: he
-- Expected behavior: Asks in Hebrew for the budget in dollars; converts nothing; no cards
+- Expected behavior: States in Hebrew that 1000 shekels is roughly $316; shows phones at or under $316
 
 ## Case 31 [hard]: two_limits
 
@@ -358,6 +358,51 @@
 - Exact cards (product IDs): [173, 175]
 - Reply language: not checked
 - Expected behavior: Says nothing meets both limits; suggests the cheapest rated 4.5 or above ($129.99) and the highest rated under $50 ($39.99), and says which limit each one meets
+
+## Case 33 [hard]: other_currency
+
+- User turn 1: I want a laptop that cost less than 3000 NIS
+- Intent: product_search
+- Mode: new
+- Categories: ['laptops'] (match: all)
+- Fallback: price
+- Exact cards (product IDs): not checked
+- Reply language: not checked
+- Expected behavior: States that 3000 NIS is roughly $948; says no laptop costs that little and shows the cheapest
+
+## Case 34 [hard]: other_currency
+
+- User turn 1: A phone for under 2000 reais
+- Intent: needs_clarification
+- Mode: None
+- Categories: none (match: None)
+- Fallback: None
+- Exact cards (product IDs): not checked
+- Reply language: not checked
+- Expected behavior: We have no rate for reais, so it asks for the budget in dollars; converts nothing; no cards
+
+## Case 35 [hard]: broad_request
+
+- User turn 1: Show me electronics
+- Intent: needs_clarification
+- Mode: None
+- Categories: none (match: None)
+- Fallback: None
+- Exact cards (product IDs): not checked
+- Reply language: not checked
+- Expected behavior: Asks one question offering the categories that fit, such as smartphones, laptops and tablets; no budget question; no cards
+
+## Case 36 [hard]: broad_request
+
+- User turn 1: watches
+- User turn 2: for men
+- Intent: product_search
+- Mode: new
+- Categories: ['mens-watches'] (match: all)
+- Fallback: None
+- Exact cards (product IDs): not checked
+- Reply language: not checked
+- Expected behavior: The first turn asks men or women; the answer shows men's watches
 
 ## Case h6 [basic]: off_catalog
 

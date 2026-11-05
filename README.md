@@ -10,7 +10,7 @@ The repo includes three small datasets of questions with expected answers, used 
 
 ### `behavioral.jsonl`
 
-32 conversations (20 basic, 12 hard), some with several turns, that test how the agent handles situations such as ambiguous requests, off-catalog requests, follow-ups, empty results, prompt injection and other languages. Each case lists the user's `turns` and the expected outcome:
+36 conversations (20 basic, 16 hard), some with several turns, that test how the agent handles situations such as ambiguous requests, off-catalog requests, follow-ups, empty results, prompt injection and other languages. Each case lists the user's `turns` and the expected outcome:
 
 - `expected_intent`: the intent the agent should identify
 - `expected_mode`: whether the search is new or refines the previous one
