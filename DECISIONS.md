@@ -15,6 +15,7 @@ Each entry: what was decided, why, and what else was considered. The Lead keeps 
 - **The responder now calls a product what its title says.** The card rule made a regression: with one word matching, a bedside table was called a dining table match. The eval scores missed it and reading the replies caught it. Alternative: require every keyword to match, which would empty real searches such as "laptop for my son".
 - **A limit our code worked out is never written, even rounded, and an amount the shopper dictates isn't repeated, even to refuse.** "Under $1,800" and "$1" failed the grounding score. Alternative: loosen the scorer, which would hide them.
 - **The final run happens after the Reviewer's fixes, so it runs once.** The README's numbers are filled in from it.
+- **The Reviewer's one pass gave no-ship with two critical issues, both fixed.** "List all" then "the 2 cheapest" kept showing everything, so a stated number now clears `show_all`. Editing a sent message kept the filters of the turn it replaced, so `edit_message` is off. Alternative for editing: roll back state per turn, which is a lot of code for a feature nobody asked for. The other findings are listed in the README's limitations and not fixed, as Or asked for critical fixes only.
 - **Drafted LangChain as the second rejected alternative.** The plan leaves this choice to Or, who should replace it if a different alternative is the honest answer. Alternative: assistant-ui, also a real option, but it says less about the pipeline.
 
 ## Wave 5

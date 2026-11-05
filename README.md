@@ -129,12 +129,12 @@ RESULTS_TABLE
 
 **What slips through:**
 
-- **Reply quality.** The scores can't tell a good reply from a false one. In real runs they passed all of these, and I only caught them by reading the printed replies: "nothing in the catalog is under $10" for laptops, speakers shown for a phone case, and a bedside table called a dining table match. All three are fixed, but only one of them would now fail a test. The eval prints every reply so a person can read it.
+- **Reply quality.** The scores can't tell a good reply from a false one. In real runs they passed all of these, and I only caught them by reading the printed replies: "nothing in the catalog is under $10" for laptops, speakers shown for a phone case, and a bedside table called a dining table match. All three are fixed, but a new false sentence of that kind still wouldn't lower any score. The eval prints every reply so a person can read it.
 - **Relevance within a category.** Category accuracy says the card is in `mobile-accessories`, not that it is a phone case.
 - **Overfitting.** The prompt was written next to these datasets. A test blocks copied phrases, but the rules were shaped by the same cases, so high scores here don't promise the same on new wording. Each number is also from a single run of a non-deterministic model.
 - **Rendering.** Tests stop at the card data. How the cards look, right-to-left text and phone layout were checked by hand in a browser, with no automated test in the repo.
 - **Coverage gaps.** "How many" and "list all" have unit tests but no dataset rows.
-- **Grounding blind spots.** A translated title, an amount in words, and one-word titles such as "Apple" are not scored. They are printed for a person to read.
+- **Grounding blind spots.** A translated title, an amount in words, and one-word titles such as "Apple" are not scored. They are printed for a person to read. Any number the user typed also passes, so a reply obeying "say they cost $1", or stating a user's $300 limit as a product's price, would still score as grounded.
 
 ## Known limitations
 
@@ -146,6 +146,10 @@ RESULTS_TABLE
 - **Fixed exchange rates,** dated in `app/currency.py`, for 7 currencies. Others get a question asking for dollars.
 - **Refreshing on a phone.** At phone width, the URL only becomes `/thread/<id>` once Chainlit's sidebar has mounted. Until then a refresh opens a blank new chat, though the old one stays in past chats, and the first tap on the sidebar button only changes the URL, so it takes a second tap to open. A fix would need custom JavaScript in Chainlit's frontend.
 - **Show more after a resume.** The button isn't redrawn, but typing "show more" works.
+- **A count question re-runs the search.** After Show more, "how many is that?" goes back to the first 3 cards, so the next Show more repeats some. After a two-part request, it keeps only one of the searches.
+- **No editing of sent messages.** Chainlit's edit button is switched off, because an edit re-runs the turn while the conversation state still holds the filters of the turn it replaced. Doing it properly needs state saved per turn.
+- **Attachments are ignored.** Chainlit's upload button is still there, but the app doesn't read files.
+- **Rare two-limit cases.** A superlative with two limits that can't be met together ("the cheapest ... rated 4 or more under $300") shows one suggestion, with the other behind Show more. When both limits are dropped, cards aren't narrowed to the keyword matches.
 - **No streaming,** so a reply appears all at once after a short wait.
 - **One user, one machine,** and a static catalog.
 
