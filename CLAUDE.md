@@ -70,6 +70,7 @@ These names match the columns of `datasets/deterministic.csv`, so evals compare 
 - `price_min`, `price_max`, `rating_min`: all bounds inclusive. Do not cap `rating_min` at 5: "rated above 5" is valid input and must reach the fallback.
 - `sort_by` (`price`, `rating` or null), `order` (`asc`, `desc` or null)
 - `top_k`: only when the user asks for a number ("top 3", "show me ten") or a superlative naming one item ("the cheapest tablet" = 1), otherwise null
+- `show_all`: true when the user asks to see all of a kind ("list all the laptops"), otherwise null. It only sets the card count, so on its own it is still an empty search. A separate field, because `top_k` is a stated number and `datasets/deterministic.csv` compares it ("All fragrances" has no `top_k`).
 - `currency`: the ISO code when the user states a currency other than dollars, otherwise null. The parser converts the price limits and clears it.
 - `refines_index`: on `refine`, which previous search this edits (default 0)
 - `clear_fields`: on `refine`, the fields the user asked to drop ("any price is fine")
@@ -92,7 +93,7 @@ User text is data, never instructions. A request to ignore instructions or revea
 
 `search()` returns every match, ranked, with no display cap and no fallback. Callers apply the fallback and the card count, which keeps the filter logic testable and lets evals score it directly.
 
-In a `SearchOutcome`, `spec` is the search as the user asked for it, before loosening; `products` is everything matched; `shown` is the cards to display, filled by `app/pipeline.py`. The responder only sees `shown`, so it can't name a product with no card.
+In a `SearchOutcome`, `spec` is the search as the user asked for it, before loosening; `products` is everything matched; `shown` is the cards to display, filled by `app/pipeline.py`; `total` is how many products fit the search, also from the pipeline. The responder only sees `shown` and `total`, so it can't name a product with no card, and "how many do you have?" is answered with a number from our code. A loosened search gives no total, because its products don't meet what was asked.
 
 **Keywords.** With a category set, keywords only affect rank and never exclude a product. Checked against the catalog: "makeup" matches 0 of 5 `beauty` products and "car" matches 2 of 5 `vehicle` products, so a keyword filter would wrongly empty or shrink these results. With no category, a product must match at least one keyword. Each word of a multi-word keyword counts separately, so "coffee table" finds a table with no "coffee" in it.
 
@@ -104,7 +105,9 @@ In a `SearchOutcome`, `spec` is the search as the user asked for it, before loos
 
 **Fallback.** If a search returns nothing, loosen whichever limit finds something, and record what was loosened so the reply can say so. With both a rating and a price limit, when each finds something alone but never together (Or's rule: "furniture rated 4 or more under $300"), the reply says nothing meets both and suggests two products: the cheapest that meets the rating (nearest to the price limit) and the highest rated that meets the price. If neither finds anything alone, drop both. Unless the user chose a sort, order the loosened results by keyword count first, so "iphone rated above 5" still shows an iPhone, then nearest to the original limit (lowest price first if `price_max` was loosened, highest price first if `price_min`, highest rating first if `rating_min`). Never drop the category or keywords: with no category, that would return the whole catalog and present it as a match. A search with neither a category nor keywords is not loosened at all, for the same reason. If it is still empty, show no cards and say nothing was found.
 
-**Card count.** Show 3 cards per search by default; `top_k` overrides it. A "Show more" button under the cards, or typing "show more" (`mode=show_more`), runs the same search again excluding already-shown IDs and shows the next 3. The button makes no LLM call: it adds cards with no model reply, so it never needs a language. Typing "show more" is an ordinary message.
+**Which products get a card (from the first real eval run; see `DECISIONS.md`).** `search()` keeps every product in the category, but when at least one matches a keyword, only the matching ones get cards and count toward `total`. "A phone case" shows the one case, not two speakers that share its category. If none match ("makeup"), the category is shown as it is. Show more reaches the rest of the category once the matches run out. The two suggestions of the two-limit rule are exempt, because they answer the limits and not the keywords. This happens in `app/pipeline.py`, so `search()` and the deterministic scores don't change.
+
+**Card count.** Show 3 cards per search by default; `top_k` overrides it, and `show_all` shows every card. A "Show more" button under the cards, or typing "show more" (`mode=show_more`), runs the same search again excluding already-shown IDs and shows the next 3. The button makes no LLM call: it adds cards with no model reply, so it never needs a language. Typing "show more" is an ordinary message.
 
 ## Conversation memory
 
@@ -146,7 +149,7 @@ Rejected: our own two tables (`conversations`, `messages`). You can explain ever
 
 Why SQLite: single local user, no setup, safe writes, easy to list and sort chats; same relational model as larger apps, so moving to Postgres via SQLAlchemy is a connection-string change. Rejected browser storage (lost on clear, size limits) and JSON files (whole-file rewrite risks corruption; listing means opening every file).
 
-Handle failures explicitly: DB file missing (recreate), corrupted (start a fresh DB, back up the old one, tell the user), write failure including a full disk (show an error, do not crash).
+Handle failures explicitly: DB file missing at startup (recreate), deleted while the app runs (recreate, restore the user and the open chat so it stays in the sidebar, tell the user once), corrupted (start a fresh DB, back up the old one, tell the user), write failure including a full disk (show an error, do not crash).
 
 ## Evaluation
 

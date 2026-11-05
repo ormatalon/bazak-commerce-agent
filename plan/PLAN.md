@@ -27,7 +27,7 @@ Each wave finishes before the next starts. Steps in the same wave run in paralle
 | 3 | Step 5 responder (LLM), Step 5 wiring in `app/pipeline.py` and `app/main.py` (App) | Try the merged app in the browser, on desktop and at phone width |
 | 4 | Step 6 (App) | Choose the storage approach before work starts; test failures after |
 | 5 | Step 7 full run (Lead, with Evals fixing scoring bugs and owners fixing their modules) | Decide on the 8 dataset rows before the run, then read the replies and results |
-| 6 | One Reviewer pass over `git diff master...staging`, with fixes on new branches, then Step 8 (Lead drafts) | Rewrite the README and submit |
+| 6 | Parked issues, Step 8 (Lead drafts) and the final eval run, then one Reviewer pass over `git diff master...staging` once everything else is finished, with critical fixes on new branches (Or's order, 5 Nov 2026) | Rewrite the README and submit |
 
 ## Branches
 
@@ -58,14 +58,11 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 
 ## Parked
 
-Not decided. Or will come back to these at the end of the build, before submitting.
+Closed on 5 Nov 2026, when Or asked to finish everything before the review.
 
-- **Counts and "list all" (found in Or's browser check, 4 Nov 2026).** "How many laptops do you have?" can't be answered, and "list all the laptops" shows only 3.
-  - Why: search finds every match, but the pipeline cuts to 3 cards, and the responder only sees those cards.
-  - Possible fixes: pass the match count to the responder, so it can state it (a number from our code, so still grounded). Teach the parser that "all" sets a large `top_k`, or lean on Show more.
-  - Check before changing: the grounding score and `tests/test_responder.py`, which pin that the responder sees only `shown`.
-- **Refresh on a phone (found by the App role, 5 Nov 2026).** At 375px, refreshing before the past-chats drawer has ever been opened gives a blank new chat; the old chat stays in past chats. The URL only becomes `/thread/<id>` once the drawer has mounted. Desktop is fine.
-- **Deleting the DB while the app runs (found by the App role, 5 Nov 2026).** The app recreates the file and keeps working, but shows no message, though Step 6 expects one. That chat also never appears in the sidebar after a restart, because Chainlit attaches a thread to the user only on its first message and the user row is gone.
+- **Counts and "list all":** built. `total` gives the reply a number from our code, and `show_all` lists every match.
+- **Deleting the DB while the app runs:** built. The chat says so once, and the user and the open chat are restored, so it stays in the sidebar.
+- **Refresh on a phone:** not fixed, listed in the README's known limitations. At 375px, until the past-chats drawer has mounted the URL stays `/`, so a refresh gives a blank new chat, and the first tap on the drawer button only moves the URL to `/thread/<id>`; the second opens it. It is Chainlit's frontend, and a fix needs custom JavaScript, which the stack rule doesn't allow. The old chat stays in past chats.
 
 ## Step 1: Project skeleton
 
@@ -240,7 +237,7 @@ Not decided. Or will come back to these at the end of the build, before submitti
 
 - [ ] Draft the six required sections from CLAUDE.md and DECISIONS.md: setup, architecture and rejected alternatives, retrieval strategy, conversation and state, evaluation, known limitations. Keep the existing "Test datasets" text as part of evaluation
 - [ ] Cover what Bazak will probe: how the catalog cache would handle live inventory and price changes (refresh, re-checking with `GET /products/{id}`, stale prices in resumed chats), and why the optional Decisions API was or wasn't used
-- [ ] Name at least two rejected framework alternatives, with concrete reasons. Streamlit is one; Or chooses the other
+- [ ] Name at least two rejected framework alternatives, with concrete reasons. Streamlit is one; the Lead drafted LangChain as the other, and Or chooses when rewriting
 - [ ] Or rewrites the draft in Or's own words
 
 **Definition of done:**

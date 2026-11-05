@@ -2,10 +2,25 @@
 
 Each entry: what was decided, why, and what else was considered. The Lead keeps this log and reports new entries at the end of each wave.
 
+## Wave 6
+
+- **Chose option A for cards, because Or said to continue without picking.** A was the recommendation given on 5 Nov. When any product in a search matches a keyword, only those get cards. Why in the pipeline: `search()` and the deterministic scores stay as they are. Alternative: leave it and list it as a limitation, which shows speakers for a phone case. To reverse it, make `_card_candidates` return `outcome.products`.
+- **`show_all` is its own field, not a large `top_k`.** "All fragrances" is a dataset row with no `top_k`, and `datasets/` changes only with Or's approval. Alternative: lean on Show more, which leaves "list all" answering with 3.
+- **The count is a number from code, passed as `total`.** The responder still sees only `shown`. Alternative: let the model count the cards, which gives 3 for 5 laptops.
+- **`total` counts the products that get cards, not everything in the category.** So "how many phone cases?" is 1, not 14.
+- **Phone refresh and the first drawer tap stay as they are.** Both come from Chainlit mounting its sidebar late. A fix needs custom JavaScript, outside the stack rule and hard to defend. Alternative: a script that mounts the sidebar early. Past chats stay reachable, so it's listed as a known limitation.
+- **A file deleted while the app runs is checked before each statement.** SQLite would otherwise recreate it empty on connect and hide what happened. The user and chat rows go back with plain `sqlite3`, with no `await`, so no other write can slip in first. Alternative: rebuild everything from the session, which is more code for a rare failure.
+- **No new dataset rows for counts and "list all".** `datasets/` changes only with Or's approval, so these were checked by unit tests and 8 short real-model conversations. They aren't in the eval scores.
+- **The final eval run was restarted once.** A real-model check found that "how many is that?" started a new search, so the run was stopped a minute in and the prompt fixed, to report numbers from the final code.
+- **The responder now calls a product what its title says.** The card rule made a regression: with one word matching, a bedside table was called a dining table match. The eval scores missed it and reading the replies caught it. Alternative: require every keyword to match, which would empty real searches such as "laptop for my son".
+- **A limit our code worked out is never written, even rounded, and an amount the shopper dictates isn't repeated, even to refuse.** "Under $1,800" and "$1" failed the grounding score. Alternative: loosen the scorer, which would hide them.
+- **The final run happens after the Reviewer's fixes, so it runs once.** The README's numbers are filled in from it.
+- **Drafted LangChain as the second rejected alternative.** The plan leaves this choice to Or, who should replace it if a different alternative is the honest answer. Alternative: assistant-ui, also a real option, but it says less about the pipeline.
+
 ## Wave 5
 
 - **Fixed two reply rules after the first real run, before Or read the results.** A fallback reply said "Nothing in the catalog is under $10", copied from a prompt example, though 46 products cost less. Another stated "$49.98", a limit our code worked out from "cheaper". Both broke existing rules, so no design changed. The fix was checked by replaying 6 fallback cases on the real model (16 calls), not a full run. Alternative: wait for Or, which would leave a known false sentence in the app.
-- **`evals/results.md` is committed from the run before that fix.** Its scores don't depend on the wording, but its replies for those cases show the old sentences. The final full run replaces it.
+- **`evals/results.md` is committed from the run before that fix.** Its scores don't depend on the wording, but its replies for those cases show the old sentences. The final full run replaced it in wave 6.
 
 ## Before wave 5
 
