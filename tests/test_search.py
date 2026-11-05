@@ -417,6 +417,37 @@ def test_price_is_loosened_only_after_rating_did_not_help(catalog: list[Product]
     assert ids(outcome.products) == [81, 80, 82, 79, 78]
 
 
+def test_two_limits_that_never_meet_suggest_one_product_for_each(catalog: list[Product]) -> None:
+    # 130 ($349.99, 4.58) is the only phone rated 4.5 or more. 127 ($299.99, 4.25) is the
+    # highest rated at $300 or less, ahead of the cheaper 128 ($149.99, 4.2).
+    outcome = fallback(catalog, category="smartphones", price_max=300, rating_min=4.5)
+    assert outcome.loosened == ["rating", "price"]
+    assert ids(outcome.products) == [130, 127]
+
+
+def test_the_suggestion_that_meets_the_rating_is_the_cheapest_with_it(catalog: list[Product]) -> None:
+    # Rated 4.2 or more and over $300: 132 ($499.99, 4.4), 136 ($499.99, 4.26), 130 ($349.99, 4.58).
+    # With a $100 limit, none costs that little, and 130 is the nearest to it.
+    outcome = fallback(catalog, category="smartphones", price_max=100, rating_min=4.2)
+    assert outcome.loosened == ["price"]
+    assert all(p.rating >= 4.2 for p in outcome.products)
+    assert outcome.products[0].price == min(p.price for p in outcome.products)
+
+
+def test_the_users_sort_does_not_choose_the_two_suggestions(catalog: list[Product]) -> None:
+    outcome = fallback(
+        catalog, category="smartphones", price_max=300, rating_min=4.5, sort_by="price", order="asc"
+    )
+    assert ids(outcome.products) == [130, 127]
+
+
+def test_a_limit_that_works_alone_keeps_all_its_products(catalog: list[Product]) -> None:
+    # Every laptop is rated 1 or more and none costs $10, so only the price limit is dropped.
+    outcome = fallback(catalog, category="laptops", price_max=10, rating_min=1)
+    assert outcome.loosened == ["price"]
+    assert ids(outcome.products) == [81, 80, 82, 79, 78]
+
+
 def test_rating_alone_is_not_loosened_when_there_is_no_rating_limit(catalog: list[Product]) -> None:
     assert fallback(catalog, category="laptops", price_max=10).loosened == ["price"]
 

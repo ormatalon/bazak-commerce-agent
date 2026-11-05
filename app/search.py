@@ -1,7 +1,6 @@
 """Filter and rank the cached catalog in plain Python, with our own fallback."""
 
 import re
-from typing import Literal
 
 from app.schemas import Product, SearchOutcome, SearchSpec
 
@@ -113,8 +112,31 @@ def distance_from_limits(spec: SearchSpec, product: Product) -> tuple[float, flo
     return (price_gap, rating_gap)
 
 
+def nearest_first(spec: SearchSpec, products: list[Product]) -> list[Product]:
+    """More keyword matches first (so "iphone rated above 5" shows iPhones), then nearest
+    to the original limits. The sort is stable, so equal keys keep the order search() gave
+    them (rating, then lowest ID).
+    """
+    keywords = clean_keywords(spec.keywords)
+    return sorted(
+        products,
+        key=lambda product: (-keyword_match_count(keywords, product), *distance_from_limits(spec, product)),
+    )
+
+
+def search_without(spec: SearchSpec, dropped: dict[str, None], catalog: list[Product]) -> list[Product]:
+    """Search with some limits dropped. Unless the user chose a sort, nearest to the limits first."""
+    products = search(spec.model_copy(update=dropped), catalog)
+    return products if spec.sort_by is not None else nearest_first(spec, products)
+
+
 def search_with_fallback(spec: SearchSpec, catalog: list[Product]) -> SearchOutcome:
-    """Run the search, loosening rating and then price if it returns nothing.
+    """Run the search, and if it returns nothing, loosen the rating or price limits.
+
+    With one kind of limit, drop it. With both, drop whichever one finds something. If each
+    finds something alone, nothing meets them together, so suggest one product for each:
+    the nearest to the price limit that meets the rating, and the highest rated that meets
+    the price. If neither finds anything alone, drop both.
 
     The category and keywords are never dropped: with no category that would
     return the whole catalog and present it as a match.
@@ -124,34 +146,28 @@ def search_with_fallback(spec: SearchSpec, catalog: list[Product]) -> SearchOutc
         return SearchOutcome(spec=spec, products=products)
 
     # With no category and no keywords, loosening would return the whole catalog as a match.
-    keywords = clean_keywords(spec.keywords)
-    if spec.category is None and not keywords:
+    if spec.category is None and not clean_keywords(spec.keywords):
         return SearchOutcome(spec=spec, products=[], loosened=[])
 
-    loosened: list[Literal["rating", "price"]] = []
-    loose_spec = spec
+    no_rating: dict[str, None] = {"rating_min": None}
+    no_price: dict[str, None] = {"price_min": None, "price_max": None}
+    has_rating = spec.rating_min is not None
+    has_price = spec.price_min is not None or spec.price_max is not None
 
-    # Stage 1: drop the rating limit (only if there was one).
-    if spec.rating_min is not None:
-        loose_spec = loose_spec.model_copy(update={"rating_min": None})
-        loosened.append("rating")
-        products = search(loose_spec, catalog)
+    meets_price = search_without(spec, no_rating, catalog) if has_rating else []
+    meets_rating = search_without(spec, no_price, catalog) if has_price else []
 
-    # Stage 2: also drop the price limits (only if there were any).
-    if not products and (spec.price_min is not None or spec.price_max is not None):
-        loose_spec = loose_spec.model_copy(update={"price_min": None, "price_max": None})
-        loosened.append("price")
-        products = search(loose_spec, catalog)
+    if meets_price and meets_rating:
+        # The user's sort can't choose these: each one answers its own limit.
+        suggestions = [nearest_first(spec, meets_rating)[0], nearest_first(spec, meets_price)[0]]
+        return SearchOutcome(spec=spec, products=suggestions, loosened=["rating", "price"])
+    if meets_price:
+        return SearchOutcome(spec=spec, products=meets_price, loosened=["rating"])
+    if meets_rating:
+        return SearchOutcome(spec=spec, products=meets_rating, loosened=["price"])
 
-    if not products:
-        return SearchOutcome(spec=spec, products=[], loosened=[])
-
-    # Unless the user chose a sort: more keyword matches first (so "iphone rated above 5"
-    # shows iPhones), then nearest to the original limits. The sort is stable, so
-    # equal keys keep the order search() gave them (rating, then lowest ID).
-    if spec.sort_by is None:
-        products.sort(
-            key=lambda product: (-keyword_match_count(keywords, product), *distance_from_limits(spec, product))
-        )
-
-    return SearchOutcome(spec=spec, products=products, loosened=loosened)
+    if has_rating and has_price:
+        either = search_without(spec, {**no_rating, **no_price}, catalog)
+        if either:
+            return SearchOutcome(spec=spec, products=either, loosened=["rating", "price"])
+    return SearchOutcome(spec=spec, products=[], loosened=[])

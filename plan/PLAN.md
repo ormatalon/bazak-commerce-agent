@@ -58,7 +58,7 @@ Agents can't merge: `git merge` is denied for Bash, the only shell they have.
 
 ## Parked
 
-Noted by Or, not decided. Nothing here is scheduled until Or says so.
+Not decided. Or will come back to these at the end of the build, before submitting.
 
 - **Counts and "list all" (found in Or's browser check, 4 Nov 2026).** "How many laptops do you have?" can't be answered, and "list all the laptops" shows only 3.
   - Why: search finds every match, but the pipeline cuts to 3 cards, and the responder only sees those cards.
@@ -111,7 +111,7 @@ Noted by Or, not decided. Nothing here is scheduled until Or says so.
 - Full catalog loaded. Check: a one-line script prints the product count; it equals the API's `total` (194 when last checked).
 - Categories match. Check: the printed category list is the same 24 slugs as `/products/category-list`, and every product's category is in it.
 - Works offline after the first run. Check: turn off Wi-Fi, run the loader again; it loads from the cache file with no error.
-- Dataset rows reviewed. Check: a script runs every row of `datasets/deterministic.csv` against the catalog and lists the rows below (as of 4 Nov 2026). Or decides whether to keep or change each one before wave 5; they don't affect the build.
+- Dataset rows reviewed. Check: a script runs every row of `datasets/deterministic.csv` against the catalog and lists the rows below (as of 4 Nov 2026). Or kept all of them (5 Nov 2026): when nothing matches, the agent must say so and suggest the 3 closest products, for example the 3 cheapest when the price is too low.
   - Nothing matches: 1 and 51 (the cheapest laptop is $1,099.99), 19, 39.
   - The filter excludes nothing: 28 and 56 (every pair of sunglasses is under $35), 45, 48.
 - `pytest tests/test_catalog.py` passes.
@@ -122,7 +122,7 @@ Noted by Or, not decided. Nothing here is scheduled until Or says so.
 
 - [ ] `search()`: pure-Python filter and rank over the catalog, returning every match with no display cap
 - [ ] Keywords only affect rank when a category is set; with no category a product must match at least one
-- [ ] Fallback as a separate function: loosen rating, then price; keep category and keywords; return what was loosened, ordered nearest to the original limit
+- [ ] Fallback as a separate function: loosen whichever limit finds something; with both limits, when each works alone but never together, suggest one product for each; keep category and keywords; return what was loosened, ordered nearest to the original limit
 - [ ] Unit tests for each filter, each fallback stage and the tie-breaks
 
 **Definition of done:**

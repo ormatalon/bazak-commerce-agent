@@ -2,6 +2,13 @@
 
 Each entry: what was decided, why, and what else was considered. The Lead keeps this log and reports new entries at the end of each wave.
 
+## Before wave 5
+
+- **When one limit works alone, only that limit is dropped.** "Laptops rated 1 or more under $10" now keeps the rating and drops the price. Or's rule set the two-product case; this follows from it. Before, both limits were dropped. Alternative: keep the old order, rating then price.
+- **The user's sort doesn't choose the two suggestions.** Each one answers its own limit, so "cheapest first" could otherwise pick the wrong one. Alternative: follow the sort.
+- **The two suggestions can't grow with Show more.** There are exactly two, so no button appears. Alternative: add more products for each limit.
+- **`datasets/answers/` shows the fallback's suggestions from the app's own code.** There's no independent source for them, and the file says so. Alternative: leave them out, which hides what Or wanted to see.
+
 ## Wave 4
 
 - **A login page, not auto-login.** Chainlit's only password-free route is header auth, which lets in anyone who can reach the port and makes `APP_PASSWORD` meaningless. Alternative: header auth.
