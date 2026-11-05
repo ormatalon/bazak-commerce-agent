@@ -2,6 +2,11 @@
 
 Each entry: what was decided, why, and what else was considered. The Lead keeps this log and reports new entries at the end of each wave.
 
+## Wave 5
+
+- **Fixed two reply rules after the first real run, before Or read the results.** A fallback reply said "Nothing in the catalog is under $10", copied from a prompt example, though 46 products cost less. Another stated "$49.98", a limit our code worked out from "cheaper". Both broke existing rules, so no design changed. The fix was checked by replaying 6 fallback cases on the real model (16 calls), not a full run. Alternative: wait for Or, which would leave a known false sentence in the app.
+- **`evals/results.md` is committed from the run before that fix.** Its scores don't depend on the wording, but its replies for those cases show the old sentences. The final full run replaces it.
+
 ## Before wave 5
 
 - **Exchange rates are a fixed table in `app/currency.py`, dated 4 Nov 2026.** Or asked for conversion and "roughly" fits a snapshot. It adds no network call or failure, and tests can check every number. Alternatives: a live rates API, which adds a failure on every message, or the model's own knowledge, which breaks the grounding rule and can't be tested.
