@@ -123,7 +123,23 @@ The search code wouldn't change, because it only sees a list of products.
 
 **Last full run:**
 
-RESULTS_TABLE
+| Deterministic set | Queries | Precision, recall, F1 | `top_k` correct | Exact filter | Failed parses |
+| --- | --- | --- | --- | --- | --- |
+| basic | 53 | 1.00 | 7/7 | 53/53 | 0 |
+| hard | 21 | 1.00 | 7/7 | 21/21 | 0 |
+| Hebrew (also counted above) | 5 | 1.00 | 1/1 | 5/5 | 0 |
+
+| Behavioral set | Conversations | Intent | Mode | Category | Fallback fired / stayed quiet | Exact cards | Language | Grounded |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| basic | 22 | 22/22 | 12/12 | 12/12 | 2/2, 10/10 | none set | 2/2 | 22/22 |
+| hard | 19 | 19/19 | 15/15 | 15/15 | 5/5, 10/10 | 2/2 | 7/7 | 19/19 |
+| Hebrew (also counted above) | 5 | 5/5 | 4/4 | 4/4 | 1/1, 3/3 | none set | 5/5 | 5/5 |
+
+Read these as "no regression on these cases", not as "the app is perfect". The same run, at 100%, contains replies that are wrong in ways only a person reading them sees:
+
+- "Something nice for my living room" asked about product and budget, instead of offering furniture or home decoration as the case expects. An earlier run did offer them.
+- A Hebrew reply contained one stray Hindi word. The language check only needs most letters to be Hebrew.
+- "3,000 ILS is roughly $948" answered someone who typed NIS.
 
 **What this would catch.** A filter or fallback bug, a prompt change that breaks intent, mode or bounds, a reply naming an unshown product or inventing a price, a reply in the wrong language, and a failed parse that looks like a clarifying question.
 
@@ -142,7 +158,7 @@ RESULTS_TABLE
 - **Weak category matches.** One matching word is enough for a card, so "dining table" shows a bedside table. The reply says it's only the closest, but the card is still there.
 - **Show more can leave the topic.** After the keyword matches run out, it shows the rest of the category with no explanation.
 - **No retry after a bad parse.** The parser runs once. A wrong reading gives a wrong search, or a clarifying question.
-- **Reply wording varies between runs,** and the rules are prompts, not guarantees. For example, the reply has once said "ILS" to someone who typed NIS.
+- **Replies vary between runs,** and the rules are prompts, not guarantees. See the three examples under Evaluation.
 - **Fixed exchange rates,** dated in `app/currency.py`, for 7 currencies. Others get a question asking for dollars.
 - **Refreshing on a phone.** At phone width, the URL only becomes `/thread/<id>` once Chainlit's sidebar has mounted. Until then a refresh opens a blank new chat, though the old one stays in past chats, and the first tap on the sidebar button only changes the URL, so it takes a second tap to open. A fix would need custom JavaScript in Chainlit's frontend.
 - **Show more after a resume.** The button isn't redrawn, but typing "show more" works.
