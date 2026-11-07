@@ -64,7 +64,3 @@ id,query,category,price_min,price_max,rating_min,sort_by,order,top_k,difficulty
 63,"My skin's been really dry lately, any skin care stuff under twenty bucks rated at least 4?",skin-care,,19.99,4,,,,hard
 64,"Show me men's shoes, sorted from cheapest to most expensive",mens-shoes,,,,price,asc,,hard
 65,"Gift idea for my mom: a handbag, budget somewhere between $50 and $150",womens-bags,50,150,,,,,hard
-66,מחשבים ניידים עד 1500 דולר,laptops,,1500,,,,,hard
-67,Busco gafas de sol por menos de 30 dólares,sunglasses,,29.99,,,,,hard
-68,הטאבלט הכי זול שיש לכם,tablets,,,,price,asc,1,hard
-69,Muéstrame los 3 perfumes mejor valorados,fragrances,,,,rating,desc,3,hard

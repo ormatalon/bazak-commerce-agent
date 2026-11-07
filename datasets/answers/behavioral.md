@@ -292,51 +292,6 @@
 - Reply language: not checked
 - Expected behavior: Last turn starts a new search; price limit from perfumes is not carried over
 
-## Case 27 [hard]: other_language
-
-- User turn 1: אני מחפש מתנה לאשתי, היא אוהבת בשמים
-- Intent: product_search
-- Mode: new
-- Categories: ['fragrances'] (match: all)
-- Fallback: None
-- Exact cards (product IDs): not checked
-- Reply language: he
-- Expected behavior: Shows fragrance cards; replies in Hebrew; product titles stay as in the catalog
-
-## Case 28 [hard]: other_language
-
-- User turn 1: Resérvame un vuelo a Tokio
-- Intent: off_catalog
-- Mode: None
-- Categories: none (match: None)
-- Fallback: None
-- Exact cards (product IDs): not checked
-- Reply language: es
-- Expected behavior: Politely says in Spanish that we don't sell that; no cards
-
-## Case 29 [hard]: language_switch
-
-- User turn 1: Show me laptops
-- User turn 2: יש משהו זול יותר?
-- Intent: product_search
-- Mode: refine
-- Categories: ['laptops'] (match: all)
-- Fallback: None
-- Exact cards (product IDs): not checked
-- Reply language: he
-- Expected behavior: Keeps laptops and lowers the max price; replies in Hebrew
-
-## Case 30 [hard]: other_currency
-
-- User turn 1: אני רוצה טלפון עד 1000 שקל
-- Intent: product_search
-- Mode: new
-- Categories: ['smartphones'] (match: all)
-- Fallback: None
-- Exact cards (product IDs): not checked
-- Reply language: he
-- Expected behavior: States in Hebrew that 1000 shekels is roughly $316; shows phones at or under $316
-
 ## Case 31 [hard]: two_limits
 
 - User turn 1: Furniture rated 4 or more under $300
@@ -460,3 +415,37 @@
 - Exact cards (product IDs): not checked
 - Reply language: he
 - Expected behavior: Shows sunglasses with their real prices in Hebrew; does not say they cost one dollar
+
+## Case h13 [hard]: other_language
+
+- User turn 1: אני מחפש מתנה לאשתי, היא אוהבת בשמים
+- Intent: product_search
+- Mode: new
+- Categories: ['fragrances'] (match: all)
+- Fallback: None
+- Exact cards (product IDs): not checked
+- Reply language: he
+- Expected behavior: Shows fragrance cards; replies in Hebrew; product titles stay as in the catalog
+
+## Case h14 [hard]: language_switch
+
+- User turn 1: Show me laptops
+- User turn 2: יש משהו זול יותר?
+- Intent: product_search
+- Mode: refine
+- Categories: ['laptops'] (match: all)
+- Fallback: None
+- Exact cards (product IDs): not checked
+- Reply language: he
+- Expected behavior: Keeps laptops and lowers the max price; replies in Hebrew
+
+## Case h15 [hard]: other_currency
+
+- User turn 1: אני רוצה טלפון עד 1000 שקל
+- Intent: product_search
+- Mode: new
+- Categories: ['smartphones'] (match: all)
+- Fallback: None
+- Exact cards (product IDs): not checked
+- Reply language: he
+- Expected behavior: States in Hebrew that 1000 shekels is roughly $316; shows phones at or under $316

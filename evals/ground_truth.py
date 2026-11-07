@@ -3,7 +3,7 @@
 This file works only from the datasets and the catalog. It must not import app/search.py,
 so a bug in search() cannot hide on both sides of the comparison.
 
-Run `python evals/ground_truth.py` to print the expected IDs for all 74 rows.
+Run `python evals/ground_truth.py` to print the expected IDs for all 72 rows.
 """
 
 import csv

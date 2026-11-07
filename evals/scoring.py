@@ -125,24 +125,6 @@ def filter_matches(expected: SearchSpec, got: SearchSpec | None) -> bool:
 # Reply language
 # ---------------------------------------------------------------------------
 
-# Short lists of common words. A word in both languages is left out of both lists
-# ("a", "no", "me"), so each hit points to one language.
-SPANISH_STOPWORDS = {
-    "el", "la", "los", "las", "de", "del", "y", "en", "que", "un", "una", "unos", "unas",
-    "por", "para", "con", "es", "se", "lo", "al", "su", "sus", "mi", "tu", "como", "pero",
-    "más", "hay", "puedo", "puedes", "sobre", "está", "son", "muy", "también", "sin",
-    "tenemos", "vendemos", "siento", "ayudarte", "ayudar", "busco", "quieres", "te",
-    "ofrecemos", "lamentablemente", "lamento", "tienda", "producto", "productos",
-    "disponible", "disponibles", "aquí", "algo", "otro", "otra", "estos", "estas", "este",
-    "esta", "esto", "qué", "cómo", "hola", "gracias", "presupuesto", "precio", "precios",
-    "opciones", "encontré", "ni", "nos", "ya", "sí",
-}  # fmt: skip
-ENGLISH_STOPWORDS = {
-    "the", "an", "and", "or", "of", "to", "in", "is", "are", "for", "with", "you", "your",
-    "it", "that", "this", "we", "can", "on", "not", "have", "but", "do", "be", "at", "by",
-    "our", "if", "what", "any", "i", "here", "there", "from", "so", "help", "sorry",
-}  # fmt: skip
-
 HEBREW_FIRST = "֐"
 HEBREW_LAST = "׿"
 
@@ -165,8 +147,7 @@ def remove_titles(text: str, titles: list[str]) -> str:
 def remove_title_words(text: str, titles: list[str]) -> str:
     """Blank out each single word of the titles, for replies that shorten a title.
 
-    "מצאתי Gucci Bloom" names the product without its full title. Case matters, so
-    "De" from a title is blanked but the Spanish "de" is not.
+    "מצאתי Gucci Bloom" names the product without its full title.
     """
     words = {word for title in titles for word in re.findall(r"\w+", title)}
     for word in sorted(words, key=len, reverse=True):
@@ -175,25 +156,15 @@ def remove_title_words(text: str, titles: list[str]) -> str:
 
 
 def detect_language(reply: str, shown_titles: list[str]) -> str:
-    """Return "he", "es" or "en". No detection library; the rules are from CLAUDE.md.
+    """Return "he" or "en". No detection library; the rule is from CLAUDE.md.
 
-    The shown titles, whole and word by word, are removed first.
-    he: most of the remaining letters are in Hebrew script.
-    es: more Spanish than English stopwords (each ¿ and ¡ counts as a Spanish hit).
-    Anything else is "en".
+    The shown titles, whole and word by word, are removed first. "he" means most of the
+    remaining letters are in Hebrew script. Anything else counts as "en".
     """
     text = remove_title_words(remove_titles(reply, shown_titles), shown_titles)
     letters = [char for char in text if char.isalpha()]
     hebrew = [char for char in letters if HEBREW_FIRST <= char <= HEBREW_LAST]
-    if letters and len(hebrew) > len(letters) / 2:
-        return "he"
-
-    # [^\W\d_]+ is "a run of letters", and it keeps accents like the ó in "dólares".
-    words = re.findall(r"[^\W\d_]+", text.lower())
-    spanish_hits = sum(1 for word in words if word in SPANISH_STOPWORDS)
-    spanish_hits += text.count("¿") + text.count("¡")
-    english_hits = sum(1 for word in words if word in ENGLISH_STOPWORDS)
-    return "es" if spanish_hits > english_hits else "en"
+    return "he" if letters and len(hebrew) > len(letters) / 2 else "en"
 
 
 # ---------------------------------------------------------------------------

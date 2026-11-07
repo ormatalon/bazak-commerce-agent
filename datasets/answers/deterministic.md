@@ -780,45 +780,6 @@ Expected products (2):
 - #173 Heshe Women's Leather Bag, $129.99, rated 4.92
 - #176 Women Handbag Black, $59.99, rated 2.89
 
-## Row 66 [hard]: מחשבים ניידים עד 1500 דולר
-
-Filter: category=laptops, price_max=1500.0
-
-Expected products (3):
-
-- #80 Huawei Matebook X Pro, $1,399.99, rated 4.98
-- #81 Lenovo Yoga 920, $1,099.99, rated 2.86
-- #82 New DELL XPS 13 9300 Laptop, $1,499.99, rated 2.67
-
-## Row 67 [hard]: Busco gafas de sol por menos de 30 dólares
-
-Filter: category=sunglasses, price_max=29.99
-
-Expected products (4):
-
-- #154 Black Sun Glasses, $29.99, rated 4.41
-- #155 Classic Sun Glasses, $24.99, rated 3.86
-- #158 Sunglasses, $22.99, rated 3.02
-- #157 Party Glasses, $19.99, rated 2.79
-
-## Row 68 [hard]: הטאבלט הכי זול שיש לכם
-
-Filter: category=tablets, sort_by=price, order=asc, top_k=1
-
-Expected products (1):
-
-- #161 Samsung Galaxy Tab White, $349.99, rated 3.72
-
-## Row 69 [hard]: Muéstrame los 3 perfumes mejor valorados
-
-Filter: category=fragrances, sort_by=rating, order=desc, top_k=3
-
-Expected products (3):
-
-- #6 Calvin Klein CK One, $49.99, rated 4.37
-- #7 Chanel Coco Noir Eau De, $129.99, rated 4.26
-- #9 Dolce Shine Eau de, $69.99, rated 3.96
-
 ## Row h1 [basic]: שעוני נשים מתחת ל-1000 דולר
 
 Filter: category=womens-watches, price_max=999.99
@@ -877,3 +838,21 @@ Expected products (15):
 - #136 Vivo X21, $499.99, rated 4.26
 - #133 Samsung Galaxy S10, $699.99, rated 3.06
 - #124 iPhone X, $899.99, rated 2.51
+
+## Row h11 [hard]: מחשבים ניידים עד 1500 דולר
+
+Filter: category=laptops, price_max=1500.0
+
+Expected products (3):
+
+- #80 Huawei Matebook X Pro, $1,399.99, rated 4.98
+- #81 Lenovo Yoga 920, $1,099.99, rated 2.86
+- #82 New DELL XPS 13 9300 Laptop, $1,499.99, rated 2.67
+
+## Row h12 [hard]: הטאבלט הכי זול שיש לכם
+
+Filter: category=tablets, sort_by=price, order=asc, top_k=1
+
+Expected products (1):
+
+- #161 Samsung Galaxy Tab White, $349.99, rated 3.72

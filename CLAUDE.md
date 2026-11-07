@@ -4,8 +4,6 @@ Standing instructions for Claude Code. Read this before every task. The owner (O
 
 Follow @plan/PLAN.md, wave by wave. Its Team section says who owns which files.
 
-`Design Decisions.md` is Or's record of why things were chosen. Where it differs from this file, this file wins. Its eval tables are superseded by `datasets/`.
-
 ## Project
 
 A minimal AI shopping copilot: the user chats, the system understands intent, retrieves products from the DummyJSON Products API, and shows them as product cards inside the chat. Runs locally only. Deadline: Fri 13 Nov 2026, 23:59.
@@ -154,19 +152,19 @@ Handle failures explicitly: DB file missing at startup (recreate), deleted while
 ## Evaluation
 
 - `tests/`: pytest unit tests with a fake LLM: search filters, fallback, parser schema validation, storage round-trip. `tests/test_flow.py` runs one message from input through parsing and search to the card data sent to the UI, because Bazak asks for validation through to response rendering.
-- `datasets/` holds the labeled data, documented in `README.md`. `evals/` holds the code that scores it. Each case is labeled `basic` or `hard`; report the two separately.
-- `datasets/deterministic.csv`: 69 single-turn queries (50 basic, 19 hard), each with its expected filter.
+- `datasets/` holds the labeled data, documented in `README.md`. `evals/` holds the code that scores it. Each case is labeled `basic` or `hard`; report the two separately. `deterministic.csv` and `behavioral.jsonl` are English only, and Hebrew cases go only in `hebrew.jsonl` (Or's rule). A test checks this.
+- `datasets/deterministic.csv`: 65 single-turn English queries (50 basic, 15 hard), each with its expected filter.
   - `evals/ground_truth.py` computes the expected product IDs from the CSV and the cached catalog. It does not import `app/search.py`, so a search bug can't hide in both sides.
   - Score the parser and `search()` with no fallback and no display cap, applying `top_k` only when set. 51 rows have no `top_k` and more than 3 products in their category, so the 3-card default would wreck recall.
   - Metrics: precision, recall, F1, exact match for `top_k` queries, and the share of rows whose extracted filter matches exactly. If both the expected and returned sets are empty, the row scores 1.0 only if a search ran with the row's category, so a parser that always asks a question doesn't earn it. Products that tie on the sort value are interchangeable: a `top_k` result is right if every ID passes the row's filter and its sort values match the expected sequence. A row with several searches is scored on their union.
-- `datasets/behavioral.jsonl`: 36 conversations (20 basic, 16 hard), 7 of them multi-turn. Replay all turns through the full pipeline and score the last turn.
+- `datasets/behavioral.jsonl`: 32 English conversations (20 basic, 12 hard), 6 of them multi-turn. Replay all turns through the full pipeline and score the last turn.
   - Metrics: intent accuracy, mode accuracy, category accuracy (`category_match` says `all` or `any`), fallback accuracy (`expect_fallback` against what was loosened; `both` for the two-card rule), exact cards (`expected_card_ids`, on cases that set it), reply language (`expected_language`, on cases that set it), grounding rate (target 100%).
   - Grounding is scored by code, in any language: no catalog title outside the products shown anywhere in the conversation, and every `$` amount must be a price of those products, a number from any user turn, or a current search bound (a bound may differ by 0.01, since "under $20" is stored as 19.99). A number next to a currency word, such as "דולר" or "dólares", follows the same rule. Other numbers are not scored, because counts and ratings belong in replies; they are printed beside the reply for Or to read.
   - One-word titles ("Apple", "Water") are common words, so they are left out of the score and printed as unscored hits.
   - Grounding gaps only Or's read of the printed replies catches: a translated title of an unshown product, an unshown product with a one-word title, an amount written in words, and a user's limit wrongly stated as a product's price.
-  - Reply language is checked by code, after removing shown product titles: `he` means most letters are in Hebrew script; `es` means more words match a short Spanish stopword list than an English one. No detection library. It covers only the cases that set `expected_language`, so report it as a count with no target.
+  - Reply language is checked by code, after removing shown product titles: `he` means most letters are in Hebrew script. No detection library. It covers only the cases that set `expected_language`, which are the Hebrew ones, so report it as a count with no target.
   - `expected_behavior` is not scored automatically. `evals/run_evals.py` prints each reply beside it for Or to read.
-- `datasets/hebrew.jsonl`: 10 Hebrew cases (5 basic, 5 hard), added by Or. A `type` field marks 5 as `deterministic` and 5 as `behavioral`, each with the fields of its matching dataset. They are scored the same way, count in the basic, hard and all rows, and also get a `hebrew` row of their own. Their replies are printed for Or to read like the others.
+- `datasets/hebrew.jsonl`: 15 Hebrew cases (5 basic, 10 hard). A `type` field marks 7 as `deterministic` and 8 as `behavioral`, each with the fields of its matching dataset. They are scored the same way, and the tables report English and Hebrew in separate rows, each split into basic and hard. Their replies are printed for Or to read like the others.
 - `datasets/answers/` holds the expected answers in readable form, for Or. `evals/export_answers.py` generates it, and nothing reads it. Suggestions shown there for rows that match nothing come from the app's fallback, so they aren't an independent answer.
 - `evals/run_evals.py` prints a summary table.
 

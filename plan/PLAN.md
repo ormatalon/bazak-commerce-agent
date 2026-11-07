@@ -144,7 +144,7 @@ Closed on 5 Nov 2026, when Or asked to finish everything before the review.
 **Definition of done:**
 
 - Output is always valid. Check: run the parser on every turn of the behavioral conversations; every output passes the Pydantic schema (0 crashes).
-- Other languages work. Check: the Hebrew perfume request in `datasets/behavioral.jsonl` gives `fragrances`, and any keywords are in English. A budget in shekels gives `product_search` with the limit converted to dollars by code. A currency with no rate gives `needs_clarification`.
+- Other languages work. Check: the Hebrew perfume request in `datasets/hebrew.jsonl` gives `fragrances`, and any keywords are in English. A budget in shekels gives `product_search` with the limit converted to dollars by code. A currency with no rate gives `needs_clarification`.
 - Intents are right on the obvious cases. Check: "a flight to Tokyo" → `off_catalog`; "hi" → `small_talk`; "something cheap and cool" → `needs_clarification`.
 - Broad requests ask. Check: "electronics" and "watches" give `needs_clarification` with `category_options`, and answering "for men" searches `mens-watches`.
 - Multi-intent splits. Check: "a laptop and a phone case" returns two searches with categories `laptops` and `mobile-accessories`. "A phone under $500 and a pair of sunglasses" puts the price limit on the phone search only.
@@ -226,8 +226,8 @@ Closed on 5 Nov 2026, when Or asked to finish everything before the review.
 **Definition of done:**
 
 - One command runs everything. Check: `python evals/run_evals.py` finishes and prints a summary table.
-- Deterministic set scored. Check: the table covers 74 queries (53 basic, 21 hard), including the 5 Hebrew rows, which also get their own row; per-query failures are listed. Rows with an empty expected set score 1.0 only if the agent also returns nothing.
-- Behavioral set scored. Check: the table covers 41 conversations (22 basic, 19 hard), including the 5 Hebrew cases, which also get their own row, and their replies are printed for Or to read.
+- Deterministic set scored. Check: the table covers 72 queries: 65 English (50 basic, 15 hard) and 7 Hebrew (3 basic, 4 hard), in separate rows; per-query failures are listed. Rows with an empty expected set score 1.0 only if the agent also returns nothing.
+- Behavioral set scored. Check: the table covers 40 conversations: 32 English (20 basic, 12 hard) and 8 Hebrew (2 basic, 6 hard), in separate rows, and their replies are printed for Or to read.
 - Ground truth is real. Check: pick 3 queries at random and confirm their expected IDs by hand in the catalog file.
 - Targets (adjust after first run): basic F1 ≥ 0.9, basic intent accuracy ≥ 0.9, grounding rate = 100%. Hard cases are reported, without a target until the first run. Results saved to `evals/results.md`.
 

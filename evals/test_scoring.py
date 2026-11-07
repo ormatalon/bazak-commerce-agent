@@ -16,8 +16,6 @@ from app.schemas import (
 )
 from evals import scoring
 from evals.scoring import (
-    ENGLISH_STOPWORDS,
-    SPANISH_STOPWORDS,
     check_grounding,
     detect_language,
     filter_matches,
@@ -360,30 +358,8 @@ def test_hebrew_reply_is_he_even_without_titles():
     assert detect_language("מצאתי כמה בשמים שיכולים להתאים לאשתך", []) == "he"
 
 
-def test_spanish_reply_is_es():
-    reply = "Lo siento, no vendemos vuelos, pero puedo ayudarte con productos de la tienda."
-    assert detect_language(reply, []) == "es"
-
-
 def test_english_reply_is_en():
     assert detect_language("Sorry, we do not carry flights, but I can help with products.", []) == "en"
-
-
-def test_english_titles_in_a_spanish_reply_do_not_flip_it(catalog):
-    # "Tenemos" is one Spanish hit and the "And" in the title is one English hit: a tie, which is "en".
-    # Only removing the title first gives the right answer.
-    title = catalog[88].title  # Nike Air Jordan 1 Red And Black
-    reply = f"Tenemos {title}"
-    assert detect_language(reply, []) == "en"
-    assert detect_language(reply, [title]) == "es"
-
-
-def test_spanish_reply_with_few_stopwords_is_es():
-    assert detect_language("No ofrecemos vuelos a Tokio.", []) == "es"
-
-
-def test_inverted_question_and_exclamation_marks_count_as_spanish():
-    assert detect_language("¿Qué presupuesto tienes? ¡Genial!", []) == "es"
 
 
 def test_hebrew_reply_that_shortens_a_title_is_he(catalog):
@@ -392,16 +368,6 @@ def test_hebrew_reply_that_shortens_a_title_is_he(catalog):
     reply = "מצאתי Gucci Bloom ו-Dior עבורך"
     assert detect_language(reply, []) == "en"  # the Latin letters win unless title words are blanked
     assert detect_language(reply, [p.title for p in shown]) == "he"
-
-
-def test_spanish_de_is_not_blanked_by_a_title_word_de(catalog):
-    # "Chanel Coco Noir Eau De" has the word "De"; the lowercase Spanish "de" must still count.
-    # "de" is the reply's only hit, so blanking it would turn the answer into "en".
-    assert detect_language("Nada de eso.", [catalog[7].title]) == "es"
-
-
-def test_stopword_lists_share_no_word():
-    assert SPANISH_STOPWORDS & ENGLISH_STOPWORDS == set()
 
 
 # ---------------------------------------------------------------------------
@@ -526,7 +492,8 @@ def test_language_scored_only_when_expected(catalog, titles):
     result = make_result("מצאתי מחשבים", [catalog[80]])
     assert score_case(result, case(), [], titles).language_ok is None
     assert score_case(result, case(expected_language="he"), [], titles).language_ok is True
-    assert score_case(result, case(expected_language="es"), [], titles).language_ok is False
+    english = make_result("I found laptops", [catalog[80]])
+    assert score_case(english, case(expected_language="he"), [], titles).language_ok is False
 
 
 def imported_names(path: str) -> set[str]:
