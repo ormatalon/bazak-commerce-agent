@@ -22,13 +22,13 @@ I also decided not to stream replies. They are returned whole, which keeps card 
 
 ## Setup
 
-You need Python 3.11 or newer (tested on 3.12), and network access the first time, to fetch the catalog. If `python3.12` isn't found on a Mac, run `brew install python@3.12`.
+You need Python 3.11 or newer (tested on 3.12), and network access: for every model call, and the first time to fetch the catalog. If `python3.12` isn't found on a Mac, run `brew install python@3.12`.
 
 ```bash
 git clone <repo-url>
 cd <repo-folder>
 python3.12 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install --prefer-binary -r requirements.txt
 cp .env.example .env
 .venv/bin/chainlit create-secret
 ```
@@ -56,7 +56,7 @@ Tests and evals:
 .venv/bin/python evals/run_evals.py     # about 170 real model calls
 ```
 
-The app is developed and tested on Windows. These commands were also run on Linux, and every compiled dependency has macOS builds, but they have not been run on an actual Mac.
+The app is developed and tested on Windows. These commands were also run on Linux, but not on an actual Mac. Dependencies resolve for Apple Silicon and Intel Macs. On Intel, `--prefer-binary` takes an older `cryptography`, because the newest has no Intel build.
 
 ## Architecture
 
@@ -184,6 +184,8 @@ To read what every case expects, open `datasets/answers/`, which `python evals/e
 | English hard | 12 | 12/12 | 9/9 | 9/9 | 4/4, 5/5 | 2/2 | none set | 12/12 |
 | Hebrew basic | 2 | 2/2 | 1/1 | 1/1 | none set, 1/1 | none set | 2/2 | 2/2 |
 | Hebrew hard | 6 | 6/6 | 6/6 | 6/6 | 1/1, 5/5 | none set | 6/6 | 6/6 |
+
+When the datasets were split into English and Hebrew, these were re-scored with `--rescore` from that run's saved results, without its 3 Spanish cases, because no app code had changed.
 
 Read these as "no regression on these cases", not as "the app is perfect". The same run, at 100%, contains replies that are wrong in ways only a person reading them sees:
 

@@ -10,6 +10,8 @@ Each entry: what was decided, why, and what else was considered. The Lead keeps 
 - **The tables now report English and Hebrew in separate rows,** each split into basic and hard, instead of counting Hebrew inside the basic and hard rows.
 - **`Design Decisions.md` was deleted, as Or asked.** Its still-true content moved to the README: the assumptions, one pass against tool calling, and Postgres as a rejected store. Its eval tables were checked to be covered by `datasets/`. Its `conversations` and `messages` schema and its "no exchange rates" rule were already out of date, so they were left out.
 - **The macOS setup uses `python3.12` and plain `pip`,** which any Mac can get, rather than `uv`. It hasn't been run on a Mac. The commands were run on Linux, and the dependencies were resolved for macOS. Alternative: claim macOS support untested.
+- **The install uses `--prefer-binary`, after the second Reviewer pass.** The newest `cryptography` has no Intel Mac build, so plain pip would try to compile it, and the README's "every compiled dependency has macOS builds" was false. The flag takes the older build instead. Alternative: pin `cryptography`, a dependency change that needs Or's approval.
+- **The other findings of that pass stay as they are.** One test fails when run as root, because root ignores read-only files, and the English-only tests use `isascii()`, so unaccented foreign words would pass. Neither affects a normal user, and every English row was read and is English today.
 
 ## Wave 6
 
