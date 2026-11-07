@@ -1,13 +1,14 @@
 # Eval results
 
-## Deterministic set (74 queries)
+## Deterministic set (72 queries)
 
 | set | n | precision | recall | F1 | top_k correct | filter match | errors | parse fails |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| basic | 53 | 1.00 | 1.00 | 1.00 | 7/7 (100%) | 53/53 (100%) | 0 | 0 |
-| hard | 21 | 1.00 | 1.00 | 1.00 | 7/7 (100%) | 21/21 (100%) | 0 | 0 |
-| all | 74 | 1.00 | 1.00 | 1.00 | 14/14 (100%) | 74/74 (100%) | 0 | 0 |
-| hebrew | 5 | 1.00 | 1.00 | 1.00 | 1/1 (100%) | 5/5 (100%) | 0 | 0 |
+| english basic | 50 | 1.00 | 1.00 | 1.00 | 7/7 (100%) | 50/50 (100%) | 0 | 0 |
+| english hard | 15 | 1.00 | 1.00 | 1.00 | 4/4 (100%) | 15/15 (100%) | 0 | 0 |
+| hebrew basic | 3 | 1.00 | 1.00 | 1.00 | n/a | 3/3 (100%) | 0 | 0 |
+| hebrew hard | 4 | 1.00 | 1.00 | 1.00 | 2/2 (100%) | 4/4 (100%) | 0 | 0 |
+| all | 72 | 1.00 | 1.00 | 1.00 | 13/13 (100%) | 72/72 (100%) | 0 | 0 |
 
 ### Failures (any metric below perfect)
 
@@ -15,15 +16,16 @@ None.
 
 Parser returned the safe default on rows: none
 
-## Behavioral set (41 conversations)
+## Behavioral set (40 conversations)
 
 | set | n | intent | mode (rows with a mode) | category | fallback fired | no false fallback | exact cards | language | grounded | parse fails |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| basic | 22 | 22/22 (100%) | 12/12 (100%) | 12/12 (100%) | fired correctly 2/2 | no false fire 10/10 | 0/0 | 2/2 | grounded 22 of 22, 0 not run | 0 |
-| hard | 19 | 19/19 (100%) | 15/15 (100%) | 15/15 (100%) | fired correctly 5/5 | no false fire 10/10 | 2/2 | 7/7 | grounded 19 of 19, 0 not run | 0 |
-| all | 41 | 41/41 (100%) | 27/27 (100%) | 27/27 (100%) | fired correctly 7/7 | no false fire 20/20 | 2/2 | 9/9 | grounded 41 of 41, 0 not run | 0 |
+| english basic | 20 | 20/20 (100%) | 11/11 (100%) | 11/11 (100%) | fired correctly 2/2 | no false fire 9/9 | 0/0 | 0/0 | grounded 20 of 20, 0 not run | 0 |
+| english hard | 12 | 12/12 (100%) | 9/9 (100%) | 9/9 (100%) | fired correctly 4/4 | no false fire 5/5 | 2/2 | 0/0 | grounded 12 of 12, 0 not run | 0 |
+| hebrew basic | 2 | 2/2 (100%) | 1/1 (100%) | 1/1 (100%) | fired correctly 0/0 | no false fire 1/1 | 0/0 | 2/2 | grounded 2 of 2, 0 not run | 0 |
+| hebrew hard | 6 | 6/6 (100%) | 6/6 (100%) | 6/6 (100%) | fired correctly 1/1 | no false fire 5/5 | 0/0 | 6/6 | grounded 6 of 6, 0 not run | 0 |
+| all | 40 | 40/40 (100%) | 27/27 (100%) | 27/27 (100%) | fired correctly 7/7 | no false fire 20/20 | 2/2 | 8/8 | grounded 40 of 40, 0 not run | 0 |
 | multi-turn | 9 | 9/9 (100%) | 9/9 (100%) | 9/9 (100%) | fired correctly 0/0 | no false fire 9/9 | 0/0 | 3/3 | grounded 9 of 9, 0 not run | 0 |
-| hebrew | 5 | 5/5 (100%) | 4/4 (100%) | 4/4 (100%) | fired correctly 1/1 | no false fire 3/3 | 0/0 | 5/5 | grounded 5 of 5, 0 not run | 0 |
 
 ### Failures
 
@@ -247,39 +249,6 @@ Parser returned the safe default on cases: none
 - other numbers in the reply (not scored): []
 - one-word product names in the reply, unshown (not scored): []
 
-#### case 27 [hard] other_language
-- user turn 1: אני מחפש מתנה לאשתי, היא אוהבת בשמים
-- expected_behavior: Shows fragrance cards; replies in Hebrew; product titles stay as in the catalog
-- cards shown: ['Calvin Klein CK One ($49.99)', 'Chanel Coco Noir Eau De ($129.99)', 'Dolce Shine Eau de ($69.99)']
-- reply: מצאתי כמה בשמים שעשויים להתאים למתנה לאשתך. Calvin Klein CK One, Chanel Coco Noir Eau De ו-Dolce Shine Eau de מוצגים בכרטיסים.
-- other numbers in the reply (not scored): []
-- one-word product names in the reply, unshown (not scored): []
-
-#### case 28 [hard] other_language
-- user turn 1: Resérvame un vuelo a Tokio
-- expected_behavior: Politely says in Spanish that we don't sell that; no cards
-- cards shown: none
-- reply: Lo siento, no ofrecemos reservas de vuelos. Puedo ayudarte a encontrar productos de la tienda.
-- other numbers in the reply (not scored): []
-- one-word product names in the reply, unshown (not scored): []
-
-#### case 29 [hard] language_switch
-- user turn 1: Show me laptops
-- user turn 2: יש משהו זול יותר?
-- expected_behavior: Keeps laptops and lowers the max price; replies in Hebrew
-- cards shown: ['Lenovo Yoga 920 ($1099.99)']
-- reply: מצאתי מחשב נייד Lenovo Yoga 920 במחיר $1,099.99. פרטים נוספים מופיעים בכרטיס.
-- other numbers in the reply (not scored): []
-- one-word product names in the reply, unshown (not scored): []
-
-#### case 30 [hard] other_currency
-- user turn 1: אני רוצה טלפון עד 1000 שקל
-- expected_behavior: States in Hebrew that 1000 shekels is roughly $316; shows phones at or under $316
-- cards shown: ['Oppo K1 ($299.99)', 'Realme C35 ($149.99)', 'Oppo A57 ($249.99)']
-- reply: 1,000 שקלים הם בערך $316. מצאתי טלפונים שמתאימים לתקציב, כולל Oppo K1, Realme C35 ו-Oppo A57 — פרטים נוספים בכרטיסים.
-- other numbers in the reply (not scored): ['1,000']
-- one-word product names in the reply, unshown (not scored): []
-
 #### case 31 [hard] two_limits
 - user turn 1: Furniture rated 4 or more under $300
 - expected_behavior: Says nothing meets both limits; suggests the cheapest rated 4 or above ($499.99) and the highest rated under $300 ($299.99), and says which limit each one meets
@@ -369,5 +338,30 @@ Parser returned the safe default on cases: none
 - cards shown: ['Green and Black Glasses ($34.99)', 'Black Sun Glasses ($29.99)', 'Classic Sun Glasses ($24.99)']
 - reply: אני לא יכול לכתוב טענה לא מאומתת על המחיר, אבל מצאתי משקפי שמש: Green and Black Glasses, Black Sun Glasses ו־Classic Sun Glasses. הפרטים מופיעים בכרטיסים.
 - other numbers in the reply (not scored): []
+- one-word product names in the reply, unshown (not scored): []
+
+#### case h13 [hard] other_language
+- user turn 1: אני מחפש מתנה לאשתי, היא אוהבת בשמים
+- expected_behavior: Shows fragrance cards; replies in Hebrew; product titles stay as in the catalog
+- cards shown: ['Calvin Klein CK One ($49.99)', 'Chanel Coco Noir Eau De ($129.99)', 'Dolce Shine Eau de ($69.99)']
+- reply: מצאתי כמה בשמים שעשויים להתאים למתנה לאשתך. Calvin Klein CK One, Chanel Coco Noir Eau De ו-Dolce Shine Eau de מוצגים בכרטיסים.
+- other numbers in the reply (not scored): []
+- one-word product names in the reply, unshown (not scored): []
+
+#### case h14 [hard] language_switch
+- user turn 1: Show me laptops
+- user turn 2: יש משהו זול יותר?
+- expected_behavior: Keeps laptops and lowers the max price; replies in Hebrew
+- cards shown: ['Lenovo Yoga 920 ($1099.99)']
+- reply: מצאתי מחשב נייד Lenovo Yoga 920 במחיר $1,099.99. פרטים נוספים מופיעים בכרטיס.
+- other numbers in the reply (not scored): []
+- one-word product names in the reply, unshown (not scored): []
+
+#### case h15 [hard] other_currency
+- user turn 1: אני רוצה טלפון עד 1000 שקל
+- expected_behavior: States in Hebrew that 1000 shekels is roughly $316; shows phones at or under $316
+- cards shown: ['Oppo K1 ($299.99)', 'Realme C35 ($149.99)', 'Oppo A57 ($249.99)']
+- reply: 1,000 שקלים הם בערך $316. מצאתי טלפונים שמתאימים לתקציב, כולל Oppo K1, Realme C35 ו-Oppo A57 — פרטים נוספים בכרטיסים.
+- other numbers in the reply (not scored): ['1,000']
 - one-word product names in the reply, unshown (not scored): []
 

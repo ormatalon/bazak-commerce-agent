@@ -83,7 +83,7 @@ def test_importing_run_evals_needs_no_key():
 
 def test_deterministic_scores_and_crashed_row_in_the_table():
     catalog = load_sample()
-    rows = rows_by_id("1", "66")  # row 1 expects nothing, row 66 expects 80, 81, 82
+    rows = rows_by_id("1", "h11")  # row 1 expects nothing, row h11 expects 80, 81, 82
 
     def fake_parse(query, history, previous, shown, categories, llm):
         if "1500" in query:
@@ -95,17 +95,19 @@ def test_deterministic_scores_and_crashed_row_in_the_table():
         return [catalog[80], catalog[81], catalog[82]]
 
     records = score_det(rows, fake_parse, fake_search, catalog)
-    row_1, row_66 = records
-    assert (row_66.scores.f1, row_66.filter_ok) == (1.0, True)
+    row_1, row_h11 = records
+    assert (row_h11.scores.f1, row_h11.filter_ok) == (1.0, True)
     # Row 1 expects nothing, but a failed call earns no credit.
     assert row_1.expected == []
     assert row_1.error is not None
     assert (row_1.scores.f1, row_1.filter_ok) == (0.0, False)
 
-    # Row 1 is basic and row 66 is hard.
+    # Row 1 is English and basic, and row h11 is Hebrew and hard.
     cells = det_cells(records)
-    assert (cells["basic"]["n"], cells["basic"]["F1"], cells["basic"]["errors"]) == ("1", "0.00", "1")
-    assert (cells["hard"]["n"], cells["hard"]["F1"], cells["hard"]["errors"]) == ("1", "1.00", "0")
+    english, hebrew = cells["english basic"], cells["hebrew hard"]
+    assert (english["n"], english["F1"], english["errors"]) == ("1", "0.00", "1")
+    assert (hebrew["n"], hebrew["F1"], hebrew["errors"]) == ("1", "1.00", "0")
+    assert cells["english hard"]["n"] == "0"
     assert cells["all"]["F1"] == "0.50"
     assert cells["all"]["filter match"] == "1/2 (50%)"
 
@@ -349,7 +351,7 @@ def test_report_builds_with_a_failed_case():
 def test_a_run_is_written_line_by_line_and_can_be_rescored(tmp_path):
     catalog_map = load_sample()
     catalog = list(catalog_map.values())
-    rows = rows_by_id("66")
+    rows = rows_by_id("h11")
     case = make_case(1, ["laptops"], expected_categories=["smartphones"], category_match="all")
     path = tmp_path / "run.jsonl"
     writer = run_evals.RunWriter(path, total=2)
@@ -423,15 +425,28 @@ def test_a_run_that_stopped_early_counts_as_a_problem():
 def test_the_run_covers_every_dataset_with_no_id_clashes():
     rows = load_all_rows()
     cases = run_evals.load_all_cases()
-    assert len(rows) == 74
-    assert len(cases) == 41
-    assert len({row["id"] for row in rows}) == 74
-    assert len({case["id"] for case in cases}) == 41
-    assert sum(1 for row in rows if row["id"].startswith("h")) == 5
-    assert sum(1 for case in cases if str(case["id"]).startswith("h")) == 5
+    assert len(rows) == 72
+    assert len(cases) == 40
+    assert len({row["id"] for row in rows}) == 72
+    assert len({case["id"] for case in cases}) == 40
+    assert sum(1 for row in rows if row["id"].startswith("h")) == 7
+    assert sum(1 for case in cases if str(case["id"]).startswith("h")) == 8
 
 
-def test_hebrew_lines_get_their_own_row_and_count_in_the_others():
+def test_english_datasets_are_english_and_every_hebrew_case_has_hebrew():
+    # ASCII is a simple stand-in: every English turn here is plain ASCII, and Hebrew,
+    # accented Spanish and so on are not.
+    cases = run_evals.load_all_cases()
+    english = [c for c in cases if not str(c["id"]).startswith("h")]
+    assert [c["id"] for c in english if not all(turn.isascii() for turn in c["turns"])] == []
+    assert not any(c.get("expected_language") for c in english)
+
+    hebrew = [c for c in cases if str(c["id"]).startswith("h")]
+    for case in hebrew:
+        assert any(not turn.isascii() for turn in case["turns"]), case["id"]
+
+
+def test_english_and_hebrew_get_separate_rows_that_add_up_to_all():
     parsed = ParsedRequest(
         intent="product_search",
         mode="new",
@@ -446,13 +461,13 @@ def test_hebrew_lines_get_their_own_row_and_count_in_the_others():
     det, beh = run_evals.score_run(raws, list(load_sample().values()))
 
     det_table = det_cells(det)
-    assert det_table["hebrew"]["n"] == "1"
-    assert det_table["basic"]["n"] == "2"
+    assert det_table["hebrew basic"]["n"] == "1"
+    assert det_table["english basic"]["n"] == "1"
     assert det_table["all"]["n"] == "2"
 
     beh_table = beh_cells(beh)
-    assert beh_table["hebrew"]["n"] == "1"
-    assert beh_table["hard"]["n"] == "1"
+    assert beh_table["hebrew hard"]["n"] == "1"
+    assert beh_table["english basic"]["n"] == "1"
     assert beh_table["all"]["n"] == "2"
 
     # The Hebrew turns are printed for Or to read, like every other case.

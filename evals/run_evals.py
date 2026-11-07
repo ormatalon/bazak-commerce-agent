@@ -1,13 +1,13 @@
 """Run both eval sets and print a summary. One command: python evals/run_evals.py
 
-Deterministic set (datasets/deterministic.csv): parse_request, then search(), with no
-fallback and no display cap. Scored against evals/ground_truth.py.
-Behavioral set (datasets/behavioral.jsonl): replay every turn through run_turn and
-score the last one.
-datasets/hebrew.jsonl has lines of both kinds. They are scored the same way, count in
-the basic, hard and all rows, and also get a row of their own.
+Deterministic set: parse_request, then search(), with no fallback and no display cap.
+Scored against evals/ground_truth.py.
+Behavioral set: replay every turn through run_turn and score the last one.
+datasets/deterministic.csv and datasets/behavioral.jsonl hold the English cases, and
+datasets/hebrew.jsonl holds Hebrew cases of both kinds. They are scored the same way, and
+the tables report English and Hebrew apart, each split into basic and hard.
 
-This makes real model calls (about 175), so only the Lead runs it (the key lives in the
+This makes real model calls (about 170), so only the Lead runs it (the key lives in the
 main folder's .env). The app modules are imported inside main(), so importing this file
 needs no key and no network.
 
@@ -289,18 +289,26 @@ def table(header: list[str], rows: list[list[str]]) -> list[str]:
     return lines
 
 
+def dataset_groups(records: list[Any], case_of: Callable[[Any], dict[str, Any]]) -> list[tuple[str, list[Any]]]:
+    """English basic and hard, Hebrew basic and hard, then everything together."""
+    groups = []
+    for language, wanted in (("english", False), ("hebrew", True)):
+        for difficulty in ("basic", "hard"):
+            group = [
+                r for r in records
+                if is_hebrew_id(case_of(r)["id"]) == wanted and case_of(r)["difficulty"] == difficulty
+            ]  # fmt: skip
+            groups.append((f"{language} {difficulty}", group))
+    return groups + [("all", records)]
+
+
 DETERMINISTIC_HEADER = ["set", "n", "precision", "recall", "F1", "top_k correct", "filter match",
                         "errors", "parse fails"]  # fmt: skip
 
 
 def deterministic_table_rows(records: list[DeterministicRecord]) -> list[list[str]]:
-    """One row of cells per group (basic, hard, all). Tests read these cells."""
-    groups = [
-        ("basic", [r for r in records if r.row["difficulty"] == "basic"]),
-        ("hard", [r for r in records if r.row["difficulty"] == "hard"]),
-        ("all", records),
-        ("hebrew", [r for r in records if is_hebrew_id(r.row["id"])]),
-    ]
+    """One row of cells per group. Tests read these cells."""
+    groups = dataset_groups(records, lambda r: r.row)
     table_rows = []
     for name, group in groups:
         top_k_rows = [r for r in group if r.scores.top_k_ok is not None]
@@ -366,13 +374,8 @@ BEHAVIORAL_HEADER = ["set", "n", "intent", "mode (rows with a mode)", "category"
 
 def behavioral_table_rows(records: list[BehavioralRecord]) -> list[list[str]]:
     """One row of cells per group. A crashed case counts as wrong on every metric. Tests read these cells."""
-    groups = [
-        ("basic", [r for r in records if r.case["difficulty"] == "basic"]),
-        ("hard", [r for r in records if r.case["difficulty"] == "hard"]),
-        ("all", records),
-        ("multi-turn", [r for r in records if len(r.case["turns"]) > 1]),
-        ("hebrew", [r for r in records if is_hebrew_id(r.case["id"])]),
-    ]
+    groups = dataset_groups(records, lambda r: r.case)
+    groups.append(("multi-turn", [r for r in records if len(r.case["turns"]) > 1]))
     table_rows = []
     for name, group in groups:
         intent = sum(1 for r in group if r.scores and r.scores.intent_ok)

@@ -2,6 +2,15 @@
 
 Each entry: what was decided, why, and what else was considered. The Lead keeps this log and reports new entries at the end of each wave.
 
+## After Or's README review (7 Nov 2026)
+
+- **Or's dataset rule: the English files are English only, and Hebrew cases are only in `hebrew.jsonl`.** 5 Hebrew cases moved with their wording and expected answers unchanged, as `h11` to `h15`. IDs 27 to 30 of `behavioral.jsonl` stay unused, so older notes still point to the right cases.
+- **The 3 Spanish rows were deleted, and the Spanish language check with them.** They had no dataset to move to under the rule. Alternatives: translate them to English, which only duplicates existing rows, or add a `spanish.jsonl`, which Or didn't ask for. They can be restored from git. So Hebrew is now the only other language with a dataset, and the README says so. Those 3 rows passed in every full run while they existed.
+- **The results were re-scored instead of paying for another run.** No code had changed since the final run, so `evals/runs/run_20261105_151853_regrouped.jsonl` is that run with the Hebrew results relabelled and the Spanish ones dropped, and `--rescore` built `results.md` from it. Alternative: another full run of about 170 calls, for the same answers.
+- **The tables now report English and Hebrew in separate rows,** each split into basic and hard, instead of counting Hebrew inside the basic and hard rows.
+- **`Design Decisions.md` was deleted, as Or asked.** Its still-true content moved to the README: the assumptions, one pass against tool calling, and Postgres as a rejected store. Its eval tables were checked to be covered by `datasets/`. Its `conversations` and `messages` schema and its "no exchange rates" rule were already out of date, so they were left out.
+- **The macOS setup uses `python3.12` and plain `pip`,** which any Mac can get, rather than `uv`. It hasn't been run on a Mac. The commands were run on Linux, and the dependencies were resolved for macOS. Alternative: claim macOS support untested.
+
 ## Wave 6
 
 - **Chose option A for cards, because Or said to continue without picking.** A was the recommendation given on 5 Nov. When any product in a search matches a keyword, only those get cards. Why in the pipeline: `search()` and the deterministic scores stay as they are. Alternative: leave it and list it as a limitation, which shows speakers for a phone case. To reverse it, make `_card_candidates` return `outcome.products`.

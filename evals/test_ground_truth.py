@@ -28,16 +28,22 @@ def ids_for_row(rows: dict[int, dict[str, str]], catalog: list[Product], row_id:
     return expected_ids(row_to_spec(rows[row_id]), catalog)
 
 
-def test_csv_has_69_rows_50_basic_and_19_hard(rows):
+def test_csv_has_65_rows_50_basic_and_15_hard(rows):
     difficulties = [row["difficulty"] for row in rows.values()]
-    assert len(rows) == 69
+    assert len(rows) == 65
     assert difficulties.count("basic") == 50
-    assert difficulties.count("hard") == 19
+    assert difficulties.count("hard") == 15
+
+
+def test_the_csv_is_english_only(rows):
+    # ASCII is a simple stand-in: every English query here is plain ASCII, and Hebrew,
+    # accented Spanish and so on are not.
+    assert [row["id"] for row in rows.values() if not row["query"].isascii()] == []
 
 
 def test_hebrew_rows_have_the_shape_of_a_csv_row():
     rows = {row["id"]: row for row in load_hebrew_rows()}
-    assert list(rows) == ["h1", "h2", "h3", "h4", "h5"]
+    assert list(rows) == ["h1", "h2", "h3", "h4", "h5", "h11", "h12"]
     assert all(isinstance(value, str) for row in rows.values() for value in row.values())
 
     between = row_to_spec(rows["h2"])
@@ -54,15 +60,17 @@ def test_every_row_becomes_a_valid_spec(rows):
         row_to_spec(row)  # raises if a cell is not a number or a sort value
 
 
-def test_hebrew_query_is_read_as_utf8(rows):
-    assert rows[66]["query"] == "מחשבים ניידים עד 1500 דולר"
+def test_hebrew_query_is_read_as_utf8():
+    rows = {row["id"]: row for row in load_hebrew_rows()}
+    assert rows["h11"]["query"] == "מחשבים ניידים עד 1500 דולר"
 
 
-def test_row_66_laptops_up_to_1500_is_three_products(rows, catalog):
+def test_row_h11_laptops_up_to_1500_is_three_products(catalog):
     # Hand check: laptops are 78 ($1999.99), 79 ($1799.99), 80 ($1399.99), 81 ($1099.99), 82 ($1499.99).
     # Up to 1500 inclusive keeps 80, 81, 82. Default order is rating, highest first:
     # 80 is 4.98, 81 is 2.86, 82 is 2.67.
-    assert ids_for_row(rows, catalog, 66) == [80, 81, 82]
+    rows = {row["id"]: row for row in load_hebrew_rows()}
+    assert expected_ids(row_to_spec(rows["h11"]), catalog) == [80, 81, 82]
 
 
 def test_row_1_empty_expected_set(rows, catalog):
