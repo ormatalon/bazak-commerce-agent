@@ -22,9 +22,7 @@ I also decided not to stream replies. They are returned whole, which keeps card 
 
 ## Setup
 
-You need Python 3.11 or newer (tested on 3.12), and network access the first time, to fetch the catalog.
-
-**macOS.** The Python that comes with macOS may be too old. If `python3.12` isn't found, run `brew install python@3.12`.
+You need Python 3.11 or newer (tested on 3.12), and network access the first time, to fetch the catalog. If `python3.12` isn't found on a Mac, run `brew install python@3.12`.
 
 ```bash
 git clone <repo-url>
@@ -35,16 +33,7 @@ cp .env.example .env
 .venv/bin/chainlit create-secret
 ```
 
-**Windows (PowerShell).** Clone into a short path: one dependency has a deeply nested file, and the install breaks if a full path passes 260 characters.
-
-```powershell
-git clone <repo-url>
-cd <repo-folder>
-py -3.12 -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-copy .env.example .env
-.venv\Scripts\chainlit.exe create-secret
-```
+**On Windows,** use `py -3.12` instead of `python3.12`, `.venv\Scripts\` instead of `.venv/bin/`, and `copy` instead of `cp`, here and below. Clone into a short path: one dependency has a deeply nested file, and the install breaks if a full path passes 260 characters.
 
 Then fill in `.env`. The key stays in this file, which is git-ignored and never committed.
 
@@ -54,15 +43,20 @@ Then fill in `.env`. The key stays in this file, which is git-ignored and never 
 | `APP_USERNAME`, `APP_PASSWORD` | The login you will type. Choose any |
 | `CHAINLIT_AUTH_SECRET` | The value `create-secret` printed. It signs the login cookie |
 
-**Run the app,** then open http://localhost:8000 and log in:
+Run the app, then open http://localhost:8000 in a browser and log in:
 
-| | macOS | Windows |
-| --- | --- | --- |
-| App | `.venv/bin/chainlit run app/main.py` | `.venv\Scripts\chainlit.exe run app/main.py` |
-| Tests (no key, no network, no model calls) | `.venv/bin/python -m pytest` | `.venv\Scripts\python -m pytest` |
-| Evals (about 170 real model calls) | `.venv/bin/python evals/run_evals.py` | `.venv\Scripts\python evals/run_evals.py` |
+```bash
+.venv/bin/chainlit run app/main.py
+```
 
-The app is developed and tested on Windows. The macOS commands were run on Linux, and every compiled dependency has macOS builds for Apple Silicon and Intel, but they have not been run on an actual Mac.
+Tests and evals:
+
+```bash
+.venv/bin/python -m pytest              # no key, no network, no model calls
+.venv/bin/python evals/run_evals.py     # about 170 real model calls
+```
+
+The app is developed and tested on Windows. These commands were also run on Linux, and every compiled dependency has macOS builds, but they have not been run on an actual Mac.
 
 ## Architecture
 
