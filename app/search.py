@@ -45,9 +45,27 @@ def clean_keywords(keywords: list[str] | None) -> list[str]:
     return list(dict.fromkeys(words))
 
 
+def is_excluded(spec: SearchSpec, product: Product) -> bool:
+    """True when the product's title, brand or tags contain a word the shopper excluded.
+
+    The brand matters: iPhone titles never say "Apple", but their brand does. The category
+    is not checked: "phones but not Apple" must not drop every smartphone.
+    """
+    excluded = clean_keywords(spec.exclude_keywords)
+    if not excluded:
+        return False
+    found = words_of(" ".join([product.title, product.brand or "", *product.tags]))
+    return any(same_word(word, f) for word in excluded for f in found)
+
+
 def passes_filters(spec: SearchSpec, product: Product) -> bool:
-    """The hard filters: category, price and rating. All bounds are inclusive."""
+    """The hard filters: category, excluded words, price and rating. All bounds are inclusive.
+
+    The fallback loosens only price and rating, so an exclusion always holds.
+    """
     if spec.category is not None and product.category != spec.category:
+        return False
+    if is_excluded(spec, product):
         return False
     if spec.price_min is not None and product.price < spec.price_min:
         return False

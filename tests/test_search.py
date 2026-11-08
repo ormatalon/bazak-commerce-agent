@@ -489,3 +489,44 @@ def test_category_with_no_products_stays_empty_after_loosening(catalog: list[Pro
     outcome = fallback(catalog, category="groceries", price_max=1)
     assert outcome.products == []
     assert outcome.loosened == []
+
+
+# --- exclude_keywords -------------------------------------------------------------
+# Sample smartphones: Apple 121-124 (titles say "iPhone", the brand says "Apple"),
+# Samsung 131-133, and Oppo, Realme and Vivo in between.
+
+
+def test_an_excluded_brand_drops_products_whose_title_never_names_it(catalog):
+    found = ids(run(catalog, category="smartphones", exclude_keywords=["apple"]))
+    assert not set(found) & {121, 122, 123, 124}
+    assert len(found) == 12  # 16 phones, 4 of them Apple
+
+
+def test_an_excluded_title_word_drops_those_products(catalog):
+    found = ids(run(catalog, category="smartphones", exclude_keywords=["iPhone"]))
+    assert not set(found) & {121, 122, 123, 124}
+    assert len(found) == 12
+
+
+def test_several_excluded_words_each_drop_their_products(catalog):
+    found = ids(run(catalog, category="smartphones", exclude_keywords=["apple", "samsung"]))
+    assert not set(found) & {121, 122, 123, 124, 131, 132, 133}
+    assert len(found) == 9
+
+
+def test_an_excluded_plural_drops_the_singular():
+    shoes = [product(1, "Heel Shoes"), product(2, "Flat Slipper")]
+    assert ids(search(SearchSpec(category="misc", exclude_keywords=["heels"]), shoes)) == [2]
+
+
+def test_an_excluded_word_must_be_a_whole_word():
+    # "car" excluded must not drop a "card".
+    items = [product(1, "Gift Card"), product(2, "Toy Car")]
+    assert ids(search(SearchSpec(category="misc", exclude_keywords=["car"]), items)) == [1]
+
+
+def test_the_fallback_loosens_the_price_but_never_the_exclusion(catalog):
+    outcome = fallback(catalog, category="smartphones", exclude_keywords=["apple"], price_max=100)
+    assert outcome.loosened == ["price"]
+    assert not set(ids(outcome.products)) & {121, 122, 123, 124}
+    assert outcome.products[0].id == 128  # Realme C35, $149.99, the nearest to $100

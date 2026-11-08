@@ -64,6 +64,7 @@ These names match the columns of `datasets/deterministic.csv`, so evals compare 
 `SearchSpec`:
 
 - `keywords`: list of words, or null. On a refine, null means keep them, like every other field
+- `exclude_keywords`: words for what the shopper does not want ("not Apple", "without heels"), or null. A product with one in its title, brand or tags is dropped, as a hard filter the fallback never loosens. Never in `keywords`, which would rank the excluded products up. On its own it is still an empty search, like `show_all`
 - `category`: one of the real slugs, or null. A slug outside the list fails validation.
 - `price_min`, `price_max`, `rating_min`: all bounds inclusive. Do not cap `rating_min` at 5: "rated above 5" is valid input and must reach the fallback.
 - `sort_by` (`price`, `rating` or null), `order` (`asc`, `desc` or null)

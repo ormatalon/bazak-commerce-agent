@@ -18,6 +18,7 @@ HISTORY_LIMIT = 6
 # instructions for the merge, not part of a search, so they are not listed.
 MERGE_FIELDS = (
     "keywords",
+    "exclude_keywords",
     "category",
     "price_min",
     "price_max",
@@ -51,6 +52,10 @@ Questions about the details of a product type we carry, or how many of it we hav
 a product_search for that category.
 keywords: specific product words the shopper used, in English (for example ["lamp"]). \
 Use null when the shopper named only the category.
+exclude_keywords: what the shopper does not want, in English: a brand, a kind of \
+product or a feature ("not Chanel" gives ["chanel"], "without straps" gives ["straps"]). \
+Never put an excluded word in keywords, because keywords rank products up. On a refine, \
+write the full list, including words excluded earlier. Use null when nothing is excluded.
 
 # Intents
 - product_search: the shopper wants products from the categories. Example: \
@@ -85,7 +90,8 @@ stars", "lose the budget limit"). Set ONLY the fields that change and leave \
 every other field null, because null means "keep the previous value". That includes \
 keywords and category. refines_index is the number of the previous search being edited \
 (0 if there is only one). List in clear_fields the fields the shopper asks to drop \
-("price doesn't matter" clears price_max).
+("price doesn't matter" clears price_max). Dropping a brand or feature from the results \
+("skip that brand", "none of the leather ones") is a refine that sets exclude_keywords.
   A request for less money with no number sets price_max just below the lowest shown \
 price. A comparison with one shown product ("anything lower than the last one?") sets \
 price_max just below that product's price. Shown products are numbered in the order \
@@ -233,6 +239,17 @@ EXAMPLES: list[tuple[list[ChatTurn], list[SearchSpec], list[Product], str, Parse
             intent="product_search",
             mode="new",
             searches=[SearchSpec(keywords=["coffee table"], category="furniture", price_max=200)],
+        ),
+    ),
+    (
+        [],
+        [],
+        [],
+        "a perfume that isn't Chanel, under $100",
+        ParsedRequest(
+            intent="product_search",
+            mode="new",
+            searches=[SearchSpec(exclude_keywords=["chanel"], category="fragrances", price_max=99.99)],
         ),
     ),
     (
@@ -582,9 +599,10 @@ def search_is_empty(spec: SearchSpec) -> bool:
     """True when no search field is set. Run on it, this would return the whole catalog.
 
     show_all only says how many cards to show, so "show me everything" alone is still empty.
+    exclude_keywords only says what not to show, so "anything but Apple" alone is too.
     """
     for name in MERGE_FIELDS:
-        if name == "show_all":
+        if name in ("show_all", "exclude_keywords"):
             continue
         value = getattr(spec, name)
         if value is not None and value != []:

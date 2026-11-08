@@ -15,7 +15,8 @@ from pydantic import (
 Intent = Literal["product_search", "needs_clarification", "off_catalog", "small_talk"]
 Mode = Literal["new", "refine", "show_more"]
 ClearableField = Literal[
-    "keywords", "category", "price_min", "price_max", "rating_min", "sort_by", "order", "top_k"
+    "keywords", "exclude_keywords", "category", "price_min", "price_max", "rating_min",
+    "sort_by", "order", "top_k",
 ]
 
 # Tests pass a fake, so nothing outside app/llm.py needs the OpenAI client.
@@ -52,6 +53,10 @@ class SearchSpec(BaseModel):
     """
 
     keywords: list[str] | None = None
+    # Words for what the shopper does not want ("not Apple", "no iPhones", "without heels").
+    # A product with one in its title, brand or tags is dropped: a hard filter that the
+    # fallback never loosens. Null on a refine means keep.
+    exclude_keywords: list[str] | None = None
     category: str | None = None
     price_min: float | None = None
     price_max: float | None = None

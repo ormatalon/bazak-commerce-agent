@@ -595,3 +595,35 @@ def test_merge_does_not_change_the_previous_search() -> None:
     merged = merge_refine(previous, SearchSpec(price_max=200))
     merged.keywords.append("extra")
     assert previous == previous_search()
+
+
+# --- exclude_keywords ----------------------------------------------------------------
+
+
+def test_a_refine_keeps_an_earlier_exclusion_when_it_leaves_the_field_null() -> None:
+    previous = SearchSpec(category="smartphones", exclude_keywords=["apple"])
+    merged = merge_refine(previous, SearchSpec(price_max=400))
+    assert merged.exclude_keywords == ["apple"]
+    assert merged.price_max == 400
+
+
+def test_a_refine_replaces_the_exclusions_with_the_full_new_list() -> None:
+    previous = SearchSpec(category="smartphones", exclude_keywords=["apple"])
+    merged = merge_refine(previous, SearchSpec(exclude_keywords=["apple", "samsung"]))
+    assert merged.exclude_keywords == ["apple", "samsung"]
+
+
+def test_a_refine_can_clear_the_exclusions() -> None:
+    previous = SearchSpec(category="smartphones", exclude_keywords=["apple"])
+    merged = merge_refine(previous, SearchSpec(clear_fields=["exclude_keywords"]))
+    assert merged.exclude_keywords is None
+    assert merged.category == "smartphones"
+
+
+def test_a_new_search_with_only_an_exclusion_gives_the_safe_default() -> None:
+    # "Anything but Apple" says what not to show, not what to show: searching would
+    # return the rest of the catalog.
+    reply = '{"intent": "product_search", "mode": "new", "searches": [{"exclude_keywords": ["apple"]}]}'
+    parsed = parse(FakeLLM(reply))
+    assert parsed.intent == "needs_clarification"
+    assert parsed.searches == []
