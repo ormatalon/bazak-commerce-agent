@@ -13,7 +13,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas import Product, SearchSpec
-from app.search import search, search_with_fallback
+from app.search import ranking_keywords, relevant_products, search, search_with_fallback
 
 SAMPLE = Path(__file__).parent / "fixtures" / "catalog_sample.json"
 
@@ -530,3 +530,41 @@ def test_the_fallback_loosens_the_price_but_never_the_exclusion(catalog):
     assert outcome.loosened == ["price"]
     assert not set(ids(outcome.products)) & {121, 122, 123, 124}
     assert outcome.products[0].id == 128  # Realme C35, $149.99, the nearest to $100
+
+
+# --- keywords that repeat the category's own name -----------------------------------
+
+
+def kitchen() -> list[Product]:
+    """Made-up kitchen products. Each one's category contains the word "kitchen"."""
+    return [
+        Product(id=1, title="Lunch Box", description="", category="kitchen-accessories", price=13.0, rating=4.9),
+        Product(id=2, title="Knife", description="", category="kitchen-accessories", price=15.0, rating=3.3),
+        Product(id=3, title="Spice Rack", description="", category="kitchen-accessories", price=20.0, rating=4.8),
+    ]
+
+
+def test_a_word_of_the_category_name_is_not_a_ranking_keyword():
+    spec = SearchSpec(keywords=["kitchen knife"], category="kitchen-accessories")
+    assert ranking_keywords(spec) == ["knife"]
+
+
+def test_without_a_category_every_keyword_word_counts():
+    assert ranking_keywords(SearchSpec(keywords=["kitchen knife"])) == ["kitchen", "knife"]
+
+
+def test_the_category_word_no_longer_ranks_every_product_first():
+    # "kitchen" used to match all three, so the best rated came first, not the knife.
+    found = search(SearchSpec(keywords=["kitchen knife"], category="kitchen-accessories"), kitchen())
+    assert ids(found) == [2, 1, 3]
+
+
+def test_only_the_real_match_gets_a_card_when_the_category_word_is_dropped():
+    spec = SearchSpec(keywords=["kitchen knife"], category="kitchen-accessories")
+    assert ids(relevant_products(spec, kitchen())) == [2]
+
+
+def test_a_keyword_that_is_only_the_category_name_leaves_the_category_as_it_is():
+    # "kitchen" alone says nothing beyond the category, so every product still shows.
+    spec = SearchSpec(keywords=["kitchen"], category="kitchen-accessories")
+    assert ids(relevant_products(spec, kitchen())) == [1, 2, 3]

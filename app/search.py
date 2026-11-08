@@ -45,6 +45,20 @@ def clean_keywords(keywords: list[str] | None) -> list[str]:
     return list(dict.fromkeys(words))
 
 
+def ranking_keywords(spec: SearchSpec) -> list[str]:
+    """The keyword words that can tell the products of a search apart.
+
+    With a category set, a word of the category's own name ("kitchen" in
+    kitchen-accessories) matches every product in it, so it would rank nothing and give
+    every product a card. Those words are dropped. Without a category every word counts.
+    """
+    words = clean_keywords(spec.keywords)
+    if spec.category is None:
+        return words
+    category_words = words_of(spec.category)
+    return [word for word in words if not any(same_word(word, c) for c in category_words)]
+
+
 def is_excluded(spec: SearchSpec, product: Product) -> bool:
     """True when the product's title, brand or tags contain a word the shopper excluded.
 
@@ -86,7 +100,7 @@ def sort_direction(spec: SearchSpec) -> int:
 
 def search(spec: SearchSpec, catalog: list[Product]) -> list[Product]:
     """Return every match, ranked, with no display cap and no fallback."""
-    keywords = clean_keywords(spec.keywords)
+    keywords = ranking_keywords(spec)
 
     # Pair each product that passes the filters with its keyword-match count.
     matches: list[tuple[Product, int]] = []
@@ -121,7 +135,7 @@ def relevant_products(spec: SearchSpec, products: list[Product]) -> list[Product
     ("makeup" matches no beauty product), but one phone case should not come with two
     speakers just because they share its category.
     """
-    keywords = clean_keywords(spec.keywords)
+    keywords = ranking_keywords(spec)
     matching = [p for p in products if keyword_match_count(keywords, p) > 0]
     return matching or products
 
@@ -147,7 +161,7 @@ def nearest_first(spec: SearchSpec, products: list[Product]) -> list[Product]:
     to the original limits. The sort is stable, so equal keys keep the order search() gave
     them (rating, then lowest ID).
     """
-    keywords = clean_keywords(spec.keywords)
+    keywords = ranking_keywords(spec)
     return sorted(
         products,
         key=lambda product: (-keyword_match_count(keywords, product), *distance_from_limits(spec, product)),
