@@ -56,6 +56,9 @@ from evals.scoring import (  # noqa: E402
 )
 
 BEHAVIORAL_JSONL = REPO_ROOT / "datasets" / "behavioral.jsonl"
+ADVERSARIAL_JSONL = REPO_ROOT / "datasets" / "adversarial.jsonl"
+# The three kinds of line in adversarial.jsonl, each reported in its own row.
+ADVERSARIAL_TYPES = ("attack", "should_answer", "edge")
 RUNS_DIR = Path(__file__).resolve().parent / "runs"
 RESULTS_MD = Path(__file__).resolve().parent / "results.md"
 
@@ -194,9 +197,18 @@ def load_hebrew_cases(path: Path = HEBREW_JSONL) -> list[dict[str, Any]]:
     return [{**line, "id": f"h{line['id']}"} for line in lines if line["type"] == "behavioral"]
 
 
+def load_adversarial_cases(path: Path = ADVERSARIAL_JSONL) -> list[dict[str, Any]]:
+    """The lines of adversarial.jsonl, with IDs like "a3" so they can't clash with the others."""
+    return [{**line, "id": f"a{line['id']}"} for line in load_cases(path)]
+
+
+def is_adversarial_id(case_id: object) -> bool:
+    return str(case_id).startswith("a")
+
+
 def load_all_cases() -> list[dict[str, Any]]:
     """Every behavioral case of every dataset."""
-    return load_cases() + load_hebrew_cases()
+    return load_cases() + load_hebrew_cases() + load_adversarial_cases()
 
 
 # ---------------------------------------------------------------------------
@@ -290,16 +302,32 @@ def table(header: list[str], rows: list[list[str]]) -> list[str]:
 
 
 def dataset_groups(records: list[Any], case_of: Callable[[Any], dict[str, Any]]) -> list[tuple[str, list[Any]]]:
-    """English basic and hard, Hebrew basic and hard, then everything together."""
+    """English basic and hard, Hebrew basic and hard, then everything together.
+
+    Adversarial cases are written in English but never join the English rows, so those
+    rows stay comparable with runs from before adversarial.jsonl existed.
+    """
     groups = []
     for language, wanted in (("english", False), ("hebrew", True)):
         for difficulty in ("basic", "hard"):
             group = [
                 r for r in records
-                if is_hebrew_id(case_of(r)["id"]) == wanted and case_of(r)["difficulty"] == difficulty
+                if is_hebrew_id(case_of(r)["id"]) == wanted
+                and not is_adversarial_id(case_of(r)["id"])
+                and case_of(r)["difficulty"] == difficulty
             ]  # fmt: skip
             groups.append((f"{language} {difficulty}", group))
     return groups + [("all", records)]
+
+
+def adversarial_groups(records: list[Any], case_of: Callable[[Any], dict[str, Any]]) -> list[tuple[str, list[Any]]]:
+    """One row per kind of adversarial case. Empty when the run has none."""
+    groups = []
+    for kind in ADVERSARIAL_TYPES:
+        group = [r for r in records if is_adversarial_id(case_of(r)["id"]) and case_of(r)["type"] == kind]
+        if group:
+            groups.append((f"adversarial {kind}", group))
+    return groups
 
 
 DETERMINISTIC_HEADER = ["set", "n", "precision", "recall", "F1", "top_k correct", "filter match",
@@ -369,12 +397,14 @@ def deterministic_report(records: list[DeterministicRecord]) -> list[str]:
 
 
 BEHAVIORAL_HEADER = ["set", "n", "intent", "mode (rows with a mode)", "category", "fallback fired",
-                     "no false fallback", "exact cards", "language", "grounded", "parse fails"]  # fmt: skip
+                     "no false fallback", "exact cards", "card rules", "language", "grounded",
+                     "no leak", "refused", "parse fails"]  # fmt: skip
 
 
 def behavioral_table_rows(records: list[BehavioralRecord]) -> list[list[str]]:
     """One row of cells per group. A crashed case counts as wrong on every metric. Tests read these cells."""
     groups = dataset_groups(records, lambda r: r.case)
+    groups[-1:-1] = adversarial_groups(records, lambda r: r.case)  # before "all"
     groups.append(("multi-turn", [r for r in records if len(r.case["turns"]) > 1]))
     table_rows = []
     for name, group in groups:
@@ -401,9 +431,21 @@ def behavioral_table_rows(records: list[BehavioralRecord]) -> list[list[str]]:
         language_cases = [r for r in group if r.case.get("expected_language")]
         language = sum(1 for r in language_cases if r.scores and r.scores.language_ok)
 
+        rule_cases = [
+            r for r in group
+            if r.case.get("required_card_ids") or r.case.get("forbidden_card_ids") or r.case.get("min_cards")
+        ]  # fmt: skip
+        rules = sum(1 for r in rule_cases if r.scores and r.scores.card_rules_ok)
+
         # Against the whole group, so crashes cannot shrink the denominator.
         grounded = sum(1 for r in group if r.scores and r.scores.grounding.ok)
+        no_leak = sum(1 for r in group if r.scores and not r.scores.leaks)
         not_run = sum(1 for r in group if r.scores is None)
+
+        # The refusal rate: of the requests the store can answer, how many got no answer.
+        # A crashed case counts as refused, like every other metric counts it as wrong.
+        answerable = [r for r in group if r.case["expected_intent"] == "product_search"]
+        refused = sum(1 for r in answerable if r.scores is None or r.scores.refused)
 
         table_rows.append(
             [
@@ -415,8 +457,11 @@ def behavioral_table_rows(records: list[BehavioralRecord]) -> list[list[str]]:
                 f"fired correctly {fired}/{len(fired_cases)}",
                 f"no false fire {quiet}/{len(quiet_cases)}",
                 f"{cards}/{len(card_cases)}",
+                f"{rules}/{len(rule_cases)}",
                 f"{language}/{len(language_cases)}",
                 f"grounded {grounded} of {len(group)}, {not_run} not run",
+                f"{no_leak}/{len(group)}",
+                f"refused {refused} of {len(answerable)}",
                 str(sum(1 for r in group if r.parse_failures)),
             ]
         )
@@ -468,6 +513,14 @@ def behavioral_problems(record: BehavioralRecord) -> list[str]:
         problems.append(f"cards shown {shown_ids}, expected exactly {sorted(case['expected_card_ids'])}")
     if scores.language_ok is False:
         problems.append(f"reply language is not {case['expected_language']!r}")
+    if scores.card_rules_ok is False:
+        shown_ids = sorted(p.id for o in result.outcomes for p in o.shown)
+        rules = {k: case[k] for k in ("required_card_ids", "forbidden_card_ids", "min_cards") if case.get(k)}
+        problems.append(f"cards shown {shown_ids} break the card rules {rules}")
+    if scores.leaks:
+        problems.append(f"LEAK: the reply contains {scores.leaks}")
+    if scores.refused:
+        problems.append("REFUSED an answerable request: no search or no cards")
     if not scores.grounding.ok:
         problems.append(
             f"NOT GROUNDED: unshown titles {scores.grounding.bad_titles}, "
@@ -531,6 +584,12 @@ def main() -> None:
 
     cli = argparse.ArgumentParser(description="Run the evals, or re-score a saved run for free.")
     cli.add_argument("--rescore", type=Path, help="an evals/runs/*.jsonl file; makes no model calls")
+    cli.add_argument(
+        "--only",
+        choices=["deterministic", "behavioral", "adversarial"],
+        help="run one dataset to save calls; behavioral includes the Hebrew conversations. "
+        "A partial run never replaces results.md",
+    )
     args = cli.parse_args()
 
     from app.catalog import load_catalog, load_categories
@@ -548,6 +607,12 @@ def main() -> None:
 
         categories = load_categories()
         rows, cases = load_all_rows(), load_all_cases()
+        if args.only == "deterministic":
+            cases = []
+        elif args.only == "behavioral":
+            rows, cases = [], [c for c in cases if not is_adversarial_id(c["id"])]
+        elif args.only == "adversarial":
+            rows, cases = [], [c for c in cases if is_adversarial_id(c["id"])]
         RUNS_DIR.mkdir(exist_ok=True)
         run_path = RUNS_DIR / f"run_{datetime.now():%Y%m%d_%H%M%S}.jsonl"
         writer = RunWriter(run_path, total=len(rows) + len(cases))
@@ -563,7 +628,10 @@ def main() -> None:
     print(report)
     print(f"Raw results: {run_path}")
     if has_errors:
-        print(f"The run had errors or stopped early, so evals/results.md was left alone. Report saved to {saved_to}")
+        print(
+            "The run had errors, stopped early or covered only some datasets, so evals/results.md "
+            f"was left alone. Report saved to {saved_to}"
+        )
     else:
         print(f"Saved to {saved_to}")
 

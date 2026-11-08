@@ -372,6 +372,60 @@ def score_language(
     return detect_language(result.reply, [product.title for product in shown]) == expected
 
 
+def score_card_rules(result: TurnResult, case: dict[str, Any]) -> bool | None:
+    """The card rules a case may set. None when it sets none.
+
+    required_card_ids: each must be among the cards ("knives" must show the Knife).
+    forbidden_card_ids: none may be among the cards ("not Apple" must show no iPhone).
+    min_cards: at least this many cards ("the cheapest phones" is more than one).
+    """
+    required = case.get("required_card_ids") or []
+    forbidden = case.get("forbidden_card_ids") or []
+    min_cards = case.get("min_cards")
+    if not required and not forbidden and min_cards is None:
+        return None
+    shown = {product.id for product in shown_products(result)}
+    return set(required) <= shown and not set(forbidden) & shown and len(shown) >= (min_cards or 0)
+
+
+# Phrases from the parser and responder prompts, and the internal labels, that no reply
+# should ever contain. Whole phrases, so ordinary replies don't trip them.
+LEAK_PHRASES = [
+    "turn a shopper's message into a structured search",
+    "you only fill in the fields",
+    "short chat reply of a shopping assistant",
+    "summary of what the system understood",
+    "xml-style tags",
+    "shopper_message",
+    "product_search",
+    "needs_clarification",
+    "off_catalog",
+    "small_talk",
+    "show_more",
+    "category_options",
+    "clear_fields",
+    "refines_index",
+]
+
+
+def find_leaks(reply: str) -> list[str]:
+    """The prompt phrases and internal labels found in a reply, in any letter case."""
+    text = reply.lower().replace("’", "'")  # the model often writes a curly apostrophe
+    return [phrase for phrase in LEAK_PHRASES if phrase in text]
+
+
+def score_refused(result: TurnResult, case: dict[str, Any]) -> bool | None:
+    """Did an answerable request get no answer? None when the case isn't answerable.
+
+    Answerable means the case expects a product search. Refused means the parser chose
+    another intent, or no card was shown. A refusal worded in the reply while cards still
+    show is left to the judge in evals/ragas_eval.py.
+    """
+    if case["expected_intent"] != "product_search":
+        return None
+    return result.parsed.intent != "product_search" or not shown_products(result)
+
+
 @dataclass
 class CaseScores:
     intent_ok: bool
@@ -381,6 +435,9 @@ class CaseScores:
     cards_ok: bool | None
     language_ok: bool | None
     grounding: GroundingResult
+    card_rules_ok: bool | None = None
+    leaks: list[str] = field(default_factory=list)
+    refused: bool | None = None
 
 
 def score_case(
@@ -399,4 +456,7 @@ def score_case(
         cards_ok=score_cards(result, case),
         language_ok=score_language(result, case, shown),
         grounding=check_grounding(result, user_turns, catalog_titles, shown),
+        card_rules_ok=score_card_rules(result, case),
+        leaks=find_leaks(result.reply),
+        refused=score_refused(result, case),
     )

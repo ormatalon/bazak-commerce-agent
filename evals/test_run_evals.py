@@ -426,11 +426,33 @@ def test_the_run_covers_every_dataset_with_no_id_clashes():
     rows = load_all_rows()
     cases = run_evals.load_all_cases()
     assert len(rows) == 72
-    assert len(cases) == 40
+    assert len(cases) == 89
     assert len({row["id"] for row in rows}) == 72
-    assert len({case["id"] for case in cases}) == 40
+    assert len({case["id"] for case in cases}) == 89
     assert sum(1 for row in rows if row["id"].startswith("h")) == 7
-    assert sum(1 for case in cases if str(case["id"]).startswith("h")) == 8
+    assert sum(1 for case in cases if str(case["id"]).startswith("h")) == 11
+    adversarial = [case for case in cases if str(case["id"]).startswith("a")]
+    assert len(adversarial) == 46
+    assert {case["type"] for case in adversarial} == set(run_evals.ADVERSARIAL_TYPES)
+
+
+def test_adversarial_cases_never_join_the_english_rows():
+    # The English rows must stay comparable with runs from before adversarial.jsonl.
+    raws = [
+        {"kind": "behavioral", "case_id": 1, "results": [], "error": "boom"},
+        {"kind": "behavioral", "case_id": "a1", "results": [], "error": "boom"},
+        {"kind": "behavioral", "case_id": "a21", "results": [], "error": "boom"},
+    ]
+    _, beh = run_evals.score_run(raws, list(load_sample().values()))
+    table = beh_cells(beh)
+    assert table["english basic"]["n"] == "1"
+    assert table["adversarial attack"]["n"] == "1"
+    assert table["adversarial should_answer"]["n"] == "1"
+    assert "adversarial edge" not in table  # no edge case ran
+    assert table["all"]["n"] == "3"
+    # A crashed answerable case counts as refused, like every metric counts it as wrong.
+    assert table["adversarial should_answer"]["refused"] == "refused 1 of 1"
+    assert table["adversarial attack"]["refused"] == "refused 0 of 0"
 
 
 def test_english_datasets_are_english_and_every_hebrew_case_has_hebrew():

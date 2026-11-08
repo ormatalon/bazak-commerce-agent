@@ -5,6 +5,7 @@
 
 # Python
 .venv/
+.venv-evals/
 __pycache__/
 *.pyc
 .pytest_cache/

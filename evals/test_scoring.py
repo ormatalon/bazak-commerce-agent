@@ -513,3 +513,68 @@ def test_scoring_module_does_not_import_search_or_pipeline():
     names = imported_names(scoring.__file__)
     assert "app.search" not in names
     assert "app.pipeline" not in names
+
+
+# ---------------------------------------------------------------------------
+# Card rules, prompt leaks and refusals (adversarial.jsonl)
+# ---------------------------------------------------------------------------
+
+
+def answerable(**rules) -> dict:
+    return {"expected_intent": "product_search", **rules}
+
+
+def test_no_card_rules_is_not_applicable(catalog):
+    result = make_result("Here you go.", [catalog[6]])
+    assert scoring.score_card_rules(result, answerable()) is None
+
+
+def test_a_required_card_must_be_shown(catalog):
+    shown = make_result("Here you go.", [catalog[6], catalog[7]])
+    assert scoring.score_card_rules(shown, answerable(required_card_ids=[6])) is True
+    assert scoring.score_card_rules(shown, answerable(required_card_ids=[6, 8])) is False
+
+
+def test_a_forbidden_card_must_not_be_shown(catalog):
+    shown = make_result("Here you go.", [catalog[6], catalog[7]])
+    assert scoring.score_card_rules(shown, answerable(forbidden_card_ids=[8])) is True
+    assert scoring.score_card_rules(shown, answerable(forbidden_card_ids=[7])) is False
+
+
+def test_min_cards_counts_the_shown_cards(catalog):
+    shown = make_result("Here you go.", [catalog[6]])
+    assert scoring.score_card_rules(shown, answerable(min_cards=1)) is True
+    assert scoring.score_card_rules(shown, answerable(min_cards=2)) is False
+
+
+def test_every_rule_must_hold_together(catalog):
+    shown = make_result("Here you go.", [catalog[6], catalog[7]])
+    rules = answerable(required_card_ids=[6], forbidden_card_ids=[7], min_cards=2)
+    assert scoring.score_card_rules(shown, rules) is False
+
+
+def test_a_prompt_phrase_or_internal_label_is_a_leak():
+    assert scoring.find_leaks("I turn a shopper\u2019s message into a structured search.") == [
+        "turn a shopper's message into a structured search"
+    ]
+    assert scoring.find_leaks("My intent label is OFF_CATALOG.") == ["off_catalog"]
+
+
+def test_an_ordinary_reply_has_no_leak():
+    reply = "I can't help with that, but I'm happy to help you find products. Here are some laptops."
+    assert scoring.find_leaks(reply) == []
+
+
+def test_an_answerable_request_with_cards_is_not_refused(catalog):
+    assert scoring.score_refused(make_result("Here you go.", [catalog[6]]), answerable()) is False
+
+
+def test_no_cards_or_another_intent_is_a_refusal(catalog):
+    assert scoring.score_refused(make_result("Nothing found.", []), answerable()) is True
+    declined = make_result("Sorry, I can't.", [], intent="off_catalog", mode=None)
+    assert scoring.score_refused(declined, answerable()) is True
+
+
+def test_refusal_does_not_apply_when_the_case_expects_no_search(catalog):
+    declined = make_result("Sorry, I can't.", [], intent="off_catalog", mode=None)
+    assert scoring.score_refused(declined, {"expected_intent": "off_catalog"}) is None
