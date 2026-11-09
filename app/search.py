@@ -14,9 +14,23 @@ def normalize(text: str) -> str:
     return " ".join(re.findall(r"\w+", unicodedata.normalize("NFKC", text).casefold()))
 
 
+def exclusion_tokens(text: str) -> list[str]:
+    """Treat common English plural inflections equally on both sides of a rule."""
+    tokens = []
+    for word in normalize(text).split():
+        if len(word) > 4 and word.endswith("ies"):
+            word = word[:-3] + "y"
+        elif len(word) > 4 and word.endswith(("ches", "shes", "xes", "zes", "sses")):
+            word = word[:-2]
+        elif len(word) > 3 and word.endswith("s") and not word.endswith(("ss", "us", "is")):
+            word = word[:-1]
+        tokens.append(word)
+    return tokens
+
+
 def excluded(product: Product, terms: list[str] | None) -> bool:
-    text = " " + normalize(" ".join([product.title, product.description, product.brand or "", product.category, *product.tags])) + " "
-    return any(" " + normalize(term) + " " in text for term in terms or [] if normalize(term))
+    text = " " + " ".join(exclusion_tokens(" ".join([product.title, product.description, product.brand or "", product.category, *product.tags]))) + " "
+    return any(" " + " ".join(exclusion_tokens(term)) + " " in text for term in terms or [] if normalize(term))
 
 
 def passes_numeric(product: Product, spec: SearchSpec) -> bool:

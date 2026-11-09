@@ -8,6 +8,7 @@
 - Checker reasons and per-candidate decisions are visible in LangSmith. No new dependency or model was introduced. Tests, supported/unsupported-type probes and the complete 167-case source replay run after the implementation checks; draft semantic labels remain drafts.
 - The first full replay exposed incorrect parser strict-bound flags and omitted singular counts. Clarify each existing flag in the prompt/schema, reject strict flags without their corresponding bound, and interpret explicit singular superlatives as count 1. This fixes the existing numeric/count contract; no retrieval or pipeline-design change is made. Preserve the first run and score the corrected configuration separately.
 - Validate all existing source card-count labels and distinguish no fallback, rating, price and both in legacy scoring. These are diagnostic compatibility checks; they do not replace V2 semantic labels or change the source expectations.
+- A source case exposed plural exclusion leakage (`iPhones` did not match `iPhone`). Normalize common English plural suffixes on both catalog text and exclusion phrases, retaining phrase boundaries. This implements the existing hard-exclusion contract; it does not add a model node or relax exclusions. Also specify response language explicitly and prohibit unsupported dollar arithmetic in the existing responder prompt, retaining the grounding rule.
 
 ## Execution rules — 9 November 2026
 
