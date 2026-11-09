@@ -1,0 +1,25 @@
+/* Right-to-left text.
+   Chainlit lays every message out left-to-right, so a Hebrew reply gets its
+   punctuation on the wrong side. unicode-bidi: plaintext makes each block follow
+   the direction of its own first strong letter: a Hebrew paragraph reads
+   right-to-left and an English one stays left-to-right, even in the same message.
+   Chainlit renders each markdown paragraph as div[role="article"]. Lists and
+   headings are listed too. The product cards set dir="ltr" themselves. */
+.message-content [role="article"],
+.message-content li,
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4 {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
+/* Phones: bigger tap targets for the buttons under a message ("Show more").
+   Chainlit puts them in a flex-wrap row inside .ai-message. */
+@media (max-width: 640px) {
+  .ai-message .flex-wrap > button {
+    min-height: 44px;
+    padding-inline: 16px;
+  }
+}
