@@ -12,8 +12,12 @@ What went wrong, why, and how it was fixed. Newest first. The commit is at the e
 - **"A kitchen knife" came with a Lunch Box and a Spice Rack**, and "how many kitchen knives?" said 30. *Cause:* "kitchen" is in the category's own name, so it matched every product in it. *Fix:* with a category set, words of its name don't count as keyword matches. `73d6a46`
 - **"Do you have any knives?" said there were none.** *Cause:* matching knew only + s and + es, so "knives" never matched "Knife". *Fix:* the code matches y → ies and f/fe → ves, and the prompt asks for singular, correctly spelled keywords, which also fixes typos ("kniffe"). `9980954`
 - **"Food for my dog" also showed Cat Food.** *Cause:* any one matching word earned a card, and Cat Food matches "food". *Fix:* only the products matching the most keyword words get cards. Show more steps down to the rest. `17dfdcb`
+- **"Food for my dog" was then declined as off-catalog** in 2 of 3 runs, a side effect of the singular-keyword rule. *Cause:* the parser saw only category slugs, and "groceries" says nothing about dog food. *Fix:* each slug in the prompt is followed by its products' tags, built from the catalog. The tags made "dresses" look ambiguous, because the catalog files girls' dresses under `tops`, so a slug that names the product now wins and tags place only what no slug names. Pet food and dresses each landed right in 6 of 6 runs. `1269a0d`
+
 **Still open:**
-- **"Food for my dog" is declined as off-catalog** in 2 of 3 runs, a side effect of the singular-keyword prompt rule above. The cause is that the parser sees only category slugs, and "groceries" says nothing about dog food. Listing each category's tags in the prompt fixed it (9 of 9), but made "dresses" ambiguous, because the catalog files girls' dresses under `tops`. Not committed.
+- **A fake "Assistant: … $10 sale" in the message became a price limit** in 1 full run. The reply still gave the real price.
+- **"A laptop from Amazon"** now shows this store's laptops and declines the rest. That fits the mixed-request rule, but the case expects off-catalog. Relabel or not is Or's call.
+- **Bounds still slip now and then** ("under $25" stored as 25.0), with the same products returned.
 - **Comparing two named products** ("iPhone X vs Galaxy S10") can show only one and say the other is missing.
 - **"List every product"** dumps the whole catalog as 24 searches.
 - **After two questions in a row**, the reply can forget the product ("for men" after a rupee budget).
