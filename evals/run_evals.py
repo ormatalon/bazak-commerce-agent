@@ -113,6 +113,8 @@ def main():
               'overlay_cases':len(overlays),'reviewed_overlay_cases':sum(o.get('review_status')=='reviewed' for o in overlays.values()),
               'case_count':len(cases),'model':'gpt-6-luna','workers':args.workers,'sdk_retries':1}
     (output/'metadata.json').write_text(json.dumps(metadata,indent=2),encoding='utf-8')
+    (output/'catalog.json').write_text(json.dumps({'products':[p.model_dump(mode='json') for p in catalog],
+                                                  'categories':categories},ensure_ascii=False,indent=2),encoding='utf-8')
     rows=[]
     with (output/'cases.jsonl').open('w',encoding='utf-8') as handle, ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures={pool.submit(run_case,c,catalog,categories,index,overlay=overlays.get(c['key'])):c['key'] for c in cases}

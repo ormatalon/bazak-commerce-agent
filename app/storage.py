@@ -26,6 +26,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from app.pipeline import card_elements, metadata_of
+from app.observability import span
 
 logger = logging.getLogger("app.storage")
 
@@ -243,6 +244,11 @@ class ChatDataLayer(SQLAlchemyDataLayer):
         self._missing_file_notice_pending = False
 
     async def execute_sql(self, query: str, parameters: dict) -> Any:
+        """Trace persistence without exporting SQL parameters or credentials."""
+        with span("persistence", {"operation": query.lstrip().split(None, 1)[0] if query.strip() else "empty"}):
+            return await self._execute_sql(query, parameters)
+
+    async def _execute_sql(self, query: str, parameters: dict) -> Any:
         """Run one statement. The base class returns None when it failed (and logged why)."""
         await self._recover_deleted_file()
         result = await super().execute_sql(query, parameters)

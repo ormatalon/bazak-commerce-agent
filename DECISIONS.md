@@ -47,3 +47,5 @@
 - The owner supplied a LangSmith credential; store it only in ignored `.env`. Workspace read access was verified without exposing its value. Use the `bazak-v2` destination for runtime traces.
 - Required monitoring is a sanitized local event journal/dashboard plus LangSmith stage/LLM traces and a runbook. Automatic judges, alerts, and dataset synchronization remain deferred as the revised plan permits.
 - Upload immutable evaluation snapshots and score recorded predictions rather than making a second set of model calls. Preserve source trace IDs and configuration so LangSmith experiment scores refer to the exact local evidence.
+- Pass the pipeline's public trace headers into Chainlit message/card persistence so async SQL spans retain their turn parent. SQL parameters and authentication values are never exported.
+- Final integration checks found a console-encoding issue in draft Hebrew relevance text; restore UTF-8 Hebrew. Final evaluation artifacts now save the complete normalized catalog alongside its hash for reproducibility.

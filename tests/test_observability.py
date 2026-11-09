@@ -38,3 +38,16 @@ def test_failure_journal_excludes_raw_message_and_credentials(tmp_path):
     event=json.loads(path.read_text())
     assert event['error']=='TimeoutError'
     assert 'message' not in event and 'api_key' not in event
+
+
+def test_actual_sdk_export_boundary_is_sanitized(monkeypatch):
+    from langsmith import Client
+    monkeypatch.setenv('TEST_API_KEY','private-export-value')
+    captured=[]
+    monkeypatch.setattr(Client,'_create_run',lambda self, payload, **kwargs: captured.append(payload))
+    client=Client(api_url='http://localhost:1984',api_key='local-test',auto_batch_tracing=False,
+                  hide_inputs=redact,hide_outputs=redact,hide_metadata=redact)
+    client.create_run('redaction-check',{'messages':[{'content':'private-export-value'}]},'chain',
+                      outputs={'reply':'private-export-value'},extra={'metadata':{'password':'private-export-value'}})
+    assert len(captured)==1
+    assert 'private-export-value' not in json.dumps(captured,default=str)

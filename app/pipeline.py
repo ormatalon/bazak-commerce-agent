@@ -82,6 +82,7 @@ def _run_turn(message: str, state: ConversationState, catalog, categories: list[
                                       searches=searches, shown=shown)
         result = TurnResult(parsed=parsed, outcomes=outcomes, reply=reply, state=new_state,
                             trace_id=str(run.id) if run is not None else None,
+                            trace_context=run.to_headers() if run is not None else {},
                             timings={"total_ms": (perf_counter()-started)*1000})
         if run is not None:
             run.end(outputs={"intent": parsed.intent, "cards": [c.model_dump(mode="json") for o in outcomes for c in o.cards],

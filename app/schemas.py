@@ -149,6 +149,7 @@ class TurnResult(Model):
     reply: str
     state: ConversationState
     trace_id: str | None = None
+    trace_context: dict[str, str] = Field(default_factory=dict)
     timings: dict[str, float] = Field(default_factory=dict)
     error: str | None = None
 
