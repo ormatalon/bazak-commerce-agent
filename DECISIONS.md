@@ -41,3 +41,11 @@
 - Pure scoring functions distinguish legacy compatibility, observable V2 invariants, and unreviewed semantic metrics. Unknown semantic judgments are null, not an automatic success. Recall/nDCG require complete eligible judgments.
 - Calibration refuses to use draft labels as human ground truth. Source expectations remain preserved; draft overrides and prospective holdout status are reported explicitly.
 - Live replay requires `--live`, limits concurrency, stores every conversation's evidence as it finishes, and retains execution errors. Provider exception messages are omitted to prevent credential/request leakage.
+
+## Phase 6
+
+- The owner supplied a LangSmith credential; store it only in ignored `.env`. Workspace read access was verified without exposing its value. Use the `bazak-v2` destination for runtime traces.
+- Required monitoring is a sanitized local event journal/dashboard plus LangSmith stage/LLM traces and a runbook. Automatic judges, alerts, and dataset synchronization remain deferred as the revised plan permits.
+- Upload immutable evaluation snapshots and score recorded predictions rather than making a second set of model calls. Preserve source trace IDs and configuration so LangSmith experiment scores refer to the exact local evidence.
+- Pass the pipeline's public trace headers into Chainlit message/card persistence so async SQL spans retain their turn parent. SQL parameters and authentication values are never exported.
+- Final integration checks found a console-encoding issue in draft Hebrew relevance text; restore UTF-8 Hebrew. Final evaluation artifacts now save the complete normalized catalog alongside its hash for reproducibility.

@@ -21,6 +21,7 @@ embedding_cache.npz
 .models/
 evals/runs/
 evals/artifacts/
+monitoring/
 
 # Chainlit uploads
 .files/

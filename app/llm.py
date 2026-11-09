@@ -21,6 +21,11 @@ def _get_client() -> OpenAI:
         # so the key never sits in a variable of ours, and is never printed or logged.
         # One retry, so a persistent error shows in about 2 minutes, not 3.
         _client = OpenAI(timeout=60.0, max_retries=1)
+        from app.observability import get_client
+        tracing_client = get_client()
+        if tracing_client is not None:
+            from langsmith.wrappers import wrap_openai
+            _client = wrap_openai(_client, tracing_extra={"client": tracing_client})
     return _client
 
 

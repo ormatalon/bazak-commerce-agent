@@ -9,6 +9,7 @@ from app.catalog import category_tags
 from app.currency import UnsupportedCurrency, convert_search
 from app.fallback import search_with_fallback
 from app.index import ProductIndex
+from app.monitoring import record_turn
 from app.observability import span, trace_id
 from app.parser import merge_searches, parse_request
 from app.responder import is_hebrew, write_reply
@@ -41,7 +42,7 @@ def _outcomes(specs, index: ProductIndex, seen: set[int]):
     return outcomes
 
 
-def run_turn(message: str, state: ConversationState, catalog, categories: list[str], llm: LLM,
+def _run_turn(message: str, state: ConversationState, catalog, categories: list[str], llm: LLM,
              index: ProductIndex, conversation_id: str | None = None, traffic: str = "application") -> TurnResult:
     started = perf_counter()
     metadata = {"conversation_id": conversation_id, "session_id": conversation_id,
@@ -81,11 +82,25 @@ def run_turn(message: str, state: ConversationState, catalog, categories: list[s
                                       searches=searches, shown=shown)
         result = TurnResult(parsed=parsed, outcomes=outcomes, reply=reply, state=new_state,
                             trace_id=str(run.id) if run is not None else None,
+                            trace_context=run.to_headers() if run is not None else {},
                             timings={"total_ms": (perf_counter()-started)*1000})
         if run is not None:
             run.end(outputs={"intent": parsed.intent, "cards": [c.model_dump(mode="json") for o in outcomes for c in o.cards],
                              "reply": reply, "timings": result.timings})
         return result
+
+
+def run_turn(message: str, state: ConversationState, catalog, categories: list[str], llm: LLM,
+             index: ProductIndex, conversation_id: str | None = None, traffic: str = "application") -> TurnResult:
+    """Record success/failure without swallowing pipeline errors or retrying calls."""
+    started = perf_counter()
+    try:
+        result = _run_turn(message, state, catalog, categories, llm, index, conversation_id, traffic)
+    except Exception as error:
+        record_turn(None, traffic, (perf_counter()-started)*1000, type(error).__name__)
+        raise
+    record_turn(result, traffic, (perf_counter()-started)*1000)
+    return result
 
 
 def card_props(outcome: SearchOutcome) -> dict:

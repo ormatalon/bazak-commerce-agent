@@ -43,7 +43,8 @@ def get_client():
         from langsmith import Client
         _client = Client(timeout_ms=1500, hide_inputs=redact, hide_outputs=redact,
                          hide_metadata=redact, run_ops_buffer_size=100,
-                         run_ops_buffer_timeout_ms=500)
+                         run_ops_buffer_timeout_ms=500,
+                         process_buffered_run_ops=lambda operations: list(operations))
     return _client
 
 
@@ -51,7 +52,11 @@ def get_client():
 def span(name: str, inputs: dict | None = None, metadata: dict | None = None, run_type: str = "chain"):
     """Use the public trace context with bounded client export and nested context."""
     enabled = os.getenv("LANGSMITH_TRACING", "false").lower() == "true"
-    client = get_client() if enabled else None
+    try:
+        client = get_client() if enabled else None
+    except Exception as error:
+        logger.warning("Tracing unavailable: %s", type(error).__name__)
+        client = None
     manager = None
     run = None
     if client is not None:

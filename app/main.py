@@ -167,8 +167,12 @@ async def _handle_message(message: cl.Message) -> None:
     cl.user_session.set("state", result.state)
     # The metadata is saved with the message: it is what a resumed chat is rebuilt from.
     msg = cl.Message(content=result.reply, metadata=turn_metadata(result))
-    await msg.send()
-    await send_cards(msg, result.outcomes)
+    # Chainlit writes after the pure pipeline returns; carry its parent trace into
+    # the async persistence tasks instead of opening unrelated root traces.
+    from langsmith import tracing_context
+    with tracing_context(parent=result.trace_context or None):
+        await msg.send()
+        await send_cards(msg, result.outcomes)
 
 
 @cl.on_message
