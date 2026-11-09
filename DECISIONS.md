@@ -1,5 +1,12 @@
 # V2 implementation decisions
 
+## Approved extension — product-type node, 9 November 2026
+
+- The owner approved adding a `gpt-6-luna` product-type check after ranking, before exact/fallback card selection, after z-scores accepted unrelated inventory for unsupported types. This supersedes the original two-call parser/responder path for product searches.
+- Check all semantically shortlisted, unseen, nonexcluded products, including candidates that may become price/rating alternatives. Batch across requests/directions; deduplicate identical query/product pairs. A normal shortlist takes one additional call; larger shortlists use batches of at most 64 pairs so inventory and show-more are not silently capped.
+- The node checks product type and named identity using catalog evidence. It does not decide numeric eligibility, loosen exclusions, reorder results or invent products. Category guesses remain soft. The code validates complete response identity coverage and fails closed on missing, duplicate, fabricated or invalid decisions.
+- Checker reasons and per-candidate decisions are visible in LangSmith. No new dependency or model was introduced. Tests, supported/unsupported-type probes and the complete 167-case source replay run after the implementation checks; draft semantic labels remain drafts.
+
 ## Execution rules — 9 November 2026
 
 - User instructions override V1-only clauses in CLAUDE.md: implement Design V2 in separate phase branches, merge each completed phase into v2, do not pause for stage reviews, and run evaluations at the end. Keep simple typed functions, explicit code, secrets handling, Chainlit/SQLite, and decision logging.

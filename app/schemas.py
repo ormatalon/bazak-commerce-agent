@@ -103,6 +103,7 @@ class Candidate(Model):
     zone: Literal["strong", "borderline", "weak", "uninformative"]
     relevant: bool
     reason: str
+    type_compatible: bool | None = None
 
 
 class Relaxation(Model):

@@ -23,6 +23,9 @@ def setup_index():
 
 def fake_llm(parsed):
     def llm(messages, schema):
+        if schema and schema.__name__ == 'TypeCheckResult':
+            items = json.loads(messages[-1]['content'])['items']
+            return json.dumps({'decisions': [{'item_id': item['item_id'], 'compatible': True, 'reason': 'Test product type matches'} for item in items]})
         return json.dumps(parsed) if schema else 'Here are the relevant products.'
     return llm
 

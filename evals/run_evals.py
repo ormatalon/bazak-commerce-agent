@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from datetime import datetime, timezone
 import json
+import hashlib
 from pathlib import Path
 import subprocess
 from time import perf_counter
@@ -19,6 +20,9 @@ from app.llm import openai_llm
 from app.observability import flush
 from app.pipeline import run_turn
 from app.schemas import ConversationState
+from app.parser import SYSTEM as PARSER_PROMPT
+from app.product_type import SYSTEM as TYPE_PROMPT, BATCH_SIZE
+from app.responder import SYSTEM as RESPONSE_PROMPT
 from evals.datasets import load_cases, load_overlay
 from evals.scoring import aggregate, score_turn
 
@@ -112,6 +116,9 @@ def main():
               'labels_status':'draft; semantic release gates not certified',
               'overlay_cases':len(overlays),'reviewed_overlay_cases':sum(o.get('review_status')=='reviewed' for o in overlays.values()),
               'case_count':len(cases),'model':'gpt-6-luna','workers':args.workers,'sdk_retries':1}
+    metadata['prompt_hashes']={name:hashlib.sha256(text.encode()).hexdigest() for name,text in
+                               [('parser',PARSER_PROMPT),('product_type',TYPE_PROMPT),('responder',RESPONSE_PROMPT)]}
+    metadata['product_type_batch_size']=BATCH_SIZE
     (output/'metadata.json').write_text(json.dumps(metadata,indent=2),encoding='utf-8')
     (output/'catalog.json').write_text(json.dumps({'products':[p.model_dump(mode='json') for p in catalog],
                                                   'categories':categories},ensure_ascii=False,indent=2),encoding='utf-8')

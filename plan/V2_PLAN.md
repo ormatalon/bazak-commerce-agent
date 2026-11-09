@@ -2,6 +2,10 @@
 
 Audience: the AI engineer implementing V2. Source of truth: `Design V2 – Bazak Shopping Copilot.md`. Deliver a working local copilot, reproducible dataset evaluations, and LangSmith monitoring that explains why each card was shown.
 
+## Approved implementation amendment — 9 November 2026
+
+After final probes found unrelated products passing the relative relevance gate, the owner approved a product-type validation node. The updated flow is parse → rank → product-type check → numeric/exclusion eligibility and disclosed fallback → respond. Only `gpt-6-luna` is used for the new node. It verifies all semantically shortlisted unseen/nonexcluded candidates against the requested type/identity, including fallback candidates; exact numeric limits and exclusions remain code-controlled. Normal requests add one model call, with bounded batches of 64 query/product pairs for larger shortlists. Invalid/incomplete checker responses fail closed. This is implemented on `v2-phase-7-product-type`, then merged into `v2`, followed by final dataset evaluation.
+
 ## 1. Starting point and scope
 
 - Work on `v2`, based on `master` plus the current datasets and V2 design. This branch does not include the V1 implementation. Inspect `staging` for reusable catalog, UI, storage, currency, and evaluation code; port selected modules with their tests rather than merging V1 wholesale.
