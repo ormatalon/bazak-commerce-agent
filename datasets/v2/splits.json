@@ -1,0 +1,663 @@
+{
+  "version": 1,
+  "status": "frozen regression partition; not an untouched holdout",
+  "prospective_holdout": {
+    "status": "requires reviewer-authored cases at final review",
+    "cases": []
+  },
+  "groups": [
+    {
+      "family": "ambiguous",
+      "split": "development",
+      "keys": [
+        "behavioral:1",
+        "behavioral:4"
+      ]
+    },
+    {
+      "family": "beauty",
+      "split": "development",
+      "keys": [
+        "deterministic:9",
+        "deterministic:44"
+      ]
+    },
+    {
+      "family": "broad_request",
+      "split": "development",
+      "keys": [
+        "behavioral:3",
+        "behavioral:35",
+        "behavioral:36"
+      ]
+    },
+    {
+      "family": "catalog_dump",
+      "split": "development",
+      "keys": [
+        "adversarial:13"
+      ]
+    },
+    {
+      "family": "category_word_keyword",
+      "split": "development",
+      "keys": [
+        "adversarial:41"
+      ]
+    },
+    {
+      "family": "context_after_clarification",
+      "split": "development",
+      "keys": [
+        "adversarial:45"
+      ]
+    },
+    {
+      "family": "contradictory",
+      "split": "development",
+      "keys": [
+        "behavioral:24"
+      ]
+    },
+    {
+      "family": "empty_result",
+      "split": "regression",
+      "keys": [
+        "behavioral:14",
+        "behavioral:15"
+      ]
+    },
+    {
+      "family": "encoded_instruction",
+      "split": "regression",
+      "keys": [
+        "adversarial:8"
+      ]
+    },
+    {
+      "family": "fake_coupon",
+      "split": "regression",
+      "keys": [
+        "adversarial:11"
+      ]
+    },
+    {
+      "family": "fake_dialogue",
+      "split": "development",
+      "keys": [
+        "adversarial:16"
+      ]
+    },
+    {
+      "family": "fake_system_notice",
+      "split": "regression",
+      "keys": [
+        "adversarial:2"
+      ]
+    },
+    {
+      "family": "fallback",
+      "split": "development",
+      "keys": [
+        "hebrew:8"
+      ]
+    },
+    {
+      "family": "follow_up",
+      "split": "development",
+      "keys": [
+        "behavioral:11",
+        "behavioral:12",
+        "behavioral:13",
+        "behavioral:22"
+      ]
+    },
+    {
+      "family": "fragrances",
+      "split": "regression",
+      "keys": [
+        "deterministic:7",
+        "deterministic:8",
+        "deterministic:37",
+        "deterministic:53"
+      ]
+    },
+    {
+      "family": "furniture",
+      "split": "development",
+      "keys": [
+        "deterministic:11",
+        "deterministic:12",
+        "deterministic:39",
+        "deterministic:58",
+        "hebrew:4"
+      ]
+    },
+    {
+      "family": "gift_ideas",
+      "split": "development",
+      "keys": [
+        "adversarial:48",
+        "adversarial:49",
+        "adversarial:50",
+        "adversarial:51",
+        "adversarial:52"
+      ]
+    },
+    {
+      "family": "groceries",
+      "split": "development",
+      "keys": [
+        "deterministic:13",
+        "deterministic:38",
+        "deterministic:57"
+      ]
+    },
+    {
+      "family": "grounding",
+      "split": "development",
+      "keys": [
+        "behavioral:19"
+      ]
+    },
+    {
+      "family": "harmful_intent",
+      "split": "development",
+      "keys": [
+        "adversarial:12"
+      ]
+    },
+    {
+      "family": "hidden_instruction",
+      "split": "development",
+      "keys": [
+        "adversarial:18"
+      ]
+    },
+    {
+      "family": "home-decoration",
+      "split": "development",
+      "keys": [
+        "deterministic:14",
+        "deterministic:46"
+      ]
+    },
+    {
+      "family": "inferred_category",
+      "split": "development",
+      "keys": [
+        "behavioral:2",
+        "behavioral:20",
+        "adversarial:27"
+      ]
+    },
+    {
+      "family": "injection_in_request",
+      "split": "development",
+      "keys": [
+        "hebrew:10",
+        "hebrew:18"
+      ]
+    },
+    {
+      "family": "injection_shaped",
+      "split": "development",
+      "keys": [
+        "adversarial:23",
+        "adversarial:24"
+      ]
+    },
+    {
+      "family": "invent_product",
+      "split": "regression",
+      "keys": [
+        "adversarial:4"
+      ]
+    },
+    {
+      "family": "irregular_plural",
+      "split": "development",
+      "keys": [
+        "adversarial:39"
+      ]
+    },
+    {
+      "family": "irregular_plural_count",
+      "split": "development",
+      "keys": [
+        "adversarial:40"
+      ]
+    },
+    {
+      "family": "kitchen-accessories",
+      "split": "development",
+      "keys": [
+        "deterministic:15",
+        "deterministic:43",
+        "deterministic:54"
+      ]
+    },
+    {
+      "family": "language_switch",
+      "split": "regression",
+      "keys": [
+        "hebrew:14"
+      ]
+    },
+    {
+      "family": "laptops",
+      "split": "regression",
+      "keys": [
+        "deterministic:1",
+        "deterministic:6",
+        "deterministic:35",
+        "deterministic:51",
+        "hebrew:11"
+      ]
+    },
+    {
+      "family": "loose_keyword",
+      "split": "development",
+      "keys": [
+        "adversarial:42",
+        "adversarial:46"
+      ]
+    },
+    {
+      "family": "mens-shirts",
+      "split": "development",
+      "keys": [
+        "deterministic:16",
+        "deterministic:48"
+      ]
+    },
+    {
+      "family": "mens-shoes",
+      "split": "development",
+      "keys": [
+        "deterministic:17",
+        "deterministic:64"
+      ]
+    },
+    {
+      "family": "mens-watches",
+      "split": "regression",
+      "keys": [
+        "deterministic:18",
+        "deterministic:41",
+        "deterministic:55"
+      ]
+    },
+    {
+      "family": "mixed_off_catalog",
+      "split": "development",
+      "keys": [
+        "behavioral:23"
+      ]
+    },
+    {
+      "family": "mixed_request",
+      "split": "regression",
+      "keys": [
+        "adversarial:31"
+      ]
+    },
+    {
+      "family": "mobile-accessories",
+      "split": "regression",
+      "keys": [
+        "deterministic:20",
+        "deterministic:21"
+      ]
+    },
+    {
+      "family": "motorcycle",
+      "split": "development",
+      "keys": [
+        "deterministic:22",
+        "deterministic:49",
+        "deterministic:60"
+      ]
+    },
+    {
+      "family": "multi_intent",
+      "split": "development",
+      "keys": [
+        "behavioral:8",
+        "behavioral:9",
+        "behavioral:10",
+        "behavioral:21"
+      ]
+    },
+    {
+      "family": "multi_turn_leak",
+      "split": "development",
+      "keys": [
+        "adversarial:14"
+      ]
+    },
+    {
+      "family": "multi_turn_price",
+      "split": "development",
+      "keys": [
+        "adversarial:15"
+      ]
+    },
+    {
+      "family": "named_comparison",
+      "split": "regression",
+      "keys": [
+        "adversarial:47"
+      ]
+    },
+    {
+      "family": "near_miss",
+      "split": "regression",
+      "keys": [
+        "behavioral:16"
+      ]
+    },
+    {
+      "family": "negation",
+      "split": "regression",
+      "keys": [
+        "adversarial:32",
+        "adversarial:33",
+        "adversarial:34",
+        "adversarial:35",
+        "adversarial:36",
+        "adversarial:38",
+        "hebrew:16"
+      ]
+    },
+    {
+      "family": "negation_count",
+      "split": "development",
+      "keys": [
+        "adversarial:37"
+      ]
+    },
+    {
+      "family": "number_only_answer",
+      "split": "development",
+      "keys": [
+        "hebrew:9"
+      ]
+    },
+    {
+      "family": "off_catalog",
+      "split": "development",
+      "keys": [
+        "behavioral:5",
+        "behavioral:6",
+        "behavioral:7",
+        "hebrew:6"
+      ]
+    },
+    {
+      "family": "off_catalog_word",
+      "split": "regression",
+      "keys": [
+        "adversarial:28"
+      ]
+    },
+    {
+      "family": "other_currency",
+      "split": "development",
+      "keys": [
+        "behavioral:33",
+        "behavioral:34",
+        "hebrew:15"
+      ]
+    },
+    {
+      "family": "other_language",
+      "split": "regression",
+      "keys": [
+        "hebrew:13"
+      ]
+    },
+    {
+      "family": "other_users_data",
+      "split": "regression",
+      "keys": [
+        "adversarial:19"
+      ]
+    },
+    {
+      "family": "outside_store",
+      "split": "development",
+      "keys": [
+        "adversarial:5"
+      ]
+    },
+    {
+      "family": "plain_request",
+      "split": "development",
+      "keys": [
+        "adversarial:22",
+        "adversarial:29"
+      ]
+    },
+    {
+      "family": "plural_superlative",
+      "split": "regression",
+      "keys": [
+        "adversarial:43",
+        "adversarial:44"
+      ]
+    },
+    {
+      "family": "price_manipulation",
+      "split": "development",
+      "keys": [
+        "adversarial:3"
+      ]
+    },
+    {
+      "family": "prompt_injection",
+      "split": "development",
+      "keys": [
+        "behavioral:25",
+        "hebrew:17"
+      ]
+    },
+    {
+      "family": "prompt_leak",
+      "split": "regression",
+      "keys": [
+        "adversarial:1",
+        "adversarial:7"
+      ]
+    },
+    {
+      "family": "refine",
+      "split": "development",
+      "keys": [
+        "hebrew:7"
+      ]
+    },
+    {
+      "family": "repeat_after_me",
+      "split": "development",
+      "keys": [
+        "adversarial:17"
+      ]
+    },
+    {
+      "family": "role_play",
+      "split": "development",
+      "keys": [
+        "adversarial:9",
+        "adversarial:20"
+      ]
+    },
+    {
+      "family": "sensitive_word",
+      "split": "development",
+      "keys": [
+        "adversarial:21",
+        "adversarial:25"
+      ]
+    },
+    {
+      "family": "skin-care",
+      "split": "development",
+      "keys": [
+        "deterministic:10",
+        "deterministic:45",
+        "deterministic:63"
+      ]
+    },
+    {
+      "family": "small_talk",
+      "split": "development",
+      "keys": [
+        "behavioral:17",
+        "behavioral:18"
+      ]
+    },
+    {
+      "family": "smartphones",
+      "split": "regression",
+      "keys": [
+        "deterministic:2",
+        "deterministic:3",
+        "deterministic:36",
+        "deterministic:52",
+        "hebrew:5"
+      ]
+    },
+    {
+      "family": "sports-accessories",
+      "split": "development",
+      "keys": [
+        "deterministic:25",
+        "deterministic:26"
+      ]
+    },
+    {
+      "family": "subjective",
+      "split": "development",
+      "keys": [
+        "adversarial:30"
+      ]
+    },
+    {
+      "family": "sunglasses",
+      "split": "development",
+      "keys": [
+        "deterministic:27",
+        "deterministic:28",
+        "deterministic:50",
+        "deterministic:56",
+        "hebrew:3"
+      ]
+    },
+    {
+      "family": "superlative",
+      "split": "development",
+      "keys": [
+        "adversarial:26"
+      ]
+    },
+    {
+      "family": "tablets",
+      "split": "development",
+      "keys": [
+        "deterministic:4",
+        "deterministic:5",
+        "deterministic:40",
+        "deterministic:59",
+        "deterministic:62",
+        "hebrew:12"
+      ]
+    },
+    {
+      "family": "tag_escape",
+      "split": "regression",
+      "keys": [
+        "adversarial:10"
+      ]
+    },
+    {
+      "family": "topic_switch",
+      "split": "development",
+      "keys": [
+        "behavioral:26"
+      ]
+    },
+    {
+      "family": "tops",
+      "split": "development",
+      "keys": [
+        "deterministic:29"
+      ]
+    },
+    {
+      "family": "two_limits",
+      "split": "development",
+      "keys": [
+        "behavioral:31",
+        "behavioral:32"
+      ]
+    },
+    {
+      "family": "unrelated_task",
+      "split": "development",
+      "keys": [
+        "adversarial:6"
+      ]
+    },
+    {
+      "family": "vehicle",
+      "split": "development",
+      "keys": [
+        "deterministic:23",
+        "deterministic:24"
+      ]
+    },
+    {
+      "family": "womens-bags",
+      "split": "development",
+      "keys": [
+        "deterministic:30",
+        "deterministic:31",
+        "deterministic:65",
+        "hebrew:2"
+      ]
+    },
+    {
+      "family": "womens-dresses",
+      "split": "development",
+      "keys": [
+        "deterministic:32"
+      ]
+    },
+    {
+      "family": "womens-jewellery",
+      "split": "development",
+      "keys": [
+        "deterministic:33"
+      ]
+    },
+    {
+      "family": "womens-shoes",
+      "split": "regression",
+      "keys": [
+        "deterministic:34",
+        "deterministic:47",
+        "deterministic:61"
+      ]
+    },
+    {
+      "family": "womens-watches",
+      "split": "development",
+      "keys": [
+        "deterministic:19",
+        "deterministic:42",
+        "hebrew:1"
+      ]
+    }
+  ]
+}

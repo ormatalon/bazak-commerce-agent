@@ -2,7 +2,7 @@
 
 Standing instructions for Claude Code. Read this before every task. The owner (Or) must be able to explain and defend every line, so prefer simple, explicit code over clever code.
 
-Follow @plan/PLAN.md, wave by wave. Its Team section says who owns which files.
+Follow @plan/V2_PLAN.md phase by phase on V2. The user's execution instructions override the older V1 sections below: one branch per phase, merge completed phases into v2, no intermediate review pauses, and dataset evaluation at the end. Stop and ask before deviating from the plan. Design V2 supersedes the V1-only keyword/category filtering, English-only scope, and clarification-only behavior for vague requests. Retain the simplicity, security, grounding, persistence, and decision-log rules below.
 
 `Design Decisions.md` is Or's record of why things were chosen. Where it differs from this file, this file wins. Its eval tables are superseded by `datasets/`.
 
