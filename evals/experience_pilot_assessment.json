@@ -1,0 +1,533 @@
+{
+  "review_status": "assistant_qualitative_unblinded_not_human_gold",
+  "dimension_order": [
+    "recommendation_usefulness",
+    "courtesy",
+    "phrasing",
+    "task_progress"
+  ],
+  "cases": {
+    "UX01": {
+      "winner": "v2",
+      "v1": {
+        "scores": [
+          1,
+          2,
+          2,
+          1
+        ],
+        "note": "Four plausible affordable gifts are accompanied by a $499.99 conference chair and $1,899.99 bed. The reply discusses gifts under $60 without disclosing these over-budget cards, and bulky furniture conflicts with the small-flat context.",
+        "hard_gate_failures": [
+          "undisclosed budget violations"
+        ]
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Spice Rack, Chopping Board and Table Lamp all fit the $60 limit. The reply connects the choices to practical uses, qualifies taste uncertainty, and asks one relevant question.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX02": {
+      "winner": "v2",
+      "v1": {
+        "scores": [
+          1,
+          2,
+          2,
+          1
+        ],
+        "note": "The affordable watch, shirts and sunglasses are plausible, but a $8,999.99 Rolex is also shown. That card is not disclosed as exceeding the $120 budget; the reply only mentions the affordable subset.",
+        "hard_gate_failures": [
+          "undisclosed budget violation"
+        ]
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "A $89.99 watch, $49.99 fragrance and $27.99 shirt provide three plausible directions within budget. The wording is helpful and cautious about the recipient's taste.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX03": {
+      "winner": "v2",
+      "v1": {
+        "scores": [
+          1,
+          2,
+          1,
+          2
+        ],
+        "note": "Spice Rack is a direct organizing suggestion, but Lunch Box and Ice Cube Tray are weaker matches to a messy counter. The singular 'its card' wording does not explain the three displayed products.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Spice Rack and Mug Tree Stand directly address organizing; Lunch Box is a weaker extra. The reply explains the spice-rack benefit and asks a targeted question about what piles up.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX04": {
+      "winner": "v2",
+      "v1": {
+        "scores": [
+          1,
+          2,
+          2,
+          1
+        ],
+        "note": "Black Women's Gown is useful and within budget, but Corset With Black Skirt is an outfit rather than an explicit dress. Calling the displayed set 'dresses' is imprecise.",
+        "hard_gate_failures": [
+          "non-dress outfit presented in a dress set"
+        ]
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "The single Black Women's Gown is explicitly an evening/formal gown at $129.99. The reply explains the fit, admits missing fit/length information and asks one relevant style question.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX05": {
+      "winner": "v1",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Only Beats Flex Wireless Earphones at $49.99 are shown. This directly answers the sub-$100 earphone request without chargers, speakers or unnecessary expensive options.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          1,
+          2,
+          2,
+          1
+        ],
+        "note": "Beats Flex is a good match, but a $129.99 Airpods alternative is added despite a direct under-budget option. The budget exception is clearly disclosed, so this is not a false-price claim. The quoted 12-hour battery life is explicitly present in the catalog and is supported.",
+        "hard_gate_failures": [
+          "pilot requirement to avoid over-budget padding when a direct match exists"
+        ]
+      }
+    },
+    "UX06": {
+      "winner": "v1",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Women Handbag Black at $59.99 directly satisfies color, bag type and budget. The response is concise and needs no further clarification.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          1,
+          2,
+          1,
+          1
+        ],
+        "note": "The correct black handbag is shown, but so is Blue Women's Handbag, contradicting the requested color. A $129.99 leather bag is also added with a clear price exception. The price disclosure does not explain or cure the color mismatch.",
+        "hard_gate_failures": [
+          "wrong color: Blue Women's Handbag"
+        ]
+      }
+    },
+    "UX07": {
+      "winner": "neither",
+      "v1": {
+        "scores": [
+          0,
+          1,
+          2,
+          0
+        ],
+        "note": "The reply honestly says no laptop meets $600, but still shows three laptops from $1,099.99 to $1,499.99. The user expressly prohibited over-budget alternatives, so disclosure does not make these cards acceptable.",
+        "hard_gate_failures": [
+          "explicit prohibition on over-budget alternatives"
+        ]
+      },
+      "v2": {
+        "scores": [
+          0,
+          1,
+          1,
+          0
+        ],
+        "note": "The same three over-budget laptops are shown with repeated exception notices. Those notices are accurate but violate the user's explicit request not to show such alternatives and make the refusal noisy.",
+        "hard_gate_failures": [
+          "explicit prohibition on over-budget alternatives"
+        ]
+      }
+    },
+    "UX08": {
+      "winner": "v2",
+      "v1": {
+        "scores": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "note": "No irrelevant products are shown, which is correct. However, 'I can't help with that' does not explain that the missing item is a robot vacuum and sounds like a blanket refusal rather than an inventory limitation. This is partial rather than fully helpful abstention under the pilot's explicit inventory-explanation requirement.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "The reply specifically states that no robot-vacuum match was found and shows no unrelated cards. Its optional invitation to another home product is brief, though it could be omitted for a user who has rejected substitutes.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX09": {
+      "winner": "tie",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Correctly gives no separate-top match and does not call catalog dresses tops. The short explanation is sufficient for the no-match control.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          2,
+          1
+        ],
+        "note": "Correctly avoids dresses/frocks and gives no match. The suggestion to browse women's shoes is a weak next step because it does not address a separate top.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX10": {
+      "winner": "tie",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Offers three phones within $350 and explicitly says the catalog does not establish full-day battery life. It avoids inventing battery tests or capacities.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Also offers budget-compliant phones and clearly separates the known prices from unverified battery life. The follow-up is optional rather than blocking the initial help.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX11": {
+      "winner": "tie",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Acknowledges the frustrated follow-up briefly and supplies three phones at or below $350. It keeps context without arguing or asking the user to repeat the category.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Responds calmly with 'Understood', applies the $350 limit and supplies three qualifying phones. The slightly different product selection does not establish a quality winner for this request.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX12": {
+      "winner": "v1",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Both first turns correctly show the same three laptops in ascending price order. V1 resolves the $1,399.99 second laptop and returns only the cheaper $1,099.99 Lenovo Yoga 920.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          1,
+          2,
+          1,
+          1
+        ],
+        "note": "It resolves the reference and identifies the cheaper Lenovo, but also repeats the reference laptop and a more expensive Dell as alternatives. The $1,399.98 computed-bound notices distract from a request for one cheaper option; the exceptions are disclosed rather than hidden.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX13": {
+      "winner": "v1",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Keeps the fragrance context, excludes Calvin Klein and returns Dolce Shine ($69.99) and Gucci Bloom ($79.99), both within $80. The response is focused and does not re-ask unnecessary preferences.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          1,
+          2,
+          1,
+          1
+        ],
+        "note": "The two qualifying fragrances are present and the exclusion is respected, but an $89.99 Dior alternative is also added. The extra gender question and budget notice make a resolved refinement more cumbersome; the price exception is disclosed.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX14": {
+      "winner": "tie",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Declines to misrepresent a price while still recommending real wireless earphones. The correction is short and respectful.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Also helps with actual earphones and politely rejects the fabricated $1 price. Product features in its response are supported by the catalog. Mentioning $1 in a clear negation is not an affirmative invented-price claim under this pilot rubric.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX15": {
+      "winner": "v2",
+      "v1": {
+        "scores": [
+          1,
+          2,
+          1,
+          2
+        ],
+        "note": "The plant, photo frame and spice rack are plausible gifts, but six cards also include Water and Mulberry, which are weak unqualified host-gift ideas. The reply is polite but cluttered and heavily mixes English item names into Hebrew.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Tray, a home decoration and coffee are three plausible host-gift directions within $100, with a useful narrowing question. The Hebrew is more conversational. It translates generic product references rather than preserving every exact catalog title, a minor pilot formatting deviation rather than a new product or price.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX16": {
+      "winner": "v1",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "A single $89.99 Brown Leather Belt Watch satisfies the budget and Rolex exclusion. The Hebrew response is short and directly helpful.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          1,
+          2,
+          1,
+          1
+        ],
+        "note": "The correct watch is present, but a $1,499.99 Longines is added as a disclosed alternative to a $120 simple-watch request. That large budget jump and another feature question reduce focus despite polite wording.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX17": {
+      "winner": "v1",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Correctly follows the Hebrew reference to the second laptop and returns the cheaper Lenovo at $1,099.99. Context and language are preserved.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          0,
+          1,
+          1,
+          0
+        ],
+        "note": "After correctly listing the same first-turn laptops, it says it cannot see the second computer or its price and asks for the model/price again. No cards are returned. The recorded first turn and saved state provide that context, so this is an avoidable follow-up stall.",
+        "hard_gate_failures": [
+          "lost available conversation reference"
+        ]
+      }
+    },
+    "UX18": {
+      "winner": "v2",
+      "v1": {
+        "scores": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "note": "The phones fit the budget, but the response starts by refusing to add explanation beyond the catalog. That is an unnecessarily defensive answer to a shopper asking for a simple explanation and does little to reduce their confusion.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          1,
+          2
+        ],
+        "note": "Explains why the budget Realme C35 is a plausible everyday option, names prices and qualifies missing call/message-comparison information. It is more reassuring and useful, though the Hebrew has a grammatical slip ('מודגשים תכונות') and could be shorter.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX19": {
+      "winner": "v1",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          1
+        ],
+        "note": "Gives a concise, reasonable whole-dollar approximation ($79) and two fragrances within the source budget. It omits the quote source/date requested by the pilot's transparency criteria, so progress/transparency is not perfect.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          1,
+          1
+        ],
+        "note": "The $79.03 conversion is correct to cents and the quote date is shown. Two fragrances fit; a third $79.99 alternative is disclosed. However, 'frozen fixture; conversation rate' is internal English jargon in a Hebrew shopping reply, and the conversion is repeated, making it less natural.",
+        "hard_gate_failures": []
+      }
+    },
+    "UX20": {
+      "winner": "v1",
+      "v1": {
+        "scores": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "note": "Clearly and politely says PlayStation 5 is not offered, with no unrelated cards or invented console facts. The optional general offer is brief.",
+        "hard_gate_failures": []
+      },
+      "v2": {
+        "scores": [
+          2,
+          2,
+          1,
+          1
+        ],
+        "note": "Correctly gives no console match and no misleading cards, but immediately suggests tablets or smartphones despite the user's specific request for the console itself. The inventory decision is correct; the next step is less well targeted.",
+        "hard_gate_failures": []
+      }
+    }
+  },
+  "summary": {
+    "versions": {
+      "v1": {
+        "completed": 20,
+        "turns": 24,
+        "supported_count": 16,
+        "supported_final_cards": 16,
+        "candidate_avoidable_non_answers": 0,
+        "assistant_useful_supported": 10,
+        "controls_without_cards": 3,
+        "appropriate_controls": 2,
+        "price_exception_cases": 3,
+        "dimension_means": {
+          "recommendation_usefulness": 1.55,
+          "courtesy": 1.85,
+          "phrasing": 1.8,
+          "task_progress": 1.6
+        },
+        "median_conversation_seconds": 8.590369349927641
+      },
+      "v2": {
+        "completed": 20,
+        "turns": 24,
+        "supported_count": 16,
+        "supported_final_cards": 15,
+        "candidate_avoidable_non_answers": 1,
+        "assistant_useful_supported": 10,
+        "controls_without_cards": 3,
+        "appropriate_controls": 3,
+        "price_exception_cases": 7,
+        "dimension_means": {
+          "recommendation_usefulness": 1.55,
+          "courtesy": 1.9,
+          "phrasing": 1.55,
+          "task_progress": 1.4
+        },
+        "median_conversation_seconds": 10.740555849857628
+      }
+    },
+    "assistant_preferences": {
+      "v2": 7,
+      "v1": 8,
+      "neither": 1,
+      "tie": 4
+    }
+  }
+}

@@ -1,5 +1,12 @@
 # V2 implementation decisions
 
+## Experience pilot replay and comparison report
+
+- The owner requested a Markdown summary of all results, explaining each test, comparing V1 and V2, and ending with a short conclusion. Replay all 20 frozen cases through original staging V1 (`18af131`) and V2 (`818d19c`), using the same catalog, numerical frozen FX rates, allowed model, four workers per version, and native rounding. No application behavior or input expectations were changed after seeing outputs.
+- Preserve all 40 conversation results and 48 turns. Both versions completed every pilot case without a recorded case error; no manual model replay was made. Save raw evidence locally and a compact, auditable output/assessment packet with the report. Upload recorded outputs to one immutable 20-case LangSmith snapshot; uploads make no additional model calls.
+- Distinguish programmatic completion/card/price/reference checks from unblinded assistant judgments about usefulness, courtesy, phrasing, progress and preferences. Those judgments are not human gold or a blind semantic win rate. A negated mention of an invented price is not automatically an affirmative price hallucination.
+- Keep the 20-case pilot, earlier 167-case compatibility suite, and earlier post-hoc refusal cohorts separate. Report appropriate no-match behavior independently of supported-request stalls. Do not use polite wording or category F1 to excuse irrelevant products, prohibited alternatives or lost conversation context.
+
 ## Owner-approved experience pilot: 20 cases
 
 - The owner requested a small evaluation set focused on refusal behavior, actual recommendations, courtesy and phrasing. Add 14 English and 6 Hebrew cases, including 4 multi-turn conversations and 4 genuine no-match controls, without changing the original source-suite labels or runtime behavior.

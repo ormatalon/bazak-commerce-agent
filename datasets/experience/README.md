@@ -33,4 +33,4 @@ Acceptable product IDs are non-exhaustive examples with reasons, not an exact li
 
 `UX10` allows recommendations with a clear battery-information limitation; it does not reward invented specifications. `UX14` assesses an honest, polite correction while still helping with shopping; a negated mention of the shopper's fabricated price is not automatically an affirmative false price claim. `UX15`-`UX20` assess natural Hebrew; exact English catalog names may remain unchanged. Visual RTL rendering is a separate UI check.
 
-No model responses have been generated or rated for this pilot yet.
+At fixture creation no model responses or ratings existed; the frozen manifest preserves that creation-time status. Both implementations have now been replayed, with results in [the comparison report](../../evals/EXPERIENCE_PILOT_RESULTS.md). Qualitative scores there are unblinded assistant assessments, not human-reviewed gold. The input cases and expectations were not changed after viewing outputs.
