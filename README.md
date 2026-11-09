@@ -1,17 +1,79 @@
-## Test datasets
+# Bazak Shopping Copilot V2
 
-The repo includes two small datasets of questions with expected answers, used to evaluate the agent. Each case is labeled `basic` or `hard`.
+A local Chainlit shopping assistant over a fixed DummyJSON product catalog. The parser and responder use `gpt-6-luna`; local multilingual E5 embeddings rank products. Explicit prices/ratings and exclusions remain code-controlled constraints. Alternatives are disclosed per card and do not change the user's saved budget.
 
-### `deterministic.csv`
+Implementation plan: [plan/V2_PLAN.md](plan/V2_PLAN.md). Decisions: [DECISIONS.md](DECISIONS.md). Monitoring runbook: [plan/MONITORING.md](plan/MONITORING.md).
 
-65 single-turn shopping queries (50 basic, 15 hard), each with the exact search filters the agent should extract: `category`, `price_min`, `price_max`, `rating_min`, `sort_by`, `order` and `top_k`. Empty columns mean the filter should not be set.
+## Windows setup
 
-### `behavioral.jsonl`
+Use the virtualenv interpreter: the system `python` command may open the Microsoft Store stub.
 
-26 conversations (20 basic, 6 hard), some with several turns, that test how the agent handles situations such as ambiguous requests, off-catalog requests, follow-ups, empty results and prompt injection. Each case lists the user's `turns` and the expected outcome:
+```powershell
+uv venv .venv
+uv pip install --python .venv/Scripts/python.exe -r requirements.txt --index https://download.pytorch.org/whl/cpu --index https://pypi.org/simple --index-strategy unsafe-best-match
+```
 
-- `expected_intent`: the intent the agent should identify
-- `expected_mode`: whether the search is new or refines the previous one
-- `expected_categories` and `category_match`: the categories to show, and whether all or any of them must appear
-- `expect_fallback`: the filter the agent should loosen when nothing matches
-- `expected_behavior`: a plain-language description of the correct response
+Copy `.env.example` to `.env` only if `.env` does not already exist. Set the OpenAI key, one local login, and Chainlit authentication secret. Configure LangSmith as described in the runbook. Keys are never committed.
+
+Download the pinned embedding model once:
+
+```powershell
+.venv/Scripts/python.exe -m app.embeddings --download
+```
+
+The model identifier is `intfloat/multilingual-e5-small`, pinned to revision `614241f622f53c4eeff9890bdc4f31cfecc418b3`. It runs locally on CPU with E5 query/passage prefixes, normalized vectors, and a 512-token limit. A model download and PyTorch installation are required assumptions of this V2 implementation.
+
+```powershell
+.venv/Scripts/python.exe -m chainlit run app/main.py
+```
+
+Model loading is offline after setup. The catalog is fetched only if no valid local cache exists. OpenAI calls and enabled LangSmith exports still require internet access. Product images use catalog URLs.
+
+## Retrieval and conversation behavior
+
+- Index two texts per product: title/category/brand and description/tags. Cache both arrays with catalog/model/text-version identity and verify alignment on load.
+- Parse independent requests; vague requests can have up to three alternative directions with shared limits. Recent history and shown prices support refinements and comparisons.
+- Convert original-currency limits in code using the dated snapshot table in `app/currency.py`. Strict/inclusive operators are applied after conversion. Keep original amounts in conversation state.
+- Use weighted similarity and a small category boost for rank; relative relevance zones gate each card. Category guesses and positive keywords never filter products.
+- Filter numeric constraints before card selection. Sort the full qualified inventory, then paginate; do not stop after ten matches. Merge alternative directions by round-robin, deduplicating IDs.
+- Fill missing slots with relevant, disclosed rating/price alternatives. Exclusions and semantic relevance never relax. If nothing qualifies, return a useful no-match explanation instead of arbitrary cards.
+- Store history, active constraints, shown cards and outcomes through Chainlit's SQLite data layer. V2 state metadata is separate from V1 metadata.
+
+**Calibration status:** initial thresholds are provisional. Relative scores alone may accept a wrong type for an unsupported request. Final feasibility checks and reviewed semantic labels are required before claiming release quality. A new relevance gate requires the owner's approval under the execution instructions.
+
+## Tests
+
+Offline checks use fake LLM responses and fixed vectors; they never export traces or call a provider. Use a unique workspace temporary directory if the shared Windows pytest directory is inaccessible:
+
+```powershell
+New-Item -ItemType Directory -Path .test-tmp -Force | Out-Null
+$testTemp = Join-Path (Get-Location) ('.test-tmp/' + [guid]::NewGuid().ToString('N'))
+.venv/Scripts/python.exe -m pytest tests -q -p no:cacheprovider --basetemp $testTemp
+```
+
+## Datasets and scoring
+
+The four source datasets contain 167 cases at implementation time: 65 deterministic CSV rows, 32 behavioral conversations, 52 adversarial conversations and 18 Hebrew cases. The loader derives counts and stable identities from the files. Source expectations remain V1 compatibility labels.
+
+`datasets/v2/expectations.jsonl` records changed V2 expectations, rationale and review status. `relevance.jsonl` contains draft semantic pairs; drafts are not human-reviewed ground truth. `splits.json` groups development/regression cases and records whether independent prospective holdout cases exist. Historical files in `datasets/answers/` are reference outputs, not fresh evaluation evidence.
+
+At the final evaluation stage:
+
+```powershell
+.venv/Scripts/python.exe -m evals.feasibility
+.venv/Scripts/python.exe -m evals.run_evals --live
+.venv/Scripts/python.exe -m evals.langsmith_experiment <evidence-directory>
+.venv/Scripts/python.exe -m evals.monitor
+```
+
+Live replay makes paid calls to `gpt-6-luna` with explicit concurrency and one SDK retry. It resets state between cases, replays all turns, retains turn-level facts and aggregates invariant failures across the conversation. Reports include execution failures, source/difficulty slices, legacy metrics and draft V2 metrics. Complete grounding and task success remain unknown without reviewed semantic judgments.
+
+Local evidence lives in ignored `evals/artifacts/`. The LangSmith upload command publishes an immutable dataset and experiment over recorded outputs; it does not call the model again. Runtime events and the local HTML monitoring view live in ignored `monitoring/`.
+
+Scoring distinguishes ordinary Recall@10, its catalog-dependent ceiling, achievable Recall@10, Hit@10, precision/coverage, and graded nDCG. Unknown relevance judgments remain unknown. Calibration only accepts reviewed development labels:
+
+```powershell
+.venv/Scripts/python.exe -m evals.calibrate --output retrieval-config.json
+```
+
+Pass a calibrated configuration to the runner using `--config retrieval-config.json`. Runtime configuration uses the explicit `RetrievalConfig` defaults until a measured configuration is adopted. No semantic release result is claimed merely because unit tests pass.
