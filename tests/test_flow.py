@@ -543,3 +543,31 @@ def test_has_more_is_true_only_while_matches_remain_without_a_card(recorder):
 
     result = turn("sunglasses", search_parse(SearchSpec(category="sunglasses", top_k=5)))
     assert not has_more(result.outcomes[0])  # all 5 shown
+
+
+# --- cards only for the best keyword matches -------------------------------------------
+
+# Cat Food is the best rated, so rating alone would put it first.
+PETS = [
+    product(1, "Cat Food", rating=4.9),
+    product(2, "Dog Food", rating=4.0),
+    product(3, "Dog Bowl", rating=4.5),
+    product(4, "Bird Cage", rating=4.8),
+]
+
+
+def test_the_best_matches_get_the_cards_and_the_count(recorder):
+    spec = SearchSpec(category="gear", keywords=["dog food"])
+    outcome = run_turn("dog food", ConversationState(), PETS, ["gear"], fake_llm_returning(search_parse(spec))).outcomes[0]
+    assert [p.id for p in outcome.shown] == [2]
+    assert outcome.total == 1  # "how many?" counts Dog Food only
+    assert len(outcome.products) == 4  # search still keeps the whole category
+
+
+def test_show_more_steps_down_to_the_next_best_and_then_the_rest(recorder):
+    spec = SearchSpec(category="gear", keywords=["dog food"])
+    state = run_turn("dog food", ConversationState(), PETS, ["gear"], fake_llm_returning(search_parse(spec))).state
+    outcomes, state = show_more(state, PETS)
+    assert [p.id for p in outcomes[0].shown] == [1, 3]  # one word each, best rated first
+    outcomes, state = show_more(state, PETS)
+    assert [p.id for p in outcomes[0].shown] == [4]  # no word: the rest of the category

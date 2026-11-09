@@ -144,15 +144,22 @@ def search(spec: SearchSpec, catalog: list[Product]) -> list[Product]:
 
 
 def relevant_products(spec: SearchSpec, products: list[Product]) -> list[Product]:
-    """The products matching a keyword, or all of them when none do.
+    """The products matching the most keyword words, or all of them when none match.
 
     For choosing cards and counting, not for search(): a keyword must not empty a category
     ("makeup" matches no beauty product), but one phone case should not come with two
-    speakers just because they share its category.
+    speakers just because they share its category, and "dog food" should show Dog Food,
+    not Cat Food, which matches only "food".
+
+    Show more runs this again over the products not yet shown, so it steps down to the
+    next best matches, and then to the rest of the category.
     """
     keywords = ranking_keywords(spec)
-    matching = [p for p in products if keyword_match_count(keywords, p) > 0]
-    return matching or products
+    counts = {product.id: keyword_match_count(keywords, product) for product in products}
+    best = max(counts.values(), default=0)
+    if best == 0:
+        return products
+    return [product for product in products if counts[product.id] == best]
 
 
 def distance_from_limits(spec: SearchSpec, product: Product) -> tuple[float, float]:

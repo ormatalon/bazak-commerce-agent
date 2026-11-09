@@ -593,3 +593,17 @@ def test_the_plural_rules_never_match_a_different_word():
 def test_a_search_for_knives_finds_the_knife():
     spec = SearchSpec(keywords=["knives"], category="kitchen-accessories")
     assert ids(relevant_products(spec, kitchen())) == [2]
+
+
+# --- cards only for the best keyword matches -------------------------------------------
+
+
+def test_only_the_products_matching_the_most_keyword_words_are_relevant():
+    pets = [product(1, "Cat Food"), product(2, "Dog Food"), product(3, "Dog Bowl")]
+    # Dog Food matches both words; Cat Food and Dog Bowl only one each.
+    assert ids(relevant_products(SearchSpec(keywords=["dog food"], category="misc"), pets)) == [2]
+
+
+def test_products_tied_on_the_best_count_are_all_relevant():
+    pets = [product(1, "Cat Food"), product(2, "Dog Food"), product(3, "Dog Bowl")]
+    assert ids(relevant_products(SearchSpec(keywords=["dog"], category="misc"), pets)) == [2, 3]
