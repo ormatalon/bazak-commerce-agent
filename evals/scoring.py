@@ -90,6 +90,10 @@ def score_turn(result, case: dict, catalog) -> dict:
     metrics["forbidden_card_compliance"] = float(not (forbidden & set(identifiers))) if forbidden else None
     required = set(case.get("required_card_ids", []))
     metrics["required_cards_present"] = float(required <= set(identifiers)) if required else None
+    if "expected_card_ids" in case:
+        metrics["legacy_expected_cards"] = float(set(identifiers) == set(case["expected_card_ids"]))
+    if "min_cards" in case:
+        metrics["minimum_cards"] = float(len(identifiers) >= case["min_cards"])
     if case.get("expected_language"):
         # Remove product names so English catalog titles do not bias Hebrew replies.
         text=result.reply
@@ -100,10 +104,10 @@ def score_turn(result, case: dict, catalog) -> dict:
         metrics["language_accuracy"]=float(language==case['expected_language'])
     # Structured disclosure plus literal presence is evidence of code disclosure only.
     metrics['alternative_disclosure']=float(all(c.product.title in result.reply for c in cards if c.alternative))
-    if case.get('expect_fallback') is not None:
+    if 'expect_fallback' in case:
         actual={r.field for c in cards for r in c.relaxations}
         expected=case['expect_fallback']
-        expected=set(expected if isinstance(expected,list) else [expected])
+        expected=set() if expected is None else ({'price','rating'} if expected=='both' else set(expected if isinstance(expected,list) else [expected]))
         actual={"rating" if f=='rating_min' else "price" for f in actual}
         metrics['legacy_fallback_accuracy']=float(actual==expected)
     normalized=[]
