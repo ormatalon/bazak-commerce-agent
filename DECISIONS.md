@@ -1,5 +1,13 @@
 # V2 implementation decisions
 
+## Owner-approved experience pilot: 20 cases
+
+- The owner requested a small evaluation set focused on refusal behavior, actual recommendations, courtesy and phrasing. Add 14 English and 6 Hebrew cases, including 4 multi-turn conversations and 4 genuine no-match controls, without changing the original source-suite labels or runtime behavior.
+- Draft expectations before replaying either implementation. Pin the existing 194-product comparison snapshot and FX fixture. Treat product IDs as non-exhaustive evidence, not an exact expected list; judge catalog descriptions and user purpose rather than category membership alone.
+- Separate usefulness, courtesy, phrasing and task progress on 0-2 scales, with factual/constraint gates and justified abstention scored independently. Keep assistant drafts distinct from human-reviewed ground truth. Known-failure-inspired scenarios form a development pilot, not a prospective holdout.
+- Provide a no-network validator and a readable case list. Creation and validation are authorized now; do not spend on another model replay merely to create the set. Preserve the user's staging checkout, implement on a separate branch, and merge the completed dataset change into v2.
+- Validation: the pilot validator confirms 20 unique cases, 14 English/6 Hebrew, 4 multi-turn conversations, 4 no-match controls, frozen file hashes, valid catalog references and budget-compliant positive examples. All 86 existing offline tests pass; no new model outputs or human ratings are claimed.
+
 ## Hebrew layout fix, 9 November 2026
 
 - Enable the existing `public/style.css` through Chainlit's supported `UI.custom_css` setting. It was present but not loaded. Extend paragraph-aware bidirectional layout to the composer, message editor, remaining headings and table cells. Each paragraph follows its first strong character, so Hebrew reads right-to-left and English reads left-to-right in the same chat.

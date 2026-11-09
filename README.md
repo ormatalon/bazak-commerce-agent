@@ -59,6 +59,8 @@ $testTemp = Join-Path (Get-Location) ('.test-tmp/' + [guid]::NewGuid().ToString(
 
 ## Datasets and scoring
 
+The separate [20-case experience pilot](datasets/experience/README.md) covers recommendation usefulness, avoidable non-answers, courtesy, phrasing and follow-up progress. It contains 14 English and 6 Hebrew conversations, including 4 multi-turn cases and 4 legitimate no-match controls. Expectations are assistant drafts, not human-reviewed gold, and the pilot is not automatically included in the original source-suite runner. Validate its frozen data without model calls using `.venv/Scripts/python.exe -m evals.experience`.
+
 The four source datasets contain 167 cases at implementation time: 65 deterministic CSV rows, 32 behavioral conversations, 52 adversarial conversations and 18 Hebrew cases. The loader derives counts and stable identities from the files. Source expectations remain V1 compatibility labels.
 
 `datasets/v2/expectations.jsonl` records changed V2 expectations, rationale and review status. `relevance.jsonl` contains draft semantic pairs; drafts are not human-reviewed ground truth. `splits.json` groups development/regression cases and records whether independent prospective holdout cases exist. Historical files in `datasets/answers/` are reference outputs, not fresh evaluation evidence.
