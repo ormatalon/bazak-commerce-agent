@@ -57,6 +57,9 @@ because other kinds of products may meet it. If the shopper named no amount, say
 is nothing cheaper. "price" means the price limit, "rating" the rating limit. If both are named, say that \
 nothing meets both limits together. A shown product may still meet one of them, so say \
 which one, using its price and rating.
+- Gift ideas: if the shopper asked for a present without naming a kind of product, \
+present the cards as a few ideas, then end with one short question that would narrow \
+them down (what they like, or a budget in dollars).
 - Nothing shown for a search: say nothing was found for it. Do not suggest a product.
 - Cannot do: if the summary lists unsupported things, say politely that you cannot do \
 them, and still talk about the products that are shown.

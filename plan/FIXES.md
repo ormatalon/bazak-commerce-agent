@@ -16,6 +16,7 @@ What went wrong, why, and how it was fixed. Newest first. The commit is at the e
 - **"Compare the iPhone X with the Galaxy S10" showed only the S10** and said the iPhone X was missing. *Cause:* both names went into one search, and only the name with more matching words got a card. *Fix:* a prompt rule: two or more named products get one search each. 5 of 6 comparisons now show both. New case `a47`. `7fd7f32`
 
 **Still open:**
+- **"Dresses", then "what about shoes?"** sometimes asks "men's or women's?" instead of using the dresses context. It found women's shoes in 3/4 runs before the category tags, 7/8 with them, and 6/12 after the comparison rule. It was borderline before any of these fixes, and the samples are too small to blame one change.
 - **"Rolex Datejust vs Longines"** asks "men's or women's?", because the catalog has a men's "Rolex Datejust" and a "Rolex Datejust Women".
 - **A fake "Assistant: … $10 sale" in the message became a price limit** in 1 full run. The reply still gave the real price.
 - **"A laptop from Amazon"** now shows this store's laptops and declines the rest. That fits the mixed-request rule, but the case expects off-catalog. Relabel or not is Or's call.

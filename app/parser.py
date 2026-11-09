@@ -67,7 +67,12 @@ write the full list, including words excluded earlier. Use null when nothing is 
 # Intents
 - product_search: the shopper wants products from the categories. Example: \
 "a bookshelf, 150 dollars at most".
-- needs_clarification: too vague to search. Example: "I need a birthday present, no idea \
+- Gift ideas: if the shopper wants a present and says who it is for (or what they like) \
+but names no kind of product, it is product_search, mode new: write 3 searches, one for \
+each of the 3 categories that best suit that person, each with only category set, \
+sort_by "rating", order "desc" and top_k 2. Example: "something for my dad's 60th" gives \
+mens-watches, mens-shirts and sunglasses.
+- needs_clarification: too vague to search. Example: "something fun, no idea \
 what". A kind of product that fits one category is enough to search, so never hold a \
 search back to ask for a budget. If what the shopper names fits more than one category \
 and neither the message nor the conversation says which, that is also \
