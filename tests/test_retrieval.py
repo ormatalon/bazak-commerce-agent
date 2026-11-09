@@ -21,7 +21,8 @@ def test_currency_strict_boundary_applied_after_conversion():
     assert cent_bound(Decimal('1.23'), False, True) == 1.22
     assert cent_bound(Decimal('1.23'), True, True) == 1.24
     original = SearchSpec(price_max=3000, currency='ILS', currency_term='NIS')
-    converted, notes = convert_search(original)
+    from evals.datasets import FrozenRateProvider
+    converted, notes = convert_search(original, FrozenRateProvider().get_rate('ILS'))
     assert converted.price_max == 948.37
     assert original.price_max == 3000 and 'NIS' in notes[0]
 

@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 from app.catalog import load_catalog_data
 from app.config import ROOT, RetrievalConfig, catalog_hash
+from app.currency import RateSource, get_rate_provider
 from app.embeddings import LocalEmbedder
 from app.index import ProductIndex
 from app.llm import openai_llm
@@ -23,17 +24,18 @@ from app.schemas import ConversationState
 from app.parser import SYSTEM as PARSER_PROMPT
 from app.product_type import SYSTEM as TYPE_PROMPT, BATCH_SIZE
 from app.responder import SYSTEM as RESPONSE_PROMPT
-from evals.datasets import load_cases, load_overlay
+from evals.datasets import FrozenRateProvider, load_cases, load_overlay
 from evals.scoring import aggregate, failure_metrics, score_record
 
 
-def run_case(case, catalog, categories, index, llm=openai_llm, overlay=None) -> dict:
+def run_case(case, catalog, categories, index, llm=openai_llm, overlay=None, rate_provider: RateSource | None = None) -> dict:
     started=perf_counter()
+    rate_provider = rate_provider or FrozenRateProvider()
     state=ConversationState()
     turns=[]
     try:
         for number,message in enumerate(case['turns']):
-            result=run_turn(message,state,catalog,categories,llm,index,case['key'],traffic='evaluation')
+            result=run_turn(message,state,catalog,categories,llm,index,case['key'],traffic='evaluation',rate_provider=rate_provider)
             state=result.state
             turn={'turn':number,'result':result.model_dump(mode='json')}
             turns.append(turn)
@@ -92,6 +94,7 @@ def main():
     parser.add_argument('--workers',type=int,default=4)
     parser.add_argument('--config',type=Path,help='JSON RetrievalConfig overrides, e.g. calibrated thresholds.')
     parser.add_argument('--output',type=Path)
+    parser.add_argument('--live-rates',action='store_true',help='Use current API rates instead of the frozen evaluation fixture.')
     args=parser.parse_args()
     if args.workers < 1 or (args.limit is not None and args.limit < 1):
         parser.error('workers and limit must be positive integers')
@@ -101,6 +104,7 @@ def main():
     cases=[c for c in load_cases() if args.source=='all' or c['source']==args.source]
     overlays=load_overlay()
     if args.limit: cases=cases[:args.limit]
+    rate_provider = get_rate_provider() if args.live_rates else FrozenRateProvider()
     config=RetrievalConfig(**json.loads(args.config.read_text(encoding='utf-8'))) if args.config else RetrievalConfig()
     catalog, categories = load_catalog_data()
     index=ProductIndex(catalog,LocalEmbedder(config),config)
@@ -114,6 +118,9 @@ def main():
               'overlay_cases':len(overlays),'reviewed_overlay_cases':sum(o.get('review_status')=='reviewed' for o in overlays.values()),
               'case_count':len(cases),'case_keys':[case['key'] for case in cases],
               'model':'gpt-6-luna','workers':args.workers,'sdk_retries':1}
+    metadata['exchange_rate_mode'] = 'live cached, conversation-pinned' if args.live_rates else 'frozen fixture'
+    if not args.live_rates:
+        metadata['exchange_rate_fixture_sha256'] = hashlib.sha256((ROOT/'datasets/v2/exchange_rates.json').read_bytes()).hexdigest()
     metadata['prompt_hashes']={name:hashlib.sha256(text.encode()).hexdigest() for name,text in
                                [('parser',PARSER_PROMPT),('product_type',TYPE_PROMPT),('responder',RESPONSE_PROMPT)]}
     metadata['product_type_batch_size']=BATCH_SIZE
@@ -122,7 +129,7 @@ def main():
                                                   'categories':categories},ensure_ascii=False,indent=2),encoding='utf-8')
     rows=[]
     with (output/'cases.jsonl').open('w',encoding='utf-8') as handle, ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures={pool.submit(run_case,c,catalog,categories,index,overlay=overlays.get(c['key'])):c['key'] for c in cases}
+        futures={pool.submit(run_case,c,catalog,categories,index,overlay=overlays.get(c['key']),rate_provider=rate_provider):c['key'] for c in cases}
         for future in as_completed(futures):
             row=future.result()
             rows.append(row)

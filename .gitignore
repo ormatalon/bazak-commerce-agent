@@ -18,6 +18,7 @@ __pycache__/
 *.db.bak
 catalog_cache.json
 embedding_cache.npz
+exchange_rates_cache.json
 .models/
 evals/runs/
 evals/artifacts/

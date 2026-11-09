@@ -1,5 +1,14 @@
 # V2 implementation decisions
 
+## Approved extension: API currency rates, 9 November 2026
+
+- The owner approved replacing the fixed runtime table with API-backed reference rates, caching, conversation pinning, source/date disclosure, frozen evaluation rates and graceful fallback. This explicitly amends the original fixed-rate design and does not add an LLM node. Reuse the existing `httpx` dependency and the keyless Frankfurter pair endpoint; do not send budgets, chat text or user identifiers to the provider.
+- Refresh shared local quotes after one hour. On transient failure, accept a previously validated cached quote only when both fetch age and reference-date age are at most seven days; disclose the fallback. With no usable quote or an unsupported pair, ask for a USD budget and retain existing search state. Do not fall back to hardcoded runtime rates. Cache write errors leave valid in-memory quotes usable.
+- Pin each quote when a search succeeds, retain it across refinements/new requests in the same conversation and resume, and show its date so aging is visible. Multi-request preparation is transactional: a failed conversion cannot partially commit quotes. A new conversation can acquire newer rates through the shared cache.
+- Persist immutable decimal quotes in conversation state and each evaluation outcome. Trace fetch/cache/fallback decisions through `currency_rate` spans. Default evaluation to a versioned fixture; current-rate evaluation requires `--live-rates`. The independent scorer uses recorded quotes; only pre-extension archives missing the quote field use the original fixture for compatibility.
+- Follow the owner's changes-first/tests-last workflow. Validate offline contracts and rescore existing evidence, then smoke-test the public rate API without another paid model replay. Leave unrelated local file deletions/translations untouched.
+- Final validation: 86 offline tests passed; compilation and whitespace checks passed. All 167 saved cases rescored with zero execution errors and identical aggregate metrics to `evals/artifacts/review-rescored`; new evidence is in ignored `evals/artifacts/live-currency-rescored`. Public ILS lookup returned 3.1918 units/USD dated 2026-11-09; conversion, memory-cache reuse and disk reload succeeded. The API returned 2026-11-10 for INR/EUR while UTC was 2026-11-09; future-dated responses were correctly rejected rather than silently accepted. No paid model calls were made.
+
 ## Comprehensive code review — 9 November 2026
 
 - The owner requested implementing all review changes before testing. Review is manual; no review-agent/plugin workflow or new dependency was introduced. All runtime edits and regression cases precede the final test batch.

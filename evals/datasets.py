@@ -5,10 +5,30 @@ import hashlib
 import json
 import math
 from pathlib import Path
+from datetime import datetime, UTC
 
 from app.config import ROOT
+from app.currency import UnsupportedCurrency, currency_code
+from app.schemas import CurrencyRate
 
 SOURCES = ("deterministic", "behavioral", "adversarial", "hebrew")
+
+
+class FrozenRateProvider:
+    """Explicit test/evaluation data; never the runtime application's provider."""
+
+    def __init__(self, path: Path = ROOT / 'datasets/v2/exchange_rates.json'):
+        data = json.loads(path.read_text(encoding='utf-8'))
+        fetched_at = datetime.fromisoformat(data['rate_date']).replace(tzinfo=UTC)
+        self.rates = {code: CurrencyRate(currency=code, units_per_usd=value,
+                      rate_date=data['rate_date'], fetched_at=fetched_at, source=data['source'])
+                      for code, value in data['units_per_usd'].items()}
+
+    def get_rate(self, code: str) -> CurrencyRate:
+        try:
+            return self.rates[currency_code(code)]
+        except KeyError:
+            raise UnsupportedCurrency(code) from None
 
 
 def load_cases(root: Path = ROOT / "datasets") -> list[dict]:
