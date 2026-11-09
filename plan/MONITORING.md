@@ -24,6 +24,10 @@ Run `.venv\Scripts\python.exe -m evals.run_evals --live` at the final evaluation
 
 Then run `.venv\Scripts\python.exe -m evals.langsmith_experiment <evidence-directory>`. The command uploads a new immutable dataset snapshot, verifies identities/counts, and evaluates the exact recorded predictions with the same local metrics. It does not call the shopping model again. Dataset/experiment links are saved beside the report.
 
+For a baseline comparison on the same immutable inputs, pass `--dataset-id <snapshot-id>` for the next implementation. The tool verifies every case identity and input turn before creating the experiment and never modifies the shared examples. Implementation-specific draft overlays remain in local evidence and experiment metadata.
+
+Recorded-output experiment execution time is upload/replay overhead, not shopping latency. Use `measured_duration_ms` feedback for measured conversation duration and the original `shopping_turn` provider traces for turn latency, token usage and configured cost. The V1 source runner did not record durations, so its latency comparison is unavailable.
+
 Legacy checks, draft V2 expectation metrics, and reviewed semantics are distinct. Unknown semantic metrics are omitted from numeric averages. Calibration requires human-reviewed development positives and negatives. Failed evaluation cases stay visible in execution-success counts.
 
 ## Export failures

@@ -70,6 +70,15 @@ def _same(left, right) -> bool:
     return abs(left-right) < 0.00001
 
 
+def unshown_catalog_titles(reply: str, catalog, shown: set[int]) -> list[str]:
+    """Avoid prefix titles and shorter titles embedded in a shown product's name."""
+    text = reply
+    for product in sorted((p for p in catalog if p.id in shown), key=lambda p: len(p.title), reverse=True):
+        text = re.sub(r'(?<!\w)' + re.escape(product.title) + r'(?!\w)', ' ', text)
+    return [p.title for p in catalog if p.id not in shown and len(p.title.split()) > 1
+            and re.search(r'(?<!\w)' + re.escape(p.title) + r'(?!\w)', text)]
+
+
 def score_turn(result, case: dict, catalog) -> dict:
     """Observable checks only. Unknown semantic correctness remains None."""
     by_id = {p.id:p for p in catalog}
@@ -148,12 +157,19 @@ def score_turn(result, case: dict, catalog) -> dict:
     metrics['no_unsupported_dollar_amounts']=float(all(any(abs(value-allowed)<0.011 for allowed in allowed_amounts) for value in dollar_amounts))
     # Title and amount checks catch known violations; they do not prove grounding.
     shown={c.product.id for c in cards} | {p.id for p in result.state.shown}
-    unseen_titles=[p.title for p in catalog if p.id not in shown and len(p.title.split())>1 and p.title in result.reply]
+    unseen_titles=unshown_catalog_titles(result.reply,catalog,shown)
     metrics['no_unshown_catalog_titles']=float(not unseen_titles)
     leak_terms=['you extract shopping intent','return structured json only','system prompt:','v2-parser-1']
     metrics['no_known_prompt_leak']=float(not any(t in result.reply.casefold() for t in leak_terms))
     is_deterministic=case.get('source')=='deterministic' or case.get('type')=='deterministic'
     if is_deterministic:
+        labeled_bounds={field:number(case.get(field)) for field in ('price_min','price_max','rating_min')}
+        exact_cards=[c for c in cards if not c.alternative]
+        metrics['labeled_exact_numeric_compliance']=(float(all(
+            (labeled_bounds['price_min'] is None or c.product.price>=labeled_bounds['price_min']) and
+            (labeled_bounds['price_max'] is None or c.product.price<=labeled_bounds['price_max']) and
+            (labeled_bounds['rating_min'] is None or c.product.rating>=labeled_bounds['rating_min'])
+            for c in exact_cards)) if exact_cards and any(v is not None for v in labeled_bounds.values()) else None)
         expected=expected_ids(case,catalog)
         returned=list(dict.fromkeys(i for o in result.outcomes for i in o.exact_ids))
         top=number(case.get('top_k'))
