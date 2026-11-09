@@ -48,7 +48,7 @@ def _check_batch(items: list[dict], llm: LLM) -> dict[int, TypeDecision]:
         raw = llm([{"role": "system", "content": SYSTEM},
                    {"role": "user", "content": json.dumps({"items": items}, ensure_ascii=False)}], TypeCheckResult)
         try:
-            result = TypeCheckResult.model_validate_json(raw)
+            result = TypeCheckResult.model_validate_json(raw, strict=True)
         except ValidationError as error:
             raise ProductTypeCheckError("Invalid product-type response") from error
         expected = {item["item_id"] for item in items}
@@ -70,12 +70,13 @@ def check_product_types(specs: list[SearchSpec], ranked: list[list[list[Candidat
     No input candidate or saved search is mutated.
     """
     entries: dict[tuple[str, int], dict] = {}
+    seen = seen or set()
     for spec, groups in zip(specs, ranked, strict=True):
         for number, group in enumerate(groups):
             query = spec.directions[number].query
             for candidate in group:
                 product = candidate.product
-                if not candidate.relevant or product.id in (seen or set()) or excluded(product, spec.exclude):
+                if not candidate.relevant or product.id in seen or excluded(product, spec.exclude):
                     continue
                 key = (query, product.id)
                 if key not in entries:

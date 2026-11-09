@@ -2,11 +2,11 @@
 
 from app.index import ProductIndex
 from app.observability import span
-from app.schemas import Candidate, Card, Relaxation, SearchOutcome, SearchSpec
+from app.schemas import Candidate, Card, Product, Relaxation, SearchOutcome, SearchSpec
 from app.search import eligible_lists, merge_directions, rank_all
 
 
-def _changes(product, spec: SearchSpec) -> list[Relaxation]:
+def _changes(product: Product, spec: SearchSpec) -> list[Relaxation]:
     changes = []
     for field, actual in (("rating_min", product.rating), ("price_min", product.price), ("price_max", product.price)):
         original = getattr(spec, field)
@@ -52,8 +52,10 @@ def search_with_fallback(original: SearchSpec, normalized: SearchSpec, index: Pr
         alternatives = _relaxed_candidates(normalized, ranked, seen | set(exact_ids))
         selected = exact + alternatives
         page = selected if normalized.show_all else selected[:count]
-        cards = [Card(product=c.product, relaxations=_changes(c.product, normalized),
-                      alternative=bool(_changes(c.product, normalized))) for c in page]
+        cards = []
+        for candidate in page:
+            changes = _changes(candidate.product, normalized)
+            cards.append(Card(product=candidate.product, relaxations=changes, alternative=bool(changes)))
         reason = "alternatives" if any(c.alternative for c in cards) else "exact"
         if not cards:
             unlimited = normalized.model_copy(update={"price_min": None, "price_max": None, "rating_min": None})

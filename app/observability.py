@@ -1,17 +1,52 @@
 """Optional, sanitized LangSmith spans. Export failures never retry a model call."""
 
 from contextlib import contextmanager
-from contextvars import ContextVar
 import logging
 import os
 from pathlib import Path
 import re
+from threading import Lock
+from typing import Any
 
 from dotenv import dotenv_values
 
 logger = logging.getLogger(__name__)
 _client = None
-_active_trace: ContextVar[str | None] = ContextVar("trace_id", default=None)
+_client_lock = Lock()
+
+
+def tracing_enabled() -> bool:
+    return os.getenv("LANGSMITH_TRACING", "false").lower() == "true"
+
+
+class SafeTrace:
+    """Optional instrumentation must not turn a successful operation into a failure."""
+
+    def __init__(self, run: Any):
+        self._run = run
+
+    @property
+    def id(self):
+        return self._run.id
+
+    def end(self, **kwargs) -> None:
+        try:
+            self._run.end(**kwargs)
+        except Exception as error:
+            logger.warning("Trace completion failed: %s", type(error).__name__)
+
+    def add_metadata(self, metadata: dict) -> None:
+        try:
+            self._run.add_metadata(redact(metadata))
+        except Exception as error:
+            logger.warning("Trace metadata failed: %s", type(error).__name__)
+
+    def to_headers(self) -> dict[str, str]:
+        try:
+            return self._run.to_headers()
+        except Exception as error:
+            logger.warning("Trace context unavailable: %s", type(error).__name__)
+            return {}
 
 
 def redact(value):
@@ -39,21 +74,20 @@ def get_client():
     global _client
     if not os.getenv("LANGSMITH_API_KEY"):
         return None
-    if _client is None:
-        from langsmith import Client
-        _client = Client(timeout_ms=1500, hide_inputs=redact, hide_outputs=redact,
-                         hide_metadata=redact, run_ops_buffer_size=100,
-                         run_ops_buffer_timeout_ms=500,
-                         process_buffered_run_ops=lambda operations: list(operations))
+    with _client_lock:
+        if _client is None:
+            from langsmith import Client
+            # The SDK already batches asynchronously; a second buffering layer is
+            # unnecessary and complicates shutdown and failure handling.
+            _client = Client(timeout_ms=1500, hide_inputs=redact, hide_outputs=redact, hide_metadata=redact)
     return _client
 
 
 @contextmanager
 def span(name: str, inputs: dict | None = None, metadata: dict | None = None, run_type: str = "chain"):
     """Use the public trace context with bounded client export and nested context."""
-    enabled = os.getenv("LANGSMITH_TRACING", "false").lower() == "true"
     try:
-        client = get_client() if enabled else None
+        client = get_client() if tracing_enabled() else None
     except Exception as error:
         logger.warning("Tracing unavailable: %s", type(error).__name__)
         client = None
@@ -64,11 +98,10 @@ def span(name: str, inputs: dict | None = None, metadata: dict | None = None, ru
             from langsmith import trace
             manager = trace(name, run_type=run_type, inputs=redact(inputs or {}),
                             metadata=redact(metadata or {}), client=client)
-            run = manager.__enter__()
+            run = SafeTrace(manager.__enter__())
         except Exception as error:
             logger.warning("Trace startup failed: %s", type(error).__name__)
             manager = None
-    token = _active_trace.set(str(run.id) if run is not None else _active_trace.get())
     try:
         yield run
     except BaseException as error:
@@ -77,7 +110,6 @@ def span(name: str, inputs: dict | None = None, metadata: dict | None = None, ru
             run.end(error=type(error).__name__)
         raise
     finally:
-        _active_trace.reset(token)
         if manager is not None:
             try:
                 manager.__exit__(None, None, None)
@@ -85,10 +117,11 @@ def span(name: str, inputs: dict | None = None, metadata: dict | None = None, ru
                 logger.warning("Trace export failed: %s", type(error).__name__)
 
 
-def trace_id() -> str | None:
-    return _active_trace.get()
-
-
-def flush() -> None:
-    if _client is not None:
-        _client.flush()
+def flush() -> bool:
+    try:
+        if _client is not None:
+            _client.flush()
+        return True
+    except Exception as error:
+        logger.warning("Trace flush failed: %s", type(error).__name__)
+        return False

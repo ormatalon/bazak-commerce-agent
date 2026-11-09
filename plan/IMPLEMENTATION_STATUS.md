@@ -1,5 +1,9 @@
 # V2 implementation status
 
+## Code-review follow-up — 9 November 2026
+
+The comprehensive review fixes are recorded in [CODE_REVIEW.md](CODE_REVIEW.md). All source changes preceded the final test batch: 68 offline tests passed, syntax/whitespace checks passed, and all 167 saved cases were re-scored without additional model calls. Earlier live scores below remain historical results; the review does not certify new semantic accuracy or calibrated thresholds.
+
 ## Latest result - 9 November 2026
 
 The approved additional node is implemented on `v2-phase-7-product-type` and merged into `v2`, with final integration/reporting commits on the same branch. It checks product type/identity before any exact or fallback card is finalized. There are 33 passing offline checks. Final V2 replay completed all 167 source cases (182 turns) with zero execution errors; the V1 baseline also completed 167 cases without execution errors. Both are published as LangSmith experiments on identical snapshot inputs.

@@ -11,18 +11,18 @@ from app.currency import UnsupportedCurrency, convert_search
 from app.fallback import search_with_fallback
 from app.index import ProductIndex
 from app.monitoring import record_turn
-from app.observability import span, trace_id
-from app.parser import merge_searches, parse_request, PROMPT_VERSION as PARSER_VERSION
+from app.observability import span
+from app.parser import CurrencyRefinementError, HISTORY_LIMIT, merge_searches, parse_request, PROMPT_VERSION as PARSER_VERSION
 from app.product_type import check_product_types, PROMPT_VERSION as TYPE_VERSION
 from app.responder import is_hebrew, write_reply
-from app.schemas import ChatTurn, ConversationState, LLM, ParsedRequest, SearchOutcome, TurnResult
+from app.schemas import ChatTurn, ConversationState, LLM, ParsedRequest, Product, SearchOutcome, SearchSpec, TurnResult
 from app.search import rank_all
 
 METADATA_VERSION = 2
 CARD_FIELDS = {"id", "title", "description", "price", "rating", "brand", "thumbnail", "category"}
 
 
-def _unique(products):
+def _unique(products: list[Product]) -> list[Product]:
     return list({p.id: p for p in products}.values())
 
 
@@ -32,11 +32,11 @@ def _language_message(message: str, state: ConversationState) -> str:
     return next((t.text for t in reversed(state.history) if t.role == "user" and any(c.isalpha() for c in t.text)), message)
 
 
-def _outcomes(specs, index: ProductIndex, seen: set[int], llm: LLM):
+def _outcomes(specs: list[SearchSpec], converted: list[tuple[SearchSpec, list[str]]],
+              index: ProductIndex, seen: set[int], llm: LLM) -> list[SearchOutcome]:
     outcomes = []
     query_cache = {}
     used = set(seen)
-    converted = [convert_search(spec) for spec in specs]
     rankings = [rank_all(normalized, index, query_cache) for normalized, notes in converted]
     checked = check_product_types([normalized for normalized, notes in converted], rankings, llm, seen)
     for spec, (normalized, notes), ranked in zip(specs, converted, checked, strict=True):
@@ -47,7 +47,7 @@ def _outcomes(specs, index: ProductIndex, seen: set[int], llm: LLM):
     return outcomes
 
 
-def _run_turn(message: str, state: ConversationState, catalog, categories: list[str], llm: LLM,
+def _run_turn(message: str, state: ConversationState, catalog: list[Product], categories: list[str], llm: LLM,
              index: ProductIndex, conversation_id: str | None = None, traffic: str = "application") -> TurnResult:
     started = perf_counter()
     metadata = {"conversation_id": conversation_id, "session_id": conversation_id,
@@ -57,34 +57,38 @@ def _run_turn(message: str, state: ConversationState, catalog, categories: list[
         parsed = parse_request(message, state, categories, llm, category_tags(catalog))
         outcomes = []
         searches, shown = state.searches, state.shown
-        currency_question = False
+        question: str | None = None
+        hebrew = is_hebrew(_language_message(message, state))
         if parsed.intent == "product_search":
             try:
                 if parsed.mode == "show_more":
                     if not searches:
                         raise ValueError("nothing to show more of")
-                    outcomes = _outcomes(searches, index, {p.id for p in shown}, llm)
-                    shown = _unique(shown + [p for o in outcomes for p in o.shown])
+                    specs = searches
                 else:
                     specs = merge_searches(parsed, state.searches)
-                    if not specs or any(not s.directions for s in specs):
-                        raise ValueError("no positive product query")
-                    outcomes = _outcomes(specs, index, set(), llm)
-                    searches = specs
-                    shown = _unique([p for o in outcomes for p in o.shown])
+                if not specs or any(not s.directions for s in specs):
+                    raise ValueError("no positive product query")
+                converted = [convert_search(spec) for spec in specs]
             except UnsupportedCurrency:
-                outcomes = []
                 parsed = ParsedRequest(intent="needs_clarification")
-                currency_question = True
-            except (ValueError, ValidationError):
-                outcomes = []
+                question = "אין שער שמור למטבע הזה. מה התקציב בדולרים?" if hebrew else "I do not have a saved rate for that currency. What is your budget in US dollars?"
+            except CurrencyRefinementError:
                 parsed = ParsedRequest(intent="needs_clarification")
-        language_message = _language_message(message, state)
-        if currency_question:
-            reply = "אין שער שמור למטבע הזה. מה התקציב בדולרים?" if is_hebrew(language_message) else "I do not have a saved rate for that currency. What is your budget in US dollars?"
-        else:
-            reply = write_reply(language_message, parsed, outcomes, llm, categories)
-        new_state = ConversationState(history=state.history + [ChatTurn(role="user", text=message), ChatTurn(role="assistant", text=reply)],
+                question = "מה טווח המחירים המלא במטבע החדש?" if hebrew else "What is the complete price range in the new currency?"
+            except ValueError:
+                parsed = ParsedRequest(intent="needs_clarification")
+            else:
+                # Runtime/model/index errors must reach callers, not masquerade as
+                # shopper ambiguity. Only request preparation is handled above.
+                more = parsed.mode == "show_more"
+                outcomes = _outcomes(specs, converted, index, {p.id for p in shown} if more else set(), llm)
+                searches = specs
+                cards = [p for outcome in outcomes for p in outcome.shown]
+                shown = _unique(shown + cards if more else cards)
+        reply = question or write_reply(message, parsed, outcomes, llm, categories, hebrew=hebrew)
+        history = state.history + [ChatTurn(role="user", text=message), ChatTurn(role="assistant", text=reply)]
+        new_state = ConversationState(history=history[-HISTORY_LIMIT:],
                                       searches=searches, shown=shown)
         result = TurnResult(parsed=parsed, outcomes=outcomes, reply=reply, state=new_state,
                             trace_id=str(run.id) if run is not None else None,
@@ -96,7 +100,7 @@ def _run_turn(message: str, state: ConversationState, catalog, categories: list[
         return result
 
 
-def run_turn(message: str, state: ConversationState, catalog, categories: list[str], llm: LLM,
+def run_turn(message: str, state: ConversationState, catalog: list[Product], categories: list[str], llm: LLM,
              index: ProductIndex, conversation_id: str | None = None, traffic: str = "application") -> TurnResult:
     """Record success/failure without swallowing pipeline errors or retrying calls."""
     started = perf_counter()
@@ -148,9 +152,19 @@ def rebuild_state(steps: list[dict]) -> ConversationState:
 def card_elements(steps: list[dict], thread_id: str) -> list[dict]:
     elements = []
     for step in steps:
-        if metadata_of(step).get("app") != METADATA_VERSION:
+        if not step.get("id") or metadata_of(step).get("app") != METADATA_VERSION:
             continue
-        for number, products in enumerate(metadata_of(step).get("cards", [])):
+        groups = metadata_of(step).get("cards")
+        if not isinstance(groups, list):
+            continue
+        for number, products in enumerate(groups):
+            if not isinstance(products, list) or not products:
+                continue
+            try:
+                for product in products:
+                    Product.model_validate(product)
+            except ValidationError:
+                continue
             elements.append({"id": f"{step['id']}-cards-{number}", "threadId": thread_id,
                              "type": "custom", "name": "ProductCards", "display": "inline",
                              "forId": step["id"], "props": {"products": products}, "mime": "application/json"})

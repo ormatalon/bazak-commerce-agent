@@ -51,3 +51,41 @@ def test_actual_sdk_export_boundary_is_sanitized(monkeypatch):
                       outputs={'reply':'private-export-value'},extra={'metadata':{'password':'private-export-value'}})
     assert len(captured)==1
     assert 'private-export-value' not in json.dumps(captured,default=str)
+
+
+def test_trace_updates_headers_and_shutdown_cannot_break_the_body(monkeypatch):
+    from types import SimpleNamespace
+    import langsmith
+    import app.observability as observations
+    def broken(*args, **kwargs):
+        raise RuntimeError('export unavailable')
+    raw = SimpleNamespace(id='trace',end=broken,add_metadata=broken,to_headers=broken)
+    class Manager:
+        def __enter__(self):
+            return raw
+        def __exit__(self,*args):
+            broken()
+    monkeypatch.setenv('LANGSMITH_TRACING','true')
+    monkeypatch.setattr(observations,'get_client',lambda: object())
+    monkeypatch.setattr(langsmith,'trace',lambda *args,**kwargs: Manager())
+    with span('test') as run:
+        run.end(outputs={'ok':True})
+        run.add_metadata({'key':'value'})
+        assert run.to_headers() == {}
+    with pytest.raises(ValueError,match='original failure'):
+        with span('test'):
+            raise ValueError('original failure')
+
+
+def test_optional_model_tracing_failure_keeps_the_openai_client(monkeypatch):
+    import app.llm as llm
+    import app.observability as observations
+    client = object()
+    monkeypatch.setattr(llm,'_client',None)
+    monkeypatch.setattr(llm,'OpenAI',lambda **kwargs: client)
+    monkeypatch.setenv('LANGSMITH_TRACING','true')
+    def broken():
+        raise RuntimeError('tracing unavailable')
+    monkeypatch.setattr(observations,'get_client',broken)
+    assert llm._get_client() is client
+    assert llm._get_client() is client

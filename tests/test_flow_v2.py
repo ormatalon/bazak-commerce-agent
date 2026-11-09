@@ -1,4 +1,5 @@
 import json
+import pytest
 
 import numpy as np
 
@@ -79,3 +80,51 @@ def test_show_more_pages_beyond_ten_and_honors_global_price_sort():
         assert [c.product.id for c in search(spec,index,seen=set(range(10,21)))] == list(range(9,0,-1))
     finally:
         retrieval.rank_all = original
+
+
+def test_numeric_followup_keeps_current_message_and_previous_language():
+    from app.schemas import ChatTurn, Direction, SearchSpec
+    products, index = setup_index()
+    state = ConversationState(history=[ChatTurn(role='user', text='מחשב נייד')],
+                              searches=[SearchSpec(directions=[Direction(query='laptop')])])
+    parsed = {'intent':'product_search','mode':'refine','searches':[{'price_max':200}]}
+    underlying = fake_llm(parsed)
+    response_contexts = []
+
+    def llm(messages, schema):
+        if schema is None:
+            response_contexts.append(json.loads(messages[-1]['content']))
+        return underlying(messages, schema)
+
+    result = run_turn('200', state, products, ['laptops','beauty'], llm, index)
+    assert response_contexts[0]['message'] == '200'
+    assert response_contexts[0]['reply_language'] == 'Hebrew'
+    assert result.state.searches[0].price_max == 200
+
+
+def test_index_error_is_not_hidden_as_user_ambiguity():
+    products, index = setup_index()
+    def broken_index(vector):
+        raise ValueError('invalid vector')
+    index.similarities = broken_index
+    state = ConversationState()
+    parsed = {'intent':'product_search','mode':'new','searches':[{'directions':[{'query':'laptop'}]}]}
+    with pytest.raises(ValueError, match='invalid vector'):
+        run_turn('laptop', state, products, ['laptops'], fake_llm(parsed), index)
+    assert not state.history and not state.searches
+
+
+def test_structured_history_stays_bounded_after_resume():
+    from app.parser import HISTORY_LIMIT
+    from app.schemas import ChatTurn
+    products, index = setup_index()
+    state = ConversationState(history=[ChatTurn(role='user',text=f'message {i}') for i in range(20)])
+    result = run_turn('hello',state,products,['laptops'],fake_llm({'intent':'small_talk'}),index)
+    assert len(result.state.history) == HISTORY_LIMIT
+    assert rebuild_state([{'metadata':turn_metadata(result)}]) == result.state
+
+
+def test_corrupt_card_metadata_does_not_break_resume():
+    from app.pipeline import card_elements
+    assert card_elements([{'id':'x','metadata':{'app':2,'cards':None}}],'thread') == []
+    assert card_elements([{'id':'x','metadata':{'app':2,'cards':[['bad']]}}],'thread') == []
