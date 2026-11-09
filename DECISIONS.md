@@ -21,3 +21,10 @@
 - Use E5 query/passage prefixes for every language, normalized vectors, CPU execution, and a 512-token limit, following the pinned model card. A first explicit download populates `.models/`; normal startup is offline for model loading.
 - The cache stores two aligned arrays and plain JSON metadata in NPZ with pickle loading disabled. Rebuild on invalid metadata, vector shape, or norms; atomic replacement avoids half-written caches.
 - Per the user's evaluation-at-end instruction, the relevance feasibility checkpoint runs at the final stage. No calibrated relevance or unsupported-type accuracy is claimed before that checkpoint.
+
+## Phase 3
+
+- Apply the revised plan's proposed all-qualified sorting policy: sort the full relevant inventory and paginate it. A top-10 list is trace/evaluation diagnostics only; truncating it before sorting would violate ordinary cheapest/highest-rated behavior and break show-more.
+- Compute relevance z-scores without category boosts over the full catalog. Filter numeric constraints before selecting any candidates/cards, but preserve full-catalog score statistics. No category or keyword hard filters are introduced.
+- Merge alternative directions by round-robin; raw similarities from different queries are not compared. Keep independent requests and their bounds separate.
+- Exclusions use normalized whole phrases in catalog fields. Parser translates Hebrew exclusions to positive English matching phrases. This deterministic rule is conservative and requires semantic coverage evaluation; no untested claim of understanding all negation is made.
