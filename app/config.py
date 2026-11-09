@@ -4,8 +4,20 @@ from dataclasses import asdict, dataclass
 import hashlib
 import json
 from pathlib import Path
+from functools import lru_cache
+import subprocess
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+@lru_cache(maxsize=1)
+def source_revision() -> str:
+    """Resolve once per process so traces can be tied to their implementation."""
+    try:
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True,
+                                       stderr=subprocess.DEVNULL, timeout=2).strip()
+    except (OSError, subprocess.SubprocessError):
+        return "unavailable"
 
 
 @dataclass(frozen=True)

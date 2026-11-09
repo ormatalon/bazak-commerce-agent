@@ -12,6 +12,8 @@ def test_category_validation_and_empty_price_range():
         Direction.model_validate({"query": "shoe", "categories": ["invented"]}, context={"categories": ["shoes"]})
     with pytest.raises(ValidationError):
         SearchSpec(price_min=20, price_max=10)
+    with pytest.raises(ValidationError):
+        SearchSpec(price_max=50, price_min_strict=True)
 
 
 def test_nonshopping_intent_cannot_show_stray_searches():

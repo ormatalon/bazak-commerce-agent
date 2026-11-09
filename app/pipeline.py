@@ -6,13 +6,14 @@ from time import perf_counter
 from pydantic import ValidationError
 
 from app.catalog import category_tags
+from app.config import source_revision
 from app.currency import UnsupportedCurrency, convert_search
 from app.fallback import search_with_fallback
 from app.index import ProductIndex
 from app.monitoring import record_turn
 from app.observability import span, trace_id
-from app.parser import merge_searches, parse_request
-from app.product_type import check_product_types
+from app.parser import merge_searches, parse_request, PROMPT_VERSION as PARSER_VERSION
+from app.product_type import check_product_types, PROMPT_VERSION as TYPE_VERSION
 from app.responder import is_hebrew, write_reply
 from app.schemas import ChatTurn, ConversationState, LLM, ParsedRequest, SearchOutcome, TurnResult
 from app.search import rank_all
@@ -50,7 +51,8 @@ def _run_turn(message: str, state: ConversationState, catalog, categories: list[
              index: ProductIndex, conversation_id: str | None = None, traffic: str = "application") -> TurnResult:
     started = perf_counter()
     metadata = {"conversation_id": conversation_id, "session_id": conversation_id,
-                "traffic": traffic, "config_hash": index.config.fingerprint(), **index.identity}
+                "traffic": traffic, "git_sha": source_revision(), "parser_version": PARSER_VERSION,
+                "product_type_version": TYPE_VERSION, "config_hash": index.config.fingerprint(), **index.identity}
     with span("shopping_turn", {"message": message}, metadata) as run:
         parsed = parse_request(message, state, categories, llm, category_tags(catalog))
         outcomes = []

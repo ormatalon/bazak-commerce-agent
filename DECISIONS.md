@@ -6,6 +6,7 @@
 - Check all semantically shortlisted, unseen, nonexcluded products, including candidates that may become price/rating alternatives. Batch across requests/directions; deduplicate identical query/product pairs. A normal shortlist takes one additional call; larger shortlists use batches of at most 64 pairs so inventory and show-more are not silently capped.
 - The node checks product type and named identity using catalog evidence. It does not decide numeric eligibility, loosen exclusions, reorder results or invent products. Category guesses remain soft. The code validates complete response identity coverage and fails closed on missing, duplicate, fabricated or invalid decisions.
 - Checker reasons and per-candidate decisions are visible in LangSmith. No new dependency or model was introduced. Tests, supported/unsupported-type probes and the complete 167-case source replay run after the implementation checks; draft semantic labels remain drafts.
+- The first full replay exposed incorrect parser strict-bound flags and omitted singular counts. Clarify each existing flag in the prompt/schema, reject strict flags without their corresponding bound, and interpret explicit singular superlatives as count 1. This fixes the existing numeric/count contract; no retrieval or pipeline-design change is made. Preserve the first run and score the corrected configuration separately.
 
 ## Execution rules — 9 November 2026
 
