@@ -15,3 +15,9 @@
 - Original numeric amounts and strict operators remain in conversation state. Conversion produces an independent USD search copy to avoid cumulative rounding and accidental budget changes during fallback.
 - A request owns one to three alternative directions; independent searches have independent limits. This follows the revised plan and avoids assigning one budget to unrelated product requests.
 - Minimal tracing uses LangSmith's public trace context instead of wrapping every pure function. This is one of the SDK approaches described by the implementation references and preserves explicit stage boundaries.
+
+## Phase 2
+
+- Use E5 query/passage prefixes for every language, normalized vectors, CPU execution, and a 512-token limit, following the pinned model card. A first explicit download populates `.models/`; normal startup is offline for model loading.
+- The cache stores two aligned arrays and plain JSON metadata in NPZ with pickle loading disabled. Rebuild on invalid metadata, vector shape, or norms; atomic replacement avoids half-written caches.
+- Per the user's evaluation-at-end instruction, the relevance feasibility checkpoint runs at the final stage. No calibrated relevance or unsupported-type accuracy is claimed before that checkpoint.
