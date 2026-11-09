@@ -4,6 +4,8 @@ A local Chainlit shopping assistant over a fixed DummyJSON product catalog. The 
 
 Implementation plan: [plan/V2_PLAN.md](plan/V2_PLAN.md). Decisions: [DECISIONS.md](DECISIONS.md). Monitoring runbook: [plan/MONITORING.md](plan/MONITORING.md).
 
+Final evaluation: [plan/FINAL_EVALUATION.md](plan/FINAL_EVALUATION.md). The final 167-case run completed without execution errors; semantic release certification remains pending reviewed labels and calibration. The report includes known recall/compatibility regressions and a same-input V1 comparison.
+
 ## Windows setup
 
 Use the virtualenv interpreter: the system `python` command may open the Microsoft Store stub.
@@ -70,6 +72,8 @@ At the final evaluation stage:
 Live replay makes paid calls to `gpt-6-luna` with explicit concurrency and one SDK retry. It resets state between cases, replays all turns, retains turn-level facts and aggregates invariant failures across the conversation. Reports include execution failures, source/difficulty slices, legacy metrics and draft V2 metrics. Complete grounding and task success remain unknown without reviewed semantic judgments.
 
 Local evidence lives in ignored `evals/artifacts/`. The LangSmith upload command publishes an immutable dataset and experiment over recorded outputs; it does not call the model again. Runtime events and the local HTML monitoring view live in ignored `monitoring/`.
+
+Use `.venv/Scripts/python.exe -m evals.rescore <evidence-directory>` to apply scorer fixes without making model calls or overwriting the original run. It creates a `rescored/` child directory and records scorer provenance. The final source-case evidence is in `evals/artifacts/v2-final-verified/rescored/` and its filtered monitoring view is `monitoring/v2-final.html`.
 
 Scoring distinguishes ordinary Recall@10, its catalog-dependent ceiling, achievable Recall@10, Hit@10, precision/coverage, and graded nDCG. Unknown relevance judgments remain unknown. Calibration only accepts reviewed development labels:
 

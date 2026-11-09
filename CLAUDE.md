@@ -4,6 +4,8 @@ Standing instructions for Claude Code. Read this before every task. The owner (O
 
 Follow @plan/V2_PLAN.md phase by phase on V2. The user's execution instructions override the older V1 sections below: one branch per phase, merge completed phases into v2, no intermediate review pauses, and dataset evaluation at the end. Stop and ask before deviating from the plan. Design V2 supersedes the V1-only keyword/category filtering, English-only scope, and clarification-only behavior for vague requests. Retain the simplicity, security, grounding, persistence, and decision-log rules below.
 
+The owner also approved `app/product_type.py`: a `gpt-6-luna` node after ranking and before exact/fallback selection. It checks every shortlisted product type/identity, including fallback candidates, in bounded batches. This supersedes the older two-call architecture for product searches. It must not override numeric filters or exclusions. Final measured results and remaining acceptance gaps are in `plan/FINAL_EVALUATION.md`.
+
 `Design Decisions.md` is Or's record of why things were chosen. Where it differs from this file, this file wins. Its eval tables are superseded by `datasets/`.
 
 ## Project

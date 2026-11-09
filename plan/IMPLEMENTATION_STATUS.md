@@ -1,5 +1,11 @@
 # V2 implementation status
 
+## Latest result - 9 November 2026
+
+The approved additional node is implemented on `v2-phase-7-product-type` and merged into `v2`, with final integration/reporting commits on the same branch. It checks product type/identity before any exact or fallback card is finalized. There are 33 passing offline checks. Final V2 replay completed all 167 source cases (182 turns) with zero execution errors; the V1 baseline also completed 167 cases without execution errors. Both are published as LangSmith experiments on identical snapshot inputs.
+
+The final results supersede the preliminary smoke-check status below. See [FINAL_EVALUATION.md](FINAL_EVALUATION.md) for measured scores, comparison links and known gaps. All proposed release gates are not satisfied: relevance recall/compatibility regressions remain, semantic labels are unreviewed, and calibration correctly refuses draft-only data. No semantic release certification is claimed.
+
 ## Branches and scope
 
 Each implementation phase has its own branch, with a merge commit into `v2` after implementation checks:
@@ -11,7 +17,7 @@ Each implementation phase has its own branch, with a merge commit into `v2` afte
 5. `v2-phase-5-evaluation`: independent metrics, source-case replay, guarded calibration, relevance feasibility probes.
 6. `v2-phase-6-langsmith`: stage/LLM/persistence tracing, immutable recorded-output experiments, monitoring journal/view and runbook.
 
-Implementation is distinct from release acceptance. Final relevance feasibility, full-suite live scoring, reviewed semantic labels, baseline comparison and prospective holdout evidence are still required. No final semantic quality claim is made.
+Implementation is distinct from release acceptance. Relevance probes, full source-case live scoring and the V1 baseline comparison are complete. Reviewed semantic labels, calibration and prospective holdout evidence remain required. No final semantic quality claim is made.
 
 ## Verification completed before full evaluation
 
