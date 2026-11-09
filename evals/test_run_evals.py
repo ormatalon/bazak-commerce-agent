@@ -426,13 +426,13 @@ def test_the_run_covers_every_dataset_with_no_id_clashes():
     rows = load_all_rows()
     cases = run_evals.load_all_cases()
     assert len(rows) == 72
-    assert len(cases) == 89
+    assert len(cases) == 90
     assert len({row["id"] for row in rows}) == 72
-    assert len({case["id"] for case in cases}) == 89
+    assert len({case["id"] for case in cases}) == 90
     assert sum(1 for row in rows if row["id"].startswith("h")) == 7
     assert sum(1 for case in cases if str(case["id"]).startswith("h")) == 11
     adversarial = [case for case in cases if str(case["id"]).startswith("a")]
-    assert len(adversarial) == 46
+    assert len(adversarial) == 47
     assert {case["type"] for case in adversarial} == set(run_evals.ADVERSARIAL_TYPES)
 
 

@@ -87,6 +87,9 @@ letter, and do you have a yoga mat?"), the intent is product_search. Put the pro
 searches and the part we cannot do in unsupported, as a short English phrase.
 If the message asks for several kinds of product, write one search for each, and give \
 each search only the bounds that belong to it. unsupported is an empty list otherwise.
+If the message names two or more specific products, for example to compare them or to \
+choose between them, write one search for each product, with that product's name as its \
+keywords, so each one gets its own card.
 
 # Mode (only for product_search)
 - new: a fresh request. Fill in the whole search. Set refines_index to null and \
@@ -292,6 +295,20 @@ EXAMPLES: list[tuple[list[ChatTurn], list[SearchSpec], list[Product], str, Parse
             searches=[
                 SearchSpec(category="motorcycle", price_max=7999.99),
                 SearchSpec(keywords=["floral dress"], category="womens-dresses"),
+            ],
+        ),
+    ),
+    (
+        [],
+        [],
+        [],
+        "Which is rated higher, the Nova 7 Lite or the Zenfold X2?",
+        ParsedRequest(
+            intent="product_search",
+            mode="new",
+            searches=[
+                SearchSpec(keywords=["nova 7 lite"], category="smartphones"),
+                SearchSpec(keywords=["zenfold x2"], category="smartphones"),
             ],
         ),
     ),

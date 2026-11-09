@@ -656,3 +656,11 @@ def test_each_category_is_listed_with_the_kinds_of_products_it_holds() -> None:
 def test_without_tags_every_slug_is_still_listed() -> None:
     prompt = build_system_prompt(["groceries", "laptops"])
     assert "- groceries\n- laptops" in prompt
+
+
+def test_named_products_to_compare_get_one_search_each() -> None:
+    # One search holding both names gave cards only to the name with more matching words.
+    prompt = build_system_prompt(["smartphones"])
+    assert "write one search for each product, with that product's name as its" in prompt
+    compare = [e for e in EXAMPLES if e[3].startswith("Which is rated higher")]
+    assert len(compare[0][4].searches) == 2
