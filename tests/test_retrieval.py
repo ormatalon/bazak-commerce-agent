@@ -34,6 +34,15 @@ def test_refinement_keeps_other_requests_and_limits():
     assert old[1].rating_min is None
 
 
+def test_exclusion_plural_matches_singular_without_substring_overreach():
+    from app.search import excluded
+    phone = Product(id=1, title='iPhone 6', category='smartphones', price=100, rating=4)
+    watch = Product(id=2, title='Wrist Watch', category='watches', price=100, rating=4)
+    assert excluded(phone, ['iPhones'])
+    assert excluded(watch, ['watches'])
+    assert not excluded(phone, ['phone case'])
+
+
 def test_wrong_category_strong_match_and_zero_variance():
     products = [Product(id=i, title=f'Product {i}', category='laptops', price=i, rating=4) for i in range(1, 16)]
     index = ProductIndex(products, Embedder(), config=RetrievalConfig(strong_threshold=1.5, borderline_threshold=0.5), cache=None)
