@@ -34,3 +34,12 @@ def test_behavior_labels_include_quiet_fallback_and_card_counts():
     assert metrics['legacy_fallback_accuracy'] == 1
     assert metrics['legacy_expected_cards'] == 1
     assert metrics['minimum_cards'] == 0
+
+
+def test_grounding_title_check_ignores_prefixes_and_embedded_titles():
+    from app.schemas import Product
+    from evals.scoring import unshown_catalog_titles
+    products=[Product(id=i,title=title,category='test',price=1,rating=4) for i,title in
+              [(1,'Realme X'),(2,'Realme XT'),(3,'Watch Gold'),(4,'Watch Gold for Women')]]
+    assert unshown_catalog_titles('Realme XT and Watch Gold for Women',products,{2,4})==[]
+    assert unshown_catalog_titles('Realme X',products,{2})==['Realme X']
