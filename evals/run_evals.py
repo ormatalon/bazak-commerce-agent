@@ -32,6 +32,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+from app.catalog import category_tags  # noqa: E402
 from app.schemas import (  # noqa: E402
     LLM,
     ConversationState,
@@ -62,7 +63,10 @@ ADVERSARIAL_TYPES = ("attack", "should_answer", "edge")
 RUNS_DIR = Path(__file__).resolve().parent / "runs"
 RESULTS_MD = Path(__file__).resolve().parent / "results.md"
 
-ParseFn = Callable[[str, list[Any], list[SearchSpec], list[Product], list[str], LLM], ParsedRequest]
+# The last argument is the category tags, the same as the app sends.
+ParseFn = Callable[
+    [str, list[Any], list[SearchSpec], list[Product], list[str], LLM, dict[str, list[str]]], ParsedRequest
+]
 SearchFn = Callable[[SearchSpec, list[Product]], list[Product]]
 RunTurnFn = Callable[[str, ConversationState, list[Product], list[str], LLM], TurnResult]
 RecordFn = Callable[[dict[str, Any]], None]
@@ -112,12 +116,13 @@ def run_deterministic(
     on_record: RecordFn | None = None,
 ) -> list[dict[str, Any]]:
     raws = []
+    tags = category_tags(catalog)  # the same prompt the app sends
     for row in rows:
         failures_before = PARSE_FAILURES.count
         raw: dict[str, Any] = {"kind": "deterministic", "row_id": row["id"], "parsed": None,
                                "returned_ids": [], "error": None}  # fmt: skip
         try:
-            parsed = parse_fn(row["query"], [], [], [], categories, llm)
+            parsed = parse_fn(row["query"], [], [], [], categories, llm, tags)
             raw["parsed"] = parsed.model_dump(mode="json")
             # Score every search together: the union of their products, no repeats.
             returned_ids: list[int] = []

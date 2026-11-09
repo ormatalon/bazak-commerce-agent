@@ -190,3 +190,15 @@ def test_failed_save_warns_and_the_catalog_still_loads(
 def test_cache_path_is_the_repo_root_and_not_the_current_folder() -> None:
     assert catalog.CACHE_PATH.name == "catalog_cache.json"
     assert catalog.CACHE_PATH.parent == Path(catalog.__file__).resolve().parent.parent
+
+
+def test_category_tags_lists_each_categorys_distinct_tags_in_lower_case():
+    from app.catalog import category_tags
+    from app.schemas import Product
+
+    products = [
+        Product(id=1, title="Dog Food", description="", category="groceries", price=1, rating=4, tags=["Pet Supplies", "dog food"]),
+        Product(id=2, title="Apple", description="", category="groceries", price=1, rating=4, tags=["fruits", "pet supplies"]),
+        Product(id=3, title="Knife", description="", category="kitchen", price=1, rating=4, tags=[]),
+    ]
+    assert category_tags(products) == {"groceries": ["dog food", "fruits", "pet supplies"], "kitchen": []}

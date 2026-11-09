@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from app.catalog import category_tags
 from app.parser import merge_refine, parse_request, search_is_empty
 from app.responder import write_reply
 from app.schemas import (
@@ -133,7 +134,9 @@ def run_turn(
     LLM errors are not caught here, so evals can see them. `state` is never changed:
     the new state is returned, so a caller that hits an error still has the old one.
     """
-    parsed = parse_request(message, state.history, state.searches, state.shown, categories, llm)
+    parsed = parse_request(
+        message, state.history, state.searches, state.shown, categories, llm, category_tags(catalog)
+    )
 
     outcomes: list[SearchOutcome] = []
     searches = state.searches

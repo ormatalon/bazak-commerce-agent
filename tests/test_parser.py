@@ -644,3 +644,15 @@ def test_the_examples_follow_the_singular_rule() -> None:
             for keyword in (spec.keywords or []) + (spec.exclude_keywords or []):
                 last = keyword.split()[-1]
                 assert last in always_plural or not last.endswith("s") or last.endswith("ss"), keyword
+
+
+def test_each_category_is_listed_with_the_kinds_of_products_it_holds() -> None:
+    tags = {"groceries": ["dog food", "fruits"], "laptops": []}
+    prompt = build_system_prompt(["groceries", "laptops"], tags)
+    assert "- groceries: dog food, fruits" in prompt
+    assert "- laptops\n" in prompt  # no tags: the slug alone
+
+
+def test_without_tags_every_slug_is_still_listed() -> None:
+    prompt = build_system_prompt(["groceries", "laptops"])
+    assert "- groceries\n- laptops" in prompt

@@ -85,7 +85,7 @@ def test_deterministic_scores_and_crashed_row_in_the_table():
     catalog = load_sample()
     rows = rows_by_id("1", "h11")  # row 1 expects nothing, row h11 expects 80, 81, 82
 
-    def fake_parse(query, history, previous, shown, categories, llm):
+    def fake_parse(query, history, previous, shown, categories, llm, category_tags):
         if "1500" in query:
             spec = SearchSpec(category="laptops", price_max=1500)
             return ParsedRequest(intent="product_search", mode="new", searches=[spec])
@@ -116,7 +116,7 @@ def test_a_parser_that_only_asks_questions_gets_zero_on_an_empty_row():
     catalog = load_sample()
     rows = rows_by_id("1")  # laptops under 1000: nothing matches
 
-    def always_clarify(query, history, previous, shown, categories, llm):
+    def always_clarify(query, history, previous, shown, categories, llm, category_tags):
         return ParsedRequest(intent="needs_clarification")
 
     (record,) = score_det(rows, always_clarify, lambda spec, products: [], catalog)
@@ -128,7 +128,7 @@ def test_a_search_with_the_right_category_gets_one_on_an_empty_row():
     catalog = load_sample()
     rows = rows_by_id("1")
 
-    def searches_laptops(query, history, previous, shown, categories, llm):
+    def searches_laptops(query, history, previous, shown, categories, llm, category_tags):
         spec = SearchSpec(category="laptops", price_max=999.99)
         return ParsedRequest(intent="product_search", mode="new", searches=[spec])
 
@@ -140,7 +140,7 @@ def test_top_k_row_accepts_a_tied_product_and_is_cut_to_top_k():
     catalog = load_sample()
     rows = rows_by_id("37")  # top 3 highest-rated fragrances: 6, 7, 9
 
-    def fake_parse(query, history, previous, shown, categories, llm):
+    def fake_parse(query, history, previous, shown, categories, llm, category_tags):
         spec = SearchSpec(category="fragrances", sort_by="rating", order="desc", top_k=3)
         return ParsedRequest(intent="product_search", mode="new", searches=[spec])
 
@@ -158,7 +158,7 @@ def test_two_searches_are_scored_as_a_union():
     catalog = load_sample()
     rows = rows_by_id("8")  # all fragrances: 6, 7, 8, 9, 10
 
-    def two_searches(query, history, previous, shown, categories, llm):
+    def two_searches(query, history, previous, shown, categories, llm, category_tags):
         specs = [SearchSpec(category="fragrances", price_max=79.99), SearchSpec(category="fragrances", price_min=80)]
         return ParsedRequest(intent="product_search", mode="new", searches=specs)
 
@@ -175,7 +175,7 @@ def test_top_k_is_applied_to_each_search_separately():
     catalog = load_sample()
     rows = rows_by_id("8")
 
-    def two_searches(query, history, previous, shown, categories, llm):
+    def two_searches(query, history, previous, shown, categories, llm, category_tags):
         specs = [SearchSpec(category="fragrances", top_k=1), SearchSpec(category="fragrances", top_k=2)]
         return ParsedRequest(intent="product_search", mode="new", searches=specs)
 
@@ -191,7 +191,7 @@ def test_parse_failures_are_counted_per_row():
     rows = rows_by_id("1", "2")
     run_evals.start_counting_parse_failures()
 
-    def fake_parse(query, history, previous, shown, categories, llm):
+    def fake_parse(query, history, previous, shown, categories, llm, category_tags):
         if "laptops" in query:  # row 1: the parser fell back to the safe default and said so
             logging.getLogger("app.parser").warning("invalid model output, using the safe default")
         return ParsedRequest(intent="needs_clarification")
@@ -356,7 +356,7 @@ def test_a_run_is_written_line_by_line_and_can_be_rescored(tmp_path):
     path = tmp_path / "run.jsonl"
     writer = run_evals.RunWriter(path, total=2)
 
-    def fake_parse(query, history, previous, shown, categories, llm):
+    def fake_parse(query, history, previous, shown, categories, llm, category_tags):
         spec = SearchSpec(category="laptops", price_max=1500)
         return ParsedRequest(intent="product_search", mode="new", searches=[spec])
 

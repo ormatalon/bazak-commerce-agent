@@ -89,3 +89,16 @@ def load_catalog() -> list[Product]:
 def load_categories() -> list[str]:
     """Return the real category slugs, from the cache file when present."""
     return _load()[1]
+
+
+def category_tags(catalog: list[Product]) -> dict[str, list[str]]:
+    """The distinct tags of each category's products, in lower case and sorted.
+
+    They tell the parser what a category holds, which its slug alone can't: "groceries"
+    says nothing about dog food, but its tags list "dog food" and "pet supplies". Built
+    from the catalog, so they follow it if it changes.
+    """
+    tags: dict[str, set[str]] = {}
+    for product in catalog:
+        tags.setdefault(product.category, set()).update(tag.lower() for tag in product.tags)
+    return {category: sorted(found) for category, found in tags.items()}
