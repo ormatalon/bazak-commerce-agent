@@ -50,10 +50,13 @@ Infer the category from context: "my brother needs trainers" means mens-shoes, \
 shopper wants, the request is off_catalog. Do not pick the nearest category instead. \
 Questions about the details of a product type we carry, or how many of it we have, are \
 a product_search for that category.
-keywords: specific product words the shopper used, in English (for example ["lamp"]). \
-Use null when the shopper named only the category.
-exclude_keywords: what the shopper does not want, in English: a brand, a kind of \
-product or a feature ("not Chanel" gives ["chanel"], "without straps" gives ["straps"]). \
+keywords: specific product words the shopper used, in English, each in its singular form \
+and spelled correctly, as a store would name one item ("knives" gives ["knife"], \
+"kniffe" gives ["knife"]). Words that are always plural stay as they are \
+("sunglasses", "jeans"). Use null when the shopper named only the category.
+exclude_keywords: what the shopper does not want, in English, written the same way as \
+keywords: a brand, a kind of product or a feature ("not Chanel" gives ["chanel"], \
+"without straps" gives ["strap"], "no iPhones" gives ["iphone"]). \
 Never put an excluded word in keywords, because keywords rank products up. On a refine, \
 write the full list, including words excluded earlier. Use null when nothing is excluded.
 
@@ -418,7 +421,7 @@ EXAMPLES: list[tuple[list[ChatTurn], list[SearchSpec], list[Product], str, Parse
         ParsedRequest(
             intent="product_search",
             mode="new",
-            searches=[SearchSpec(keywords=["loafers"], category="mens-shoes")],
+            searches=[SearchSpec(keywords=["loafer"], category="mens-shoes")],
         ),
     ),
     (
@@ -426,7 +429,7 @@ EXAMPLES: list[tuple[list[ChatTurn], list[SearchSpec], list[Product], str, Parse
             ChatTurn(role="user", text="looking for sandals"),
             ChatTurn(role="assistant", text="Here are three pairs."),
         ],
-        [SearchSpec(keywords=["sandals"], category="womens-shoes")],
+        [SearchSpec(keywords=["sandal"], category="womens-shoes")],
         [_example_product(931, "Sample Sandal", 40.00)],
         "I'd like to see more of those",
         ParsedRequest(intent="product_search", mode="show_more"),
@@ -458,7 +461,7 @@ EXAMPLES: list[tuple[list[ChatTurn], list[SearchSpec], list[Product], str, Parse
             ChatTurn(role="user", text="looking for sandals"),
             ChatTurn(role="assistant", text="Here are three pairs."),
         ],
-        [SearchSpec(keywords=["sandals"], category="womens-shoes")],
+        [SearchSpec(keywords=["sandal"], category="womens-shoes")],
         [_example_product(931, "Sample Sandal", 40.00)],
         "list them all",
         ParsedRequest(
@@ -516,7 +519,7 @@ EXAMPLES: list[tuple[list[ChatTurn], list[SearchSpec], list[Product], str, Parse
         ParsedRequest(
             intent="product_search",
             mode="new",
-            searches=[SearchSpec(keywords=["boots"], category="mens-shoes")],
+            searches=[SearchSpec(keywords=["boot"], category="mens-shoes")],
         ),
     ),
     (

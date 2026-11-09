@@ -627,3 +627,20 @@ def test_a_new_search_with_only_an_exclusion_gives_the_safe_default() -> None:
     parsed = parse(FakeLLM(reply))
     assert parsed.intent == "needs_clarification"
     assert parsed.searches == []
+
+
+def test_the_prompt_asks_for_singular_correctly_spelled_keywords() -> None:
+    # The code matches plurals too, but only the model can fix "kniffe" or "mice".
+    prompt = build_system_prompt(["kitchen-accessories"])
+    assert '"knives" gives ["knife"]' in prompt
+    assert '"kniffe" gives ["knife"]' in prompt
+
+
+def test_the_examples_follow_the_singular_rule() -> None:
+    # A plural keyword in a few-shot example would teach the opposite of the rule.
+    always_plural = {"sunglasses", "jeans"}
+    for _, _, _, _, expected in EXAMPLES:
+        for spec in expected.searches:
+            for keyword in (spec.keywords or []) + (spec.exclude_keywords or []):
+                last = keyword.split()[-1]
+                assert last in always_plural or not last.endswith("s") or last.endswith("ss"), keyword

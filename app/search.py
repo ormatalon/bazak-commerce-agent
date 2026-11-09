@@ -13,12 +13,27 @@ def words_of(text: str) -> list[str]:
 
 
 def same_word(a: str, b: str) -> bool:
-    """True for equal words, or words that differ only by a plural ending (s or es).
+    """True for equal words, or a word and its plural, in either order.
 
-    Whole words only, so "car" does not match "card". The plural rule lets
-    "laptop" find "laptops" and "sneaker" find "sneakers".
+    Whole words only, so "car" does not match "card". The parser is asked to write
+    keywords in the singular, but catalog titles mix forms ("Knife", "Eggs"), so both
+    directions are checked here.
     """
-    return a == b or a + "s" == b or b + "s" == a or a + "es" == b or b + "es" == a
+    return a == b or is_plural_of(a, b) or is_plural_of(b, a)
+
+
+def is_plural_of(singular: str, plural: str) -> bool:
+    """The regular English plurals: + s or es (laptop, laptops; glass, glasses), y to ies
+    (battery, batteries) and f or fe to ves (shelf, shelves; knife, knives).
+
+    Truly irregular words (mouse, mice) are left to the parser, which writes the singular.
+    """
+    return (
+        plural in (singular + "s", singular + "es")
+        or (singular.endswith("y") and plural == singular[:-1] + "ies")
+        or (singular.endswith("fe") and plural == singular[:-2] + "ves")
+        or (singular.endswith("f") and plural == singular[:-1] + "ves")
+    )
 
 
 def product_words(product: Product) -> list[str]:

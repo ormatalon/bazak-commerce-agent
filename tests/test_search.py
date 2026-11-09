@@ -13,7 +13,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas import Product, SearchSpec
-from app.search import ranking_keywords, relevant_products, search, search_with_fallback
+from app.search import ranking_keywords, relevant_products, same_word, search, search_with_fallback
 
 SAMPLE = Path(__file__).parent / "fixtures" / "catalog_sample.json"
 
@@ -568,3 +568,28 @@ def test_a_keyword_that_is_only_the_category_name_leaves_the_category_as_it_is()
     # "kitchen" alone says nothing beyond the category, so every product still shows.
     spec = SearchSpec(keywords=["kitchen"], category="kitchen-accessories")
     assert ids(relevant_products(spec, kitchen())) == [1, 2, 3]
+
+
+# --- plurals that change their spelling ----------------------------------------------
+
+
+def test_plurals_that_change_their_spelling_match_in_both_directions():
+    for singular, plural in [("knife", "knives"), ("shelf", "shelves"), ("battery", "batteries")]:
+        assert same_word(singular, plural), (singular, plural)
+        assert same_word(plural, singular), (plural, singular)
+
+
+def test_the_regular_plurals_still_match():
+    assert same_word("laptop", "laptops")
+    assert same_word("glasses", "glass")
+
+
+def test_the_plural_rules_never_match_a_different_word():
+    assert not same_word("car", "card")
+    assert not same_word("knife", "knit")
+    assert not same_word("party", "parts")
+
+
+def test_a_search_for_knives_finds_the_knife():
+    spec = SearchSpec(keywords=["knives"], category="kitchen-accessories")
+    assert ids(relevant_products(spec, kitchen())) == [2]
