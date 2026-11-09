@@ -47,15 +47,15 @@ class SearchSpec(Model):
     exclude: list[str] | None = None
     price_min: float | None = Field(default=None, ge=0)
     price_max: float | None = Field(default=None, ge=0)
-    price_min_strict: bool | None = None
-    price_max_strict: bool | None = None
+    price_min_strict: bool | None = Field(default=None, description="True only when price_min is an exclusive lower bound (over/above a price).")
+    price_max_strict: bool | None = Field(default=None, description="True only when price_max is an exclusive upper bound (under/below a price).")
     rating_min: float | None = None
-    rating_min_strict: bool | None = None
+    rating_min_strict: bool | None = Field(default=None, description="True only when rating_min is an exclusive lower rating bound.")
     currency: str | None = None
     currency_term: str | None = None
     sort_by: Literal["price", "rating"] | None = None
     order: Literal["asc", "desc"] | None = None
-    top_k: int | None = Field(default=None, ge=1)
+    top_k: int | None = Field(default=None, ge=1, description="Explicit count, including a singular superlative request (1); otherwise null.")
     show_all: bool | None = None
     vague: bool | None = None
     refines_index: int | None = Field(default=None, ge=0)
@@ -66,6 +66,9 @@ class SearchSpec(Model):
 
     @model_validator(mode="after")
     def sensible_request(self) -> "SearchSpec":
+        for field in ("price_min", "price_max", "rating_min"):
+            if getattr(self, field + "_strict") and getattr(self, field) is None:
+                raise ValueError("a strict operator requires its corresponding bound")
         if self.price_min is not None and self.price_max is not None:
             if self.price_min > self.price_max:
                 raise ValueError("minimum price exceeds maximum")
