@@ -24,3 +24,13 @@ def test_unknown_judgments_do_not_become_negative_labels():
     assert result['precision_at_k'] is None
     assert result['recall_at_10'] is None
     assert aggregate([{'metrics':{'x':None}},{'metrics':{'x':0}}])['x']['denominator']==1
+
+
+def test_behavior_labels_include_quiet_fallback_and_card_counts():
+    from app.schemas import ConversationState, ParsedRequest, TurnResult
+    from evals.scoring import score_turn
+    result = TurnResult(parsed=ParsedRequest(intent='small_talk'), reply='Hello', state=ConversationState())
+    metrics = score_turn(result, {'expect_fallback':None, 'expected_card_ids':[], 'min_cards':1}, [])
+    assert metrics['legacy_fallback_accuracy'] == 1
+    assert metrics['legacy_expected_cards'] == 1
+    assert metrics['minimum_cards'] == 0
