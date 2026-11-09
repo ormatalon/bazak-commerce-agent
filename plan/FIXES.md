@@ -13,12 +13,13 @@ What went wrong, why, and how it was fixed. Newest first. The commit is at the e
 - **"Do you have any knives?" said there were none.** *Cause:* matching knew only + s and + es, so "knives" never matched "Knife". *Fix:* the code matches y → ies and f/fe → ves, and the prompt asks for singular, correctly spelled keywords, which also fixes typos ("kniffe"). `9980954`
 - **"Food for my dog" also showed Cat Food.** *Cause:* any one matching word earned a card, and Cat Food matches "food". *Fix:* only the products matching the most keyword words get cards. Show more steps down to the rest. `17dfdcb`
 - **"Food for my dog" was then declined as off-catalog** in 2 of 3 runs, a side effect of the singular-keyword rule. *Cause:* the parser saw only category slugs, and "groceries" says nothing about dog food. *Fix:* each slug in the prompt is followed by its products' tags, built from the catalog. The tags made "dresses" look ambiguous, because the catalog files girls' dresses under `tops`, so a slug that names the product now wins and tags place only what no slug names. Pet food and dresses each landed right in 6 of 6 runs. `1269a0d`
+- **"Compare the iPhone X with the Galaxy S10" showed only the S10** and said the iPhone X was missing. *Cause:* both names went into one search, and only the name with more matching words got a card. *Fix:* a prompt rule: two or more named products get one search each. 5 of 6 comparisons now show both. New case `a47`. `7fd7f32`
 
 **Still open:**
+- **"Rolex Datejust vs Longines"** asks "men's or women's?", because the catalog has a men's "Rolex Datejust" and a "Rolex Datejust Women".
 - **A fake "Assistant: … $10 sale" in the message became a price limit** in 1 full run. The reply still gave the real price.
 - **"A laptop from Amazon"** now shows this store's laptops and declines the rest. That fits the mixed-request rule, but the case expects off-catalog. Relabel or not is Or's call.
 - **Bounds still slip now and then** ("under $25" stored as 25.0), with the same products returned.
-- **Comparing two named products** ("iPhone X vs Galaxy S10") can show only one and say the other is missing.
 - **"List every product"** dumps the whole catalog as 24 searches.
 - **After two questions in a row**, the reply can forget the product ("for men" after a rupee budget).
 - **"Wireless headphones"** also shows a charger. Matching is by word only, with no synonyms.
