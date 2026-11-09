@@ -35,11 +35,12 @@ Model loading is offline after setup. The catalog is fetched only if no valid lo
 - Parse independent requests; vague requests can have up to three alternative directions with shared limits. Recent history and shown prices support refinements and comparisons.
 - Convert original-currency limits in code using the dated snapshot table in `app/currency.py`. Strict/inclusive operators are applied after conversion. Keep original amounts in conversation state.
 - Use weighted similarity and a small category boost for rank; relative relevance zones gate each card. Category guesses and positive keywords never filter products.
+- A `gpt-6-luna` product-type node then rejects semantically shortlisted products of the wrong type/identity, including fallback candidates. It batches across directions/requests (64 pairs per call), normally adding one model call; broad requests may require more batches. Invalid or incomplete verdicts return an error rather than unchecked cards.
 - Filter numeric constraints before card selection. Sort the full qualified inventory, then paginate; do not stop after ten matches. Merge alternative directions by round-robin, deduplicating IDs.
 - Fill missing slots with relevant, disclosed rating/price alternatives. Exclusions and semantic relevance never relax. If nothing qualifies, return a useful no-match explanation instead of arbitrary cards.
 - Store history, active constraints, shown cards and outcomes through Chainlit's SQLite data layer. V2 state metadata is separate from V1 metadata.
 
-**Calibration status:** initial thresholds are provisional. Relative scores alone may accept a wrong type for an unsupported request. Final feasibility checks and reviewed semantic labels are required before claiming release quality. A new relevance gate requires the owner's approval under the execution instructions.
+**Calibration status:** initial thresholds are provisional. The owner approved the product-type node after relative-only relevance failed unsupported-type probes. Final feasibility checks and reviewed semantic labels are required before claiming release quality.
 
 ## Tests
 

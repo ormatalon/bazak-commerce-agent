@@ -4,7 +4,7 @@
 
 Set `LANGSMITH_API_KEY`, `LANGSMITH_TRACING=true`, and the correct endpoint in ignored `.env`. For legacy projects use `LANGSMITH_PROJECT=bazak-v2`; for agent workspaces use the documented agent ID/environment destination instead. Never commit credentials. `.env.example` has placeholders only.
 
-The app and dataset runner trace each turn, with nested parse, embedding, rank, filter, fallback and response spans; OpenAI calls include model/token usage through the LangSmith wrapper. Index startup is a separate trace. Metadata identifies application/evaluation traffic, conversation, catalog and retrieval configuration.
+The app and dataset runner trace each turn, with nested parse, embedding, rank, product-type check/batches, filter, fallback and response spans; OpenAI calls include model/token usage through the LangSmith wrapper. Index startup is a separate trace. Metadata identifies application/evaluation traffic, conversation, catalog and retrieval configuration. Product-type verdicts include candidate IDs and reasons; invalid coverage fails closed.
 
 ## After a local session
 

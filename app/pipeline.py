@@ -12,8 +12,10 @@ from app.index import ProductIndex
 from app.monitoring import record_turn
 from app.observability import span, trace_id
 from app.parser import merge_searches, parse_request
+from app.product_type import check_product_types
 from app.responder import is_hebrew, write_reply
 from app.schemas import ChatTurn, ConversationState, LLM, ParsedRequest, SearchOutcome, TurnResult
+from app.search import rank_all
 
 METADATA_VERSION = 2
 CARD_FIELDS = {"id", "title", "description", "price", "rating", "brand", "thumbnail", "category"}
@@ -29,13 +31,15 @@ def _language_message(message: str, state: ConversationState) -> str:
     return next((t.text for t in reversed(state.history) if t.role == "user" and any(c.isalpha() for c in t.text)), message)
 
 
-def _outcomes(specs, index: ProductIndex, seen: set[int]):
+def _outcomes(specs, index: ProductIndex, seen: set[int], llm: LLM):
     outcomes = []
     query_cache = {}
     used = set(seen)
-    for spec in specs:
-        normalized, notes = convert_search(spec)
-        outcome = search_with_fallback(spec, normalized, index, used, query_cache)
+    converted = [convert_search(spec) for spec in specs]
+    rankings = [rank_all(normalized, index, query_cache) for normalized, notes in converted]
+    checked = check_product_types([normalized for normalized, notes in converted], rankings, llm, seen)
+    for spec, (normalized, notes), ranked in zip(specs, converted, checked, strict=True):
+        outcome = search_with_fallback(spec, normalized, index, used, query_cache, ranked=ranked)
         outcome.conversions = notes
         outcomes.append(outcome)
         used.update(p.id for p in outcome.shown)
@@ -57,13 +61,13 @@ def _run_turn(message: str, state: ConversationState, catalog, categories: list[
                 if parsed.mode == "show_more":
                     if not searches:
                         raise ValueError("nothing to show more of")
-                    outcomes = _outcomes(searches, index, {p.id for p in shown})
+                    outcomes = _outcomes(searches, index, {p.id for p in shown}, llm)
                     shown = _unique(shown + [p for o in outcomes for p in o.shown])
                 else:
                     specs = merge_searches(parsed, state.searches)
                     if not specs or any(not s.directions for s in specs):
                         raise ValueError("no positive product query")
-                    outcomes = _outcomes(specs, index, set())
+                    outcomes = _outcomes(specs, index, set(), llm)
                     searches = specs
                     shown = _unique([p for o in outcomes for p in o.shown])
             except UnsupportedCurrency:

@@ -40,9 +40,11 @@ def _relaxed_candidates(spec: SearchSpec, ranked: list[list[Candidate]], seen: s
 
 
 def search_with_fallback(original: SearchSpec, normalized: SearchSpec, index: ProductIndex,
-                         seen: set[int] | None = None, query_cache: dict | None = None) -> SearchOutcome:
+                         seen: set[int] | None = None, query_cache: dict | None = None,
+                         ranked: list[list[Candidate]] | None = None) -> SearchOutcome:
     seen = seen or set()
-    ranked = rank_all(normalized, index, query_cache)
+    if ranked is None:
+        ranked = rank_all(normalized, index, query_cache)
     exact = merge_directions(eligible_lists(normalized, ranked, seen))
     exact_ids = [c.product.id for c in exact]
     count = normalized.top_k or 3
