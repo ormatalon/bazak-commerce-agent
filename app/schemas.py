@@ -1,6 +1,8 @@
 """Shared contracts for parsing, retrieval, UI, persistence, and evaluation."""
 
 from collections.abc import Callable
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
@@ -132,6 +134,25 @@ class Card(Model):
     relaxations: list[Relaxation] = Field(default_factory=list)
 
 
+class CurrencyRate(Model):
+    """One immutable quote, expressed as currency units for one US dollar."""
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False, frozen=True)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    units_per_usd: Decimal = Field(gt=0)
+    rate_date: date
+    fetched_at: datetime
+    source: str = Field(min_length=1)
+    stale: bool = False
+
+    @field_validator("fetched_at")
+    @classmethod
+    def aware_timestamp(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("rate timestamps must include a timezone")
+        return value
+
+
 class SearchOutcome(Model):
     spec: SearchSpec
     candidates: list[Candidate] = Field(default_factory=list)
@@ -141,6 +162,7 @@ class SearchOutcome(Model):
     has_more: bool = False
     reason: str = "exact"
     conversions: list[str] = Field(default_factory=list)
+    exchange_rate: CurrencyRate | None = None
 
     @property
     def shown(self) -> list[Product]:
@@ -156,6 +178,14 @@ class ConversationState(Model):
     history: list[ChatTurn] = Field(default_factory=list)
     searches: list[SearchSpec] = Field(default_factory=list)
     shown: list[Product] = Field(default_factory=list)
+    exchange_rates: dict[str, CurrencyRate] = Field(default_factory=dict)
+
+    @field_validator("exchange_rates")
+    @classmethod
+    def matching_rate_keys(cls, rates: dict[str, CurrencyRate]) -> dict[str, CurrencyRate]:
+        if any(code != rate.currency for code, rate in rates.items()):
+            raise ValueError("saved rate keys must match their quote currency")
+        return rates
 
 
 class TurnResult(Model):

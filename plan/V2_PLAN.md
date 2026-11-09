@@ -12,7 +12,7 @@ After final probes found unrelated products passing the relative relevance gate,
 - Keep the local Chainlit UI, product cards, SQLite conversation history, cached catalog, and structured parser/responder flow. Support English and Hebrew, including follow-ups and show-more.
 - Use `gpt-6-luna` for parsing, responses, and any optional LLM evaluator. Use a local multilingual embedding model; start with the design's `multilingual-e5-small` candidate and pin the actual model identifier and revision after verification.
 - Use the LangSmith Python SDK directly. LangChain, LangGraph, a vector database, and another evaluation framework are not required.
-- Do not implement checkout, live inventory, user accounts beyond the existing local login, or live exchange-rate fetching.
+- Do not implement checkout, live inventory, or user accounts beyond the existing local login. The owner approved cached live reference-rate fetching on 9 November 2026; the amendment below supersedes the original fixed-rate scope.
 
 Deliver each phase as a reviewable change with its checks and results. Build a small end-to-end path first, then improve it using measured failures. Do not promise an implementation date until the V1 reuse audit, local model smoke test, and annotation workload are known. Human labeling and review are separate work items, not free engineering capacity.
 
@@ -40,7 +40,7 @@ Resolve these inconsistencies in the design explicitly in schemas, tests, and de
 ### Engineering work
 
 - Establish `app/`, `tests/`, and `evals/` on V2. Reuse small, relevant pieces from `staging` after review. Update the V1-only instructions in `CLAUDE.md` and README to point to the V2 contract when implementation begins.
-- Pin Python dependencies, catalog snapshot/hash, model configuration, and rate-table version. Keep keys in `.env`; add placeholders to `.env.example` only.
+- Pin Python dependencies, catalog snapshot/hash, model configuration, and evaluation rate fixture. Record the actual conversation quote for runtime rates. Keep keys in `.env`; add placeholders to `.env.example` only.
 - Define typed contracts: parsed request, query directions with category guesses, numeric constraints with strict/inclusive operators, exclusions, sort/count, conversation mode, ranked candidate, and final turn result.
 - Preserve original amount, currency code, and user's currency term separately from converted USD bounds. Carry shown IDs and active constraints through persistence.
 - Define one structured turn result usable by the UI, local evaluators, and LangSmith. Include exact candidates, alternatives, final cards, rejection reasons, and errors.
@@ -85,7 +85,7 @@ Resolve these inconsistencies in the design explicitly in schemas, tests, and de
 - Update the parser to emit positive English query directions, validated category guesses per direction, explicit numeric limits, exclusions, sort/count, and mode. Feed it real catalog categories and recent conversation state.
 - Use one direction for a clear request; a bounded list, initially up to three, for a vague request. A vague shopping request should not be sent straight to clarification without recommendations when relevant inventory exists.
 - Keep independent product requests separate from alternative directions. Test separate budgets, per-request exclusions/counts, targeted refinements, and comparison requests.
-- Convert currencies in code using the dated fixed rate table. Use decimal arithmetic; round USD upper bounds down and lower bounds up to cents. Respect strict versus inclusive operators after conversion. Generate the conversion introduction in code using the user's currency term.
+- Convert currencies in code using an HTTP reference-rate provider with an hourly local cache. Pin each currency quote per conversation, persist it on resume, and disclose source/date. During refresh failure allow a cached quote no more than seven days old; otherwise ask for USD. Tests/evaluations inject a dated frozen fixture, and scoring uses the quote recorded in each output. This owner-approved amendment adds no LLM node. Use decimal arithmetic; round USD upper bounds down and lower bounds up to cents. Respect strict versus inclusive operators after conversion. Generate the conversion introduction in code using the user's currency term.
 - For a converted bound `x` in USD and prices in cents: inclusive maximum is `floor(100*x)/100`; strict maximum is `(ceil(100*x)-1)/100`; inclusive minimum is `ceil(100*x)/100`; strict minimum is `(floor(100*x)+1)/100`. Apply the operator once after conversion, not by subtracting a cent in the source currency. Test exact-cent and fractional-cent values.
 - Apply numeric constraints and normalized explicit exclusions before selecting candidates. Keyword and category guesses never filter the catalog. Define exclusion matching, including brand/phrase boundaries and Hebrew paraphrases, with labeled tests.
 - For each direction calculate semantic score `s = w * title_cosine + (1-w) * description_cosine`. Start with `w=0.6` and category boost `b=0.1`; treat both as tunable configuration.

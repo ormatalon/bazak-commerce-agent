@@ -7,3 +7,5 @@ import pytest
 def disable_remote_tracing(monkeypatch):
     monkeypatch.setenv('LANGSMITH_TRACING','false')
     monkeypatch.setattr('app.pipeline.record_turn',lambda *args, **kwargs: None)
+    from evals.datasets import FrozenRateProvider
+    monkeypatch.setattr('app.pipeline.get_rate_provider', FrozenRateProvider)

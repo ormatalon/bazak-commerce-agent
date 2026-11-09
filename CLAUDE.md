@@ -8,6 +8,8 @@ The owner also approved `app/product_type.py`: a `gpt-6-luna` node after ranking
 
 `Design Decisions.md` is Or's record of why things were chosen. Where it differs from this file, this file wins. Its eval tables are superseded by `datasets/`.
 
+The owner approved API-backed currency rates on 9 November 2026. This supersedes all fixed-rate/no-live-exchange clauses below and in the original V2 design/plan. Use an HTTP provider with a local cache, pin each currency quote for the conversation (including resume), and disclose its source/date. Use frozen injected quotes in tests/evaluations. This adds no LLM node or dependency.
+
 ## Project
 
 A minimal AI shopping copilot: the user chats, the system understands intent, retrieves products from the DummyJSON Products API, and shows them as product cards inside the chat. Runs locally only. Deadline: Fri 13 Nov 2026, 23:59.

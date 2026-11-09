@@ -128,3 +128,55 @@ def test_corrupt_card_metadata_does_not_break_resume():
     from app.pipeline import card_elements
     assert card_elements([{'id':'x','metadata':{'app':2,'cards':None}}],'thread') == []
     assert card_elements([{'id':'x','metadata':{'app':2,'cards':[['bad']]}}],'thread') == []
+
+
+def test_conversation_quote_is_pinned_across_refinement_and_resume():
+    from decimal import Decimal
+    from evals.datasets import FrozenRateProvider
+    products, index = setup_index()
+    base = FrozenRateProvider().get_rate('ILS')
+
+    class Source:
+        calls = 0
+
+        def get_rate(self, code):
+            self.calls += 1
+            return base.model_copy(update={'units_per_usd': Decimal(self.calls + 2)})
+
+    source = Source()
+    parsed = {'intent':'product_search','mode':'new','searches':[{'directions':[{'query':'laptop'}], 'price_max':900,'currency':'ILS'}]}
+    first = run_turn('laptop up to 900 shekels', ConversationState(), products, ['laptops'], fake_llm(parsed), index, rate_provider=source)
+    restored = rebuild_state([{'metadata':json.dumps(turn_metadata(first))}])
+    refined = run_turn('up to 600', restored, products, ['laptops'],
+                       fake_llm({'intent':'product_search','mode':'refine','searches':[{'price_max':600}]}), index, rate_provider=source)
+    more = run_turn('more', refined.state, products, ['laptops'], fake_llm({'intent':'product_search','mode':'show_more'}), index, rate_provider=source)
+    assert source.calls == 1
+    assert first.state.searches[0].price_max == 900 and refined.state.searches[0].price_max == 600
+    assert refined.state.searches[0].currency == 'ILS'
+    assert more.outcomes[0].exchange_rate == first.outcomes[0].exchange_rate == restored.exchange_rates['ILS']
+    assert 'conversation rate' in more.reply
+    fresh = run_turn('laptop', ConversationState(), products, ['laptops'], fake_llm(parsed), index, rate_provider=source)
+    assert source.calls == 2
+    assert fresh.outcomes[0].exchange_rate.units_per_usd == Decimal(4)
+
+
+def test_currency_outage_does_not_commit_partial_quotes_or_change_searches():
+    from app.currency import RateUnavailable
+    from evals.datasets import FrozenRateProvider
+    products, index = setup_index()
+
+    class Source:
+        def get_rate(self, code):
+            if code == 'EUR':
+                raise RateUnavailable('offline')
+            return FrozenRateProvider().get_rate(code)
+
+    parsed = {'intent':'product_search','mode':'new','searches':[
+        {'directions':[{'query':'laptop'}], 'price_max':900,'currency':'ILS'},
+        {'directions':[{'query':'laptop'}], 'price_max':500,'currency':'EUR'}]}
+    state = ConversationState()
+    result = run_turn('two laptops', state, products, ['laptops'], fake_llm(parsed), index, rate_provider=Source())
+    assert result.parsed.intent == 'needs_clarification' and not result.outcomes
+    assert 'US dollars' in result.reply
+    assert not result.state.exchange_rates and not result.state.searches
+    assert not state.history and not state.exchange_rates

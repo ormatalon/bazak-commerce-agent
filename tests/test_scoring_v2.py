@@ -43,3 +43,20 @@ def test_grounding_title_check_ignores_prefixes_and_embedded_titles():
               [(1,'Realme X'),(2,'Realme XT'),(3,'Watch Gold'),(4,'Watch Gold for Women')]]
     assert unshown_catalog_titles('Realme XT and Watch Gold for Women',products,{2,4})==[]
     assert unshown_catalog_titles('Realme X',products,{2})==['Realme X']
+
+
+def test_numeric_oracle_uses_recorded_quote_and_only_legacy_records_get_fixture():
+    from decimal import Decimal
+    from app.schemas import SearchOutcome, SearchSpec
+    from evals.datasets import FrozenRateProvider
+    from evals.scoring import normalized_bounds, recorded_rate
+    spec = SearchSpec(price_max=300, currency='ILS')
+    quote = FrozenRateProvider().get_rate('ILS').model_copy(update={'units_per_usd':Decimal(3)})
+    outcome = SearchOutcome(spec=spec, exchange_rate=quote)
+    assert normalized_bounds(spec, recorded_rate(outcome))['price_max'] == 100
+    other = quote.model_copy(update={'units_per_usd':Decimal(2)})
+    assert normalized_bounds(spec, other)['price_max'] == 150
+    assert recorded_rate(SearchOutcome.model_validate({'spec':spec.model_dump()})) is not None
+    assert recorded_rate(SearchOutcome(spec=spec, exchange_rate=None)) is None
+    assert normalized_bounds(spec) is None
+    assert normalized_bounds(SearchSpec(price_max=300))['price_max'] == 300

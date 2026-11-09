@@ -6,8 +6,11 @@ import math
 from math import log2
 import re
 
-from app.currency import UNITS_PER_DOLLAR
-from app.schemas import Product, SearchSpec, TurnResult
+from functools import lru_cache
+
+from app.currency import UnsupportedCurrency
+from app.schemas import CurrencyRate, Product, SearchOutcome, SearchSpec, TurnResult
+from evals.datasets import FrozenRateProvider
 
 INVARIANT_KEYS = (
     'catalog_card_fidelity', 'no_duplicates', 'no_known_prompt_leak', 'no_unshown_catalog_titles',
@@ -94,18 +97,21 @@ def unshown_catalog_titles(reply: str, catalog, shown: set[int]) -> list[str]:
             and re.search(r'(?<!\w)' + re.escape(p.title) + r'(?!\w)', text)]
 
 
-def normalized_bounds(spec: SearchSpec) -> dict[str, float | None] | None:
-    """Independent oracle: only rate DATA is shared with the application."""
-    rate = UNITS_PER_DOLLAR.get((spec.currency or 'USD').upper())
-    if rate is None:
-        return None
+def normalized_bounds(spec: SearchSpec, rate: CurrencyRate | None = None) -> dict[str, float | None] | None:
+    """Independent arithmetic using the recorded quote, never today's API rate."""
+    code = (spec.currency or 'USD').strip().upper()
+    units_per_usd = Decimal(1)
+    if code != 'USD' and (spec.price_min is not None or spec.price_max is not None):
+        if rate is None or rate.currency != code:
+            return None
+        units_per_usd = rate.units_per_usd
     bounds = {}
     for field in ('price_min', 'price_max', 'rating_min'):
         value = getattr(spec, field)
         if value is None:
             bounds[field] = None
             continue
-        units = Decimal(rate) if field != 'rating_min' else Decimal(1)
+        units = units_per_usd if field != 'rating_min' else Decimal(1)
         cents = Decimal(str(value)) * 100 / units
         minimum = field != 'price_max'
         strict = bool(getattr(spec, field + '_strict'))
@@ -115,6 +121,22 @@ def normalized_bounds(spec: SearchSpec) -> dict[str, float | None] | None:
             integer += 1 if minimum else -1
         bounds[field] = float(integer / 100)
     return bounds
+
+
+@lru_cache(maxsize=1)
+def _legacy_rates() -> FrozenRateProvider:
+    return FrozenRateProvider()
+
+
+def recorded_rate(outcome: SearchOutcome) -> CurrencyRate | None:
+    if outcome.exchange_rate is not None or 'exchange_rate' in outcome.model_fields_set:
+        return outcome.exchange_rate
+    # Archives made before API rates used this exact fixture. Only those old
+    # records may omit provenance; new records must carry their actual quote.
+    try:
+        return _legacy_rates().get_rate(outcome.spec.currency or 'USD')
+    except UnsupportedCurrency:
+        return None
 
 
 def passes_bounds(product: Product, bounds: dict) -> bool:
@@ -195,7 +217,7 @@ def score_turn(result: TurnResult, case: dict, catalog: list[Product]) -> dict:
         metrics['legacy_fallback_accuracy']=float(actual==expected)
     normalized=[]
     for outcome in result.outcomes:
-        bounds = normalized_bounds(outcome.spec)
+        bounds = normalized_bounds(outcome.spec, recorded_rate(outcome))
         if bounds is not None:
             normalized.append((outcome, bounds))
     numeric_ok=True; exclusions_ok=True
@@ -204,11 +226,14 @@ def score_turn(result: TurnResult, case: dict, catalog: list[Product]) -> dict:
             p=card.product
             if not card.alternative:
                 numeric_ok &= passes_bounds(p, bounds)
+    for outcome in result.outcomes:
+        for card in outcome.cards:
+            p=card.product
             text=' '.join(re.findall(r'\w+', ' '.join([p.title,p.description,p.brand or '',p.category,*p.tags]).casefold()))
             exclusions_ok &= not any(' '+ ' '.join(re.findall(r'\w+',term.casefold())) +' ' in ' '+text+' ' for term in outcome.spec.exclude or [] if term.strip())
     exact_cards = [card for card in cards if not card.alternative]
-    metrics['exact_numeric_compliance']=float(numeric_ok and len(normalized)==len(result.outcomes)) if exact_cards else None
-    metrics['parsed_exclusion_rule_compliance']=float(exclusions_ok and len(normalized)==len(result.outcomes)) if cards else None
+    metrics['exact_numeric_compliance']=float(numeric_ok) if exact_cards and len(normalized)==len(result.outcomes) else None
+    metrics['parsed_exclusion_rule_compliance']=float(exclusions_ok) if cards else None
     allowed_amounts={p.price for p in result.state.shown}
     for outcome,bounds in normalized:
         allowed_amounts.update(bounds[field] for field in ('price_min','price_max') if bounds[field] is not None)

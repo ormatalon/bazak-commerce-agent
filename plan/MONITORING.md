@@ -8,6 +8,8 @@ The app and dataset runner trace each turn, with nested parse, embedding, rank, 
 
 ## After a local session
 
+Currency lookups add a `currency_rate` child span with only the USD/currency pair as input. Its output records `fetched`, `cache_hit`, or `cached_after_refresh_failure`, together with the decimal quote, source, reference date and fetch timestamp. Root turn outputs retain all conversation-pinned quotes; reused pinned rates require no HTTP call. Lookup failures ask for a USD budget without changing active constraints. Check the displayed reference date when investigating an old resumed chat.
+
 1. Run `.venv\Scripts\python.exe -m evals.monitor` to refresh `monitoring/dashboard.html`. It shows separate application/evaluation traffic, sample latency, errors, fallback outcomes and trace IDs. All monitoring files are ignored by Git.
 2. Open the `bazak-v2` tracing destination in LangSmith. Filter root run name `shopping_turn`, metadata `traffic=application`, then inspect errors, fallback/no-match outcomes and high latency. Provider child runs carry token usage; unconfigured dollar costs remain unknown.
 3. Inspect the full session when traffic is small. No automated alerts, online judges or population-level percentile claims are required for this local deliverable.
