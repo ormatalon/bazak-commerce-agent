@@ -92,7 +92,9 @@ function ProductCard({ product }) {
       </div>
       <div style={styles.body}>
         <h3 style={styles.title}>{product.title}</h3>
-        {product.alternative ? <div style={styles.brand}>Alternative · חלופה מחוץ למגבלות</div> : null}
+        {product.alternative ? (
+          <div style={styles.brand}>Alternative · <bdi dir="rtl">חלופה מחוץ למגבלות</bdi></div>
+        ) : null}
         {/* brand is null on about half of the catalog: show the line only if it exists */}
         {product.brand ? <div style={styles.brand}>{product.brand}</div> : null}
         <p style={styles.description}>{product.description}</p>

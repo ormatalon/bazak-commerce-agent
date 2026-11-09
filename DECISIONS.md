@@ -1,5 +1,11 @@
 # V2 implementation decisions
 
+## Hebrew layout fix, 9 November 2026
+
+- Enable the existing `public/style.css` through Chainlit's supported `UI.custom_css` setting. It was present but not loaded. Extend paragraph-aware bidirectional layout to the composer, message editor, remaining headings and table cells. Each paragraph follows its first strong character, so Hebrew reads right-to-left and English reads left-to-right in the same chat.
+- Keep code blocks and inline code isolated left-to-right. Keep the English catalog cards left-to-right, and isolate the Hebrew alternative badge with `bdi`. Reuse existing CSS/JSX without a new dependency, global page direction, custom JavaScript, or any pipeline change.
+- Validation: parsed the updated TOML, resolved the configured public stylesheet, checked selectors against the installed Chainlit frontend, and passed `git diff --check`. No browser surface was available for a visual preview. Restart Chainlit and hard-refresh the page to load the configuration and stylesheet.
+
 ## Approved extension: API currency rates, 9 November 2026
 
 - The owner approved replacing the fixed runtime table with API-backed reference rates, caching, conversation pinning, source/date disclosure, frozen evaluation rates and graceful fallback. This explicitly amends the original fixed-rate design and does not add an LLM node. Reuse the existing `httpx` dependency and the keyless Frankfurter pair endpoint; do not send budgets, chat text or user identifiers to the provider.
