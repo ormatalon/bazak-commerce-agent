@@ -1,17 +1,17 @@
 """Shared contracts for parsing, retrieval, UI, persistence, and evaluation."""
 
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 
 class Model(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
 class Product(BaseModel):
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+    model_config = ConfigDict(extra="ignore", allow_inf_nan=False)
     id: int
     title: str
     description: str = ""
@@ -24,8 +24,15 @@ class Product(BaseModel):
 
 
 class Direction(Model):
-    query: str
+    query: str = Field(min_length=1)
     categories: list[str] = Field(default_factory=list)
+
+    @field_validator("query")
+    @classmethod
+    def nonempty_query(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("query must contain text")
+        return value.strip()
 
     @field_validator("categories")
     @classmethod
@@ -66,6 +73,8 @@ class SearchSpec(Model):
 
     @model_validator(mode="after")
     def sensible_request(self) -> "SearchSpec":
+        if self.show_all and self.top_k is not None:
+            raise ValueError("choose an explicit count or all products, not both")
         for field in ("price_min", "price_max", "rating_min"):
             if getattr(self, field + "_strict") and getattr(self, field) is None:
                 raise ValueError("a strict operator requires its corresponding bound")
@@ -86,14 +95,16 @@ class ParsedRequest(Model):
     searches: list[SearchSpec] = Field(default_factory=list)
     unsupported: list[str] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def valid_intent(self) -> "ParsedRequest":
-        if self.intent != "product_search":
-            self.searches = []
-            self.mode = None
-        elif self.mode is None:
-            raise ValueError("product search requires a mode")
-        return self
+    @model_validator(mode="before")
+    @classmethod
+    def valid_intent(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Discard stray searches before validating nested category guesses.
+            if data.get("intent") != "product_search":
+                return {**data, "searches": [], "mode": None}
+            if data.get("mode") is None:
+                raise ValueError("product search requires a mode")
+        return data
 
 
 class Candidate(Model):

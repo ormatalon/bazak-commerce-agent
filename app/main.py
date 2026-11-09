@@ -1,5 +1,6 @@
 """Chainlit entry point. Run with: chainlit run app/main.py"""
 
+import asyncio
 import logging
 import os
 import sqlite3
@@ -19,7 +20,7 @@ import chainlit as cl  # noqa: E402
 from chainlit.types import ThreadDict  # noqa: E402
 
 import app.storage as storage  # noqa: E402
-from app.catalog import CatalogError, load_catalog, load_categories  # noqa: E402
+from app.catalog import CatalogError, load_catalog_data  # noqa: E402
 from app.llm import openai_llm  # noqa: E402
 from app.pipeline import (  # noqa: E402
     card_props,
@@ -37,7 +38,6 @@ logger = logging.getLogger("app.main")
 
 # Fixed texts. The error text never includes the exception, which can hold request details.
 ERROR_TEXT = "Sorry, something went wrong while handling your message. Please try again."
-NO_MORE_TEXT = "There are no more products to show."
 
 # --- Startup: stop with a plain message if something the app needs is missing -------------
 # Nothing below prints a login value, only the names of missing ones.
@@ -49,8 +49,7 @@ except storage.LoginConfigError as error:
 
 # Load the catalog once, when the app starts. Without it the app cannot work.
 try:
-    CATALOG = load_catalog()
-    CATEGORIES = load_categories()
+    CATALOG, CATEGORIES = load_catalog_data()
 except CatalogError as error:
     raise SystemExit(str(error)) from None
 
@@ -99,6 +98,8 @@ async def on_chat_start() -> None:
     """Every new chat starts with an empty conversation. It lives on the server, in the session."""
     global _notice_shown
     cl.user_session.set("state", ConversationState())
+    cl.user_session.set("turn_lock", asyncio.Lock())
+    cl.user_session.set("show_more_action", None)
     if DB_NOTICE and not _notice_shown:
         _notice_shown = True
         await send_notice(DB_NOTICE)
@@ -112,6 +113,8 @@ async def on_chat_resume(thread: ThreadDict) -> None:
     searches and the shown products are rebuilt.
     """
     cl.user_session.set("state", rebuild_state(thread["steps"]))  # type: ignore[arg-type]
+    cl.user_session.set("turn_lock", asyncio.Lock())
+    cl.user_session.set("show_more_action", None)
 
 
 async def remove_button(action: cl.Action) -> None:
@@ -139,31 +142,39 @@ async def send_cards(msg: cl.Message, outcomes: list[SearchOutcome]) -> None:
     before the message exists in the UI. The button goes last, so it sits under the cards.
     """
     for outcome in outcomes:
+        if cl.context.session.thread_id != msg.thread_id:
+            return
         if outcome.shown:
             cards = cl.CustomElement(name="ProductCards", props=card_props(outcome))
             await cards.send(for_id=msg.id)
 
-    if any(has_more(o) for o in outcomes):
+    if cl.context.session.thread_id == msg.thread_id and any(has_more(o) for o in outcomes):
         # The payload is empty on purpose: the server's session state decides what comes next.
         button = cl.Action(name="show_more", payload={}, label="Show more")
         await button.send(for_id=msg.id)
         cl.user_session.set("show_more_action", button)
 
 
-async def _handle_message(message: cl.Message) -> None:
+async def _handle_message(content: str) -> None:
     """Run one turn off the event loop, then send the reply and the cards."""
+    thread_id = cl.context.session.thread_id
     await remove_old_buttons()  # an older button must not act on this turn's searches
+    if cl.context.session.thread_id != thread_id:
+        return
     state = cl.user_session.get("state") or ConversationState()
     try:
         # run_turn blocks on the model, so run it in a thread or the whole app freezes.
-        result = await cl.make_async(run_turn)(message.content, state, CATALOG, CATEGORIES, openai_llm,
-                                               INDEX, cl.context.session.thread_id)
+        result = await cl.make_async(run_turn)(content, state, CATALOG, CATEGORIES, openai_llm,
+                                               INDEX, thread_id)
     except Exception as error:
         # Keep the old state and the app running. Log only the type, never the text.
         logger.warning("Turn failed: %s", type(error).__name__)
-        await send_notice(ERROR_TEXT)
+        if cl.context.session.thread_id == thread_id:
+            await send_notice(ERROR_TEXT)
         return
 
+    if cl.context.session.thread_id != thread_id:
+        return  # the user resumed a different chat while the model was running
     cl.user_session.set("state", result.state)
     # The metadata is saved with the message: it is what a resumed chat is rebuilt from.
     msg = cl.Message(content=result.reply, metadata=turn_metadata(result))
@@ -177,21 +188,36 @@ async def _handle_message(message: cl.Message) -> None:
 
 @cl.on_message
 async def on_message(message: cl.Message) -> None:
-    """Prevent overlapping turns from reading the same conversation state."""
-    if cl.user_session.get("turn_busy"):
-        return
-    cl.user_session.set("turn_busy", True)
-    try:
-        await _handle_message(message)
-    finally:
-        cl.user_session.set("turn_busy", False)
+    """Queue overlapping messages instead of silently dropping user input."""
+    thread_id = cl.context.session.thread_id
+    async with turn_lock():
+        if cl.context.session.thread_id == thread_id:
+            await _handle_message(message.content)
+
+
+def turn_lock() -> asyncio.Lock:
+    lock = cl.user_session.get("turn_lock")
+    if lock is None:
+        lock = asyncio.Lock()
+        cl.user_session.set("turn_lock", lock)
+    return lock
 
 
 @cl.action_callback("show_more")
 async def on_show_more(action: cl.Action) -> None:
     """Use the ordinary turn path so every new alternative is disclosed."""
-    await remove_old_buttons(action)
-    state = cl.user_session.get("state") or ConversationState()
-    from app.responder import is_hebrew
-    recent = next((t.text for t in reversed(state.history) if t.role == "user"), "")
-    await on_message(cl.Message(content="עוד" if is_hebrew(recent) else "show more"))
+    thread_id = cl.context.session.thread_id
+    async with turn_lock():
+        if cl.context.session.thread_id != thread_id:
+            return
+        stored = cl.user_session.get("show_more_action")
+        if stored is None or stored.id != action.id:
+            await remove_button(action)
+            return
+        await remove_old_buttons(action)
+        if cl.context.session.thread_id != thread_id:
+            return
+        state = cl.user_session.get("state") or ConversationState()
+        from app.responder import is_hebrew
+        recent = next((t.text for t in reversed(state.history) if t.role == "user"), "")
+        await _handle_message("עוד" if is_hebrew(recent) else "show more")

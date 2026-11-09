@@ -13,6 +13,7 @@ from langsmith.evaluation import evaluate
 
 from app.config import ROOT
 from app.observability import get_client, redact
+from evals.datasets import load_evidence
 
 
 def local_metrics(run, example):
@@ -29,12 +30,11 @@ def main():
     parser.add_argument('evidence',type=Path,help='Directory containing cases.jsonl and metadata.json')
     parser.add_argument('--dataset-id',help='Reuse an immutable snapshot with identical case identities and input turns for comparison.')
     args=parser.parse_args()
+    metadata, rows = load_evidence(args.evidence)
     load_dotenv(ROOT/'.env')
     client=get_client()
     if client is None:
         raise SystemExit('Configure LANGSMITH_API_KEY in .env first.')
-    rows=[json.loads(line) for line in (args.evidence/'cases.jsonl').read_text(encoding='utf-8').splitlines() if line.strip()]
-    metadata=json.loads((args.evidence/'metadata.json').read_text(encoding='utf-8'))
     by_key={row['key']:row for row in rows}
     stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     implementation=metadata.get('implementation','v2')

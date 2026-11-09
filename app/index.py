@@ -1,11 +1,11 @@
 """Two vectors per product, cached atomically with strict identity checks."""
 
-from dataclasses import asdict
 import json
 import logging
 import os
 from pathlib import Path
 import tempfile
+from zipfile import BadZipFile
 from time import perf_counter
 
 import numpy as np
@@ -43,7 +43,10 @@ class ProductIndex:
                 self.descriptions = embedder.encode([t[1] for t in texts])
                 self._validate()
                 if cache is not None:
-                    self._write(cache)
+                    try:
+                        self._write(cache)
+                    except OSError as error:
+                        logger.warning("Index is usable but could not be cached: %s", type(error).__name__)
         self.build_ms = (perf_counter() - started) * 1000
         logger.info("Index %s: %d products, %.0f ms", "cache hit" if self.cache_hit else "rebuilt", len(products), self.build_ms)
 
@@ -66,7 +69,7 @@ class ProductIndex:
                 self.descriptions = data["descriptions"]
                 self._validate()
                 return self.titles.shape[1] == dimension
-        except (OSError, ValueError, KeyError, EOFError):
+        except (OSError, ValueError, TypeError, AttributeError, KeyError, EOFError, BadZipFile):
             return False
 
     def _write(self, path: Path) -> None:

@@ -3,6 +3,7 @@
 from dataclasses import asdict, dataclass
 import hashlib
 import json
+import math
 from pathlib import Path
 from functools import lru_cache
 import subprocess
@@ -33,10 +34,19 @@ class RetrievalConfig:
     calibrated: bool = False
 
     def __post_init__(self) -> None:
+        for value in (self.title_weight, self.category_boost, self.strong_threshold, self.borderline_threshold):
+            if not isinstance(value, (int, float)) or not math.isfinite(value):
+                raise ValueError("ranking weights and thresholds must be finite numbers")
         if not 0 <= self.title_weight <= 1:
             raise ValueError("title weight must be between zero and one")
         if self.strong_threshold <= self.borderline_threshold:
             raise ValueError("strong threshold must exceed borderline threshold")
+        if self.category_boost < 0:
+            raise ValueError("category boost cannot be negative")
+        if type(self.candidate_window) is not int or self.candidate_window < 1:
+            raise ValueError("candidate window must be a positive integer")
+        if not self.model or not self.revision:
+            raise ValueError("embedding model and revision must be specified")
 
     def fingerprint(self) -> str:
         payload = json.dumps(asdict(self), sort_keys=True).encode()

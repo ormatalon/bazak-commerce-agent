@@ -50,6 +50,7 @@ def test_fallback_cannot_reintroduce_a_rejected_product():
 
 @pytest.mark.parametrize("response", ["not json", '{"decisions": []}',
     '{"decisions": [{"item_id": 99, "compatible": true, "reason": "invented ID"}]}',
+    '{"decisions": [{"item_id": 0, "compatible": "yes", "reason": "wrong boolean type"}]}',
     '{"decisions": [{"item_id": 0, "compatible": true, "reason": "ok"}, {"item_id": 0, "compatible": false, "reason": "duplicate"}]}'])
 def test_invalid_missing_invented_or_duplicate_verdicts_fail_closed(response):
     spec = SearchSpec(directions=[Direction(query="laptop")])

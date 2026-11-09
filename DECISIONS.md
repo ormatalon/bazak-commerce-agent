@@ -1,5 +1,15 @@
 # V2 implementation decisions
 
+## Comprehensive code review — 9 November 2026
+
+- The owner requested implementing all review changes before testing. Review is manual; no review-agent/plugin workflow or new dependency was introduced. All runtime edits and regression cases precede the final test batch.
+- Preserve the approved ranking, relevance thresholds, product-type node and fallback order. This review fixes implementation defects rather than adopting another retrieval policy or treating draft labels as reviewed.
+- Reject currency changes that would reinterpret an untouched price bound; ask for a complete range instead. Preserve explicit count/sort clearing semantics and give the responder the actual numeric-only message with a separate language hint.
+- Queue overlapping turns per session, reject stale pagination actions and discard replies for a chat the user has already left. Keep only the six structured messages the parser consumes; Chainlit retains the full visible transcript independently.
+- Isolate trace initialization, updates, headers and shutdown; use the SDK's existing batching rather than a redundant second buffer. Keep client initialization thread-safe. Database logging records exception types rather than SQL parameters, and corruption recovery preserves older backups.
+- Use one immutable catalog snapshot per startup/run; reject malformed/non-finite data and rebuild corrupt caches. A failed optional cache write must not discard an otherwise usable in-memory index.
+- Share one score-record function between live replay and offline re-scoring. Failed cases remain in applicable accuracy denominators; ties receive equivalent credit; a rating is not a dollar amount. Validate complete, unique evidence before uploads and refuse uninformative/stale-label calibration.
+
 ## Approved extension — product-type node, 9 November 2026
 
 - The owner approved adding a `gpt-6-luna` product-type check after ranking, before exact/fallback card selection, after z-scores accepted unrelated inventory for unsupported types. This supersedes the original two-call parser/responder path for product searches.

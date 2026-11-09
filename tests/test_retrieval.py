@@ -1,4 +1,5 @@
 from decimal import Decimal
+import pytest
 
 import numpy as np
 
@@ -52,3 +53,23 @@ def test_wrong_category_strong_match_and_zero_variance():
     candidates = search(spec, index)
     assert [c.product.id for c in candidates] == [1]
     assert candidates[0].zone == 'strong'
+
+
+def test_refinement_cannot_reinterpret_retained_currency_bound():
+    from app.parser import CurrencyRefinementError, merge_refine
+    base = SearchSpec(price_min=1000,price_max=3000,currency='ILS',currency_term='NIS')
+    with pytest.raises(CurrencyRefinementError):
+        merge_refine(base,SearchSpec(price_max=500,currency='USD'))
+    assert base.price_min == 1000 and base.currency == 'ILS'
+    changed = merge_refine(base,SearchSpec(price_min=100,price_max=500,currency='USD'))
+    assert changed.currency_term is None and changed.price_min == 100
+
+
+def test_explicit_count_replaces_show_all_and_sort_clear_removes_order():
+    from app.parser import merge_refine
+    changed = merge_refine(SearchSpec(show_all=True,sort_by='price',order='desc'),
+                           SearchSpec(top_k=1,clear_fields=['sort_by']))
+    assert changed.top_k == 1 and changed.show_all is False
+    assert changed.sort_by is None and changed.order is None
+    all_products = merge_refine(SearchSpec(top_k=1),SearchSpec(show_all=True))
+    assert all_products.show_all is True and all_products.top_k is None

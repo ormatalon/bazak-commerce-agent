@@ -1,7 +1,6 @@
 """Grounded response with code-generated currency and alternative disclosures."""
 
 import json
-import re
 
 from app.observability import span
 from app.schemas import LLM, ParsedRequest, SearchOutcome
@@ -51,17 +50,18 @@ def disclosure_lines(outcomes: list[SearchOutcome], hebrew: bool) -> list[str]:
 
 
 def write_reply(message: str, parsed: ParsedRequest, outcomes: list[SearchOutcome], llm: LLM,
-                categories: list[str] | None = None) -> str:
+                categories: list[str] | None = None, *, hebrew: bool | None = None) -> str:
+    hebrew = is_hebrew(message) if hebrew is None else hebrew
+    language = "Hebrew" if hebrew else "English"
     context = {"message": message, "intent": parsed.intent, "unsupported": parsed.unsupported,
-               "reply_language": "Hebrew" if is_hebrew(message) else "English",
+               "reply_language": language,
                "supported_categories": categories or [],
                "outcomes": [{"request": o.spec.model_dump(), "reason": o.reason,
                              "cards": [c.model_dump(mode="json") for c in o.cards]} for o in outcomes]}
     with span("respond", {"context": context}, {"prompt_version": PROMPT_VERSION}):
-        language = "Hebrew" if is_hebrew(message) else "English"
         reply = llm([{"role": "system", "content": SYSTEM + f"\nWrite the reply in {language}."},
                      {"role": "user", "content": json.dumps(context, ensure_ascii=False)}], None).strip()
     if not reply:
-        reply = "אפשר לפרט איזה מוצר מחפשים?" if is_hebrew(message) else "Which kind of product would you like help finding?"
-    notes = disclosure_lines(outcomes, is_hebrew(message))
+        reply = "אפשר לפרט איזה מוצר מחפשים?" if hebrew else "Which kind of product would you like help finding?"
+    notes = disclosure_lines(outcomes, hebrew)
     return "\n".join(notes + [reply])
