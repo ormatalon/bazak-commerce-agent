@@ -57,6 +57,82 @@ def test_explicit_exclusion_never_relaxes():
     assert result.outcomes[0].reason == 'exclusion_conflict'
 
 
+@pytest.mark.parametrize('limits,expected_ids', [
+    ({'price_max': 50}, []),
+    ({'price_max': 150}, [1]),
+    ({'price_min': 600}, []),
+    ({'rating_min': 4.5}, []),
+])
+def test_disallowed_alternatives_never_fill_missing_slots(limits, expected_ids):
+    products, index = setup_index()
+    parsed = {'intent': 'product_search', 'mode': 'new', 'searches': [{
+        'directions': [{'query': 'laptop'}], 'allow_alternatives': False, **limits,
+    }]}
+    result = run_turn('Only within these limits; no alternatives', ConversationState(),
+                      products, ['laptops', 'beauty'], fake_llm(parsed), index)
+    outcome = result.outcomes[0]
+    assert [p.id for p in outcome.shown] == expected_ids
+    assert not any(c.alternative for c in outcome.cards)
+    assert not outcome.has_more
+    if not expected_ids:
+        assert outcome.reason == 'numeric_conflict'
+
+
+def test_strict_limits_survive_resume_refinement_and_pagination_until_reenabled():
+    products, index = setup_index()
+
+    def turn(message, state, parsed):
+        return run_turn(message, state, products, ['laptops', 'beauty'], fake_llm(parsed), index)
+
+    first = turn('Only laptops up to $350, show one', ConversationState(), {
+        'intent': 'product_search', 'mode': 'new', 'searches': [{
+            'directions': [{'query': 'laptop'}], 'price_max': 350,
+            'top_k': 1, 'allow_alternatives': False,
+        }],
+    })
+    restored = rebuild_state([{'metadata': json.dumps(turn_metadata(first))}])
+    refined = turn('Sort cheapest first', restored, {
+        'intent': 'product_search', 'mode': 'refine',
+        'searches': [{'sort_by': 'price', 'order': 'asc'}],
+    })
+    assert refined.state.searches[0].allow_alternatives is False
+    state = refined.state
+    for expected in ([2], [3], []):
+        more = turn('show more', state, {'intent': 'product_search', 'mode': 'show_more'})
+        assert [p.id for p in more.outcomes[0].shown] == expected
+        assert not any(c.alternative for c in more.outcomes[0].cards)
+        state = more.state
+    assert not more.outcomes[0].has_more
+
+    allowed = turn('Alternatives are fine now; show all', state, {
+        'intent': 'product_search', 'mode': 'refine',
+        'searches': [{'allow_alternatives': True, 'show_all': True}],
+    })
+    assert allowed.state.searches[0].price_max == 350
+    assert [p.id for p in allowed.outcomes[0].shown] == [1, 2, 3, 4, 5]
+    assert [c.product.id for c in allowed.outcomes[0].cards if c.alternative] == [4, 5]
+    assert 'Alternative outside your limits' in allowed.reply
+
+    new = turn('New laptop request, up to $150', state, {
+        'intent': 'product_search', 'mode': 'new',
+        'searches': [{'directions': [{'query': 'laptop'}], 'price_max': 150}],
+    })
+    assert new.state.searches[0].allow_alternatives is None
+    assert any(c.alternative for c in new.outcomes[0].cards)
+
+
+def test_strict_limits_apply_only_to_their_independent_request():
+    products, index = setup_index()
+    parsed = {'intent': 'product_search', 'mode': 'new', 'searches': [
+        {'directions': [{'query': 'laptop'}], 'price_max': 150, 'allow_alternatives': False},
+        {'directions': [{'query': 'laptop'}], 'price_max': 150, 'allow_alternatives': True},
+    ]}
+    result = run_turn('Two independent requests', ConversationState(), products,
+                      ['laptops', 'beauty'], fake_llm(parsed), index)
+    assert [p.id for p in result.outcomes[0].shown] == [1]
+    assert all(c.alternative for c in result.outcomes[1].cards)
+
+
 def test_unknown_currency_asks_without_cards():
     products, index = setup_index()
     parsed = {'intent':'product_search','mode':'new','searches':[{'directions':[{'query':'laptop'}], 'price_max':50,'currency':'ZZZ'}]}

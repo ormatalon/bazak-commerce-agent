@@ -49,7 +49,8 @@ def search_with_fallback(original: SearchSpec, normalized: SearchSpec, index: Pr
     exact_ids = [c.product.id for c in exact]
     count = normalized.top_k or 3
     with span("fallback", {"exact_count": len(exact), "requested": count}) as run:
-        alternatives = _relaxed_candidates(normalized, ranked, seen | set(exact_ids))
+        alternatives = ([] if normalized.allow_alternatives is False else
+                        _relaxed_candidates(normalized, ranked, seen | set(exact_ids)))
         selected = exact + alternatives
         page = selected if normalized.show_all else selected[:count]
         cards = []

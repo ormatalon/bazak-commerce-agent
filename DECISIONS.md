@@ -1,5 +1,18 @@
 # V2 implementation decisions
 
+## Explicit strict limits — 10 November 2026
+
+- The owner requested implementing the strict-budget/no-alternatives fix on `master`. Add per-request `allow_alternatives`: false forbids price/rating exceptions, true explicitly allows them, and null preserves a previous choice on refinement or the default fallback on a new request. Older saved states still load with the original behavior.
+- Keep the choice in existing conversation metadata, so resume and show-more retain it. Existing non-null refinement merging handles explicit false without special cases. New independent requests do not inherit it.
+- Skip relaxed selection entirely when forbidden. Return fewer exact cards or a numeric no-match; do not change the saved budget. The responder is told to respect the opt-out without pressuring the shopper.
+- Keep original source evaluation labels unchanged. The 167-case replay precedes this application change; validate the fix with targeted offline regressions and separate live checks rather than representing old outputs as a fresh full-suite run.
+- Validation: 92 offline tests and five focused live checks passed, including English/Hebrew prohibitions, opt-out after reconstructed resume and explicitly allowing alternatives again. No full-suite model replay was made after this change.
+
+## Evaluation lesson — 10 November 2026
+
+- I started with datasets, but they focused too much on simple searches. I should have mapped each assignment requirement and anticipated failure mode to evaluation cases first, including vague requests, appropriate refusals, alternatives, multi-turn behavior and persistence.
+- When V2 changes the intended behavior, define its expectations separately from V1 compatibility labels. Measure useful alternatives separately from exact matches; do not rewrite expected results just to reward whatever the implementation returned.
+
 ## macOS setup, 10 November 2026
 
 - The owner requested macOS setup in addition to Windows. Document native Apple Silicon macOS 14+, Python 3.12 via uv, PyPI-based installation, safe `.env` creation, local auth-secret generation, the model download, run/test commands and troubleshooting. Keep the Windows CPU index confined to the Windows instructions.

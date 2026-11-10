@@ -66,11 +66,12 @@ class SearchSpec(Model):
     order: Literal["asc", "desc"] | None = None
     top_k: int | None = Field(default=None, ge=1, description="Explicit count, including a singular superlative request (1); otherwise null.")
     show_all: bool | None = None
+    allow_alternatives: bool | None = Field(default=None, description="False when the user forbids results outside their limits; true when explicitly allowed; null keeps the previous choice on refinement.")
     vague: bool | None = None
     refines_index: int | None = Field(default=None, ge=0)
     clear_fields: list[Literal[
         "directions", "exclude", "price_min", "price_max", "rating_min",
-        "currency", "sort_by", "order", "top_k", "show_all",
+        "currency", "sort_by", "order", "top_k", "show_all", "allow_alternatives",
     ]] = Field(default_factory=list)
 
     @model_validator(mode="after")

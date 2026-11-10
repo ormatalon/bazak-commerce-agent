@@ -1,7 +1,7 @@
 # Detailed setup and troubleshooting
 
 
-These commands are for the `v2` branch and run from the repository root. Use Python 3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/) to create a local virtual environment. Create a new `.venv` on each machine; a Windows virtual environment cannot be copied to a Mac. V1 on `v1` has separate setup instructions and does not require the embedding model.
+These commands are for `master` (V2) and run from the repository root. Use Python 3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/) to create a local virtual environment. Create a new `.venv` on each machine; a Windows virtual environment cannot be copied to a Mac. V1 on `v1` has separate setup instructions and does not require the embedding model.
 
 ### Windows (PowerShell)
 
