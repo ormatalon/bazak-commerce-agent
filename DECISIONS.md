@@ -1,5 +1,11 @@
 # V2 implementation decisions
 
+## macOS setup, 10 November 2026
+
+- The owner requested macOS setup in addition to Windows. Document native Apple Silicon macOS 14+, Python 3.12 via uv, PyPI-based installation, safe `.env` creation, local auth-secret generation, the model download, run/test commands and troubleshooting. Keep the Windows CPU index confined to the Windows instructions.
+- Preserve the pinned dependencies and CPU embedding configuration. Cross-platform dependency resolution confirms `torch==2.15.0` provides a macOS 14 arm64 wheel; Intel and macOS 13 targets cannot use this wheel. Do not silently downgrade torch or claim native Intel support. This limitation agrees with PyTorch's official x86 macOS build deprecation.
+- Require binary wheels only for torch/NumPy in the Mac command. A blanket binary-only policy fails because pinned Chainlit depends on source-only literalai; allowing that published pure-Python source dependency resolves the full Apple Silicon set. Dependency resolution is not a real Mac install or startup test; state that limit explicitly.
+
 ## Experience pilot replay and comparison report
 
 - The owner requested a Markdown summary of all results, explaining each test, comparing V1 and V2, and ending with a short conclusion. Replay all 20 frozen cases through original staging V1 (`18af131`) and V2 (`818d19c`), using the same catalog, numerical frozen FX rates, allowed model, four workers per version, and native rounding. No application behavior or input expectations were changed after seeing outputs.
