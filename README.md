@@ -9,6 +9,26 @@ A local shopping assistant over the DummyJSON catalog. Chat in English or Hebrew
 - **`master`:** the current V2 application, including subsequent fixes. This README describes `master`.
 - **Comparison:** see [V1 versus V2](#v1-versus-v2) for the approach and the [experience evaluation](evals/EXPERIENCE_PILOT_RESULTS.md) for actual replies and results.
 
+## Tech stack
+
+- **Python 3.12:** application logic, retrieval and evaluations.
+- **Chainlit + a React custom element:** chat, conversation sidebar, resume hooks and product cards. Chosen to avoid building these UI features from scratch.
+- **OpenAI `gpt-6-luna`:** intent parsing, product-type checks and replies.
+- **Sentence Transformers + multilingual E5:** local product embeddings; PyTorch runs the model on CPU.
+- **Pydantic:** validates structured requests and shared data models.
+- **SQLite + SQLAlchemy:** local conversation storage.
+- **HTTPX:** requests to DummyJSON for products and Frankfurter for exchange rates.
+- **pytest + optional LangSmith:** automated tests, model traces and evaluation experiments.
+- **uv:** installs Python, creates `.venv` and installs dependencies from `requirements.txt`. Used for setup; the app runs with the environment's Python interpreter.
+
+### Pipeline framework
+
+1. **Plain Python:** explicit steps and typed data make the flow easy to trace and test.
+2. **LangChain:** could organize model calls and retrieval, but would add another abstraction without removing much code here.
+3. **LangGraph:** useful for branching and resumable workflows; this mostly fixed sequence does not need a graph.
+
+I chose **plain Python** because the flow is small. Chainlit and SQLite handle conversation persistence.
+
 ## Setup
 
 Use branch `master`, Python 3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/). Run commands from the repository root.
@@ -63,25 +83,7 @@ Create a separate environment on each machine. Intel Macs are not supported by t
 
 Open **http://localhost:8000** and sign in. On later runs, only the last command is needed. Model calls require internet access; the embedding model runs locally on CPU.
 
-## Architecture
-
-### UI framework
-
-1. **Streamlit:** quick for a demo, but its rerun model adds work to coordinate chat state and saved conversations.
-2. **Chainlit:** provides chat, a conversation sidebar and resume hooks; custom elements support product cards.
-3. **Custom React + Python API:** more UI control, but requires building the chat connection, history sidebar and resume flow.
-
-I chose **Chainlit** to spend less time building chat features and more time on retrieval and evaluation.
-
-### Pipeline framework
-
-1. **Plain Python:** explicit steps and typed data make the flow easy to trace and test.
-2. **LangChain:** could organize model calls and retrieval, but would add another abstraction without removing much code here.
-3. **LangGraph:** useful for branching and resumable workflows; this mostly fixed sequence does not need a graph.
-
-I chose **plain Python** because the flow is small. Chainlit and SQLite handle conversation persistence.
-
-### Message flow
+## Message flow
 
 1. `gpt-6-luna` parses intent, constraints and follow-ups.
 2. Local multilingual E5 embeddings rank products.
@@ -144,6 +146,7 @@ For a live evaluation, run `.venv/Scripts/python.exe -m evals.run_evals --live` 
 
 ## Known limitations
 
+- **Android app:** although requested separately, I did not implement a native Android app. This submission is a local browser-based application.
 - Ranking can omit valid products; relevance thresholds are still provisional.
 - Permitted alternatives can still make answers noisy or be too far from the requested budget.
 - Some recorded follow-ups lose available context.
