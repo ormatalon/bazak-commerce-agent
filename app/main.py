@@ -1,5 +1,6 @@
 """Chainlit entry point. Run with: chainlit run app/main.py"""
 
+import asyncio
 import logging
 import os
 import sqlite3
@@ -19,24 +20,24 @@ import chainlit as cl  # noqa: E402
 from chainlit.types import ThreadDict  # noqa: E402
 
 import app.storage as storage  # noqa: E402
-from app.catalog import CatalogError, load_catalog, load_categories  # noqa: E402
+from app.catalog import CatalogError, load_catalog_data  # noqa: E402
 from app.llm import openai_llm  # noqa: E402
 from app.pipeline import (  # noqa: E402
     card_props,
     has_more,
-    more_metadata,
     rebuild_state,
     run_turn,
-    show_more,
     turn_metadata,
 )
 from app.schemas import ConversationState, SearchOutcome  # noqa: E402
+from app.config import RetrievalConfig  # noqa: E402
+from app.embeddings import LocalEmbedder  # noqa: E402
+from app.index import ProductIndex  # noqa: E402
 
 logger = logging.getLogger("app.main")
 
 # Fixed texts. The error text never includes the exception, which can hold request details.
 ERROR_TEXT = "Sorry, something went wrong while handling your message. Please try again."
-NO_MORE_TEXT = "There are no more products to show."
 
 # --- Startup: stop with a plain message if something the app needs is missing -------------
 # Nothing below prints a login value, only the names of missing ones.
@@ -48,10 +49,15 @@ except storage.LoginConfigError as error:
 
 # Load the catalog once, when the app starts. Without it the app cannot work.
 try:
-    CATALOG = load_catalog()
-    CATEGORIES = load_categories()
+    CATALOG, CATEGORIES = load_catalog_data()
 except CatalogError as error:
     raise SystemExit(str(error)) from None
+
+try:
+    CONFIG = RetrievalConfig()
+    INDEX = ProductIndex(CATALOG, LocalEmbedder(CONFIG), CONFIG)
+except Exception as error:
+    raise SystemExit(f"Local embedding index could not start ({type(error).__name__}). Run python -m app.embeddings --download first.") from None
 
 # Create the chat database, or start a new one if the old file is damaged.
 try:
@@ -92,6 +98,8 @@ async def on_chat_start() -> None:
     """Every new chat starts with an empty conversation. It lives on the server, in the session."""
     global _notice_shown
     cl.user_session.set("state", ConversationState())
+    cl.user_session.set("turn_lock", asyncio.Lock())
+    cl.user_session.set("show_more_action", None)
     if DB_NOTICE and not _notice_shown:
         _notice_shown = True
         await send_notice(DB_NOTICE)
@@ -105,6 +113,8 @@ async def on_chat_resume(thread: ThreadDict) -> None:
     searches and the shown products are rebuilt.
     """
     cl.user_session.set("state", rebuild_state(thread["steps"]))  # type: ignore[arg-type]
+    cl.user_session.set("turn_lock", asyncio.Lock())
+    cl.user_session.set("show_more_action", None)
 
 
 async def remove_button(action: cl.Action) -> None:
@@ -132,57 +142,82 @@ async def send_cards(msg: cl.Message, outcomes: list[SearchOutcome]) -> None:
     before the message exists in the UI. The button goes last, so it sits under the cards.
     """
     for outcome in outcomes:
+        if cl.context.session.thread_id != msg.thread_id:
+            return
         if outcome.shown:
             cards = cl.CustomElement(name="ProductCards", props=card_props(outcome))
             await cards.send(for_id=msg.id)
 
-    if any(has_more(o) for o in outcomes):
+    if cl.context.session.thread_id == msg.thread_id and any(has_more(o) for o in outcomes):
         # The payload is empty on purpose: the server's session state decides what comes next.
         button = cl.Action(name="show_more", payload={}, label="Show more")
         await button.send(for_id=msg.id)
         cl.user_session.set("show_more_action", button)
 
 
-@cl.on_message
-async def on_message(message: cl.Message) -> None:
+async def _handle_message(content: str) -> None:
     """Run one turn off the event loop, then send the reply and the cards."""
+    thread_id = cl.context.session.thread_id
     await remove_old_buttons()  # an older button must not act on this turn's searches
+    if cl.context.session.thread_id != thread_id:
+        return
     state = cl.user_session.get("state") or ConversationState()
     try:
         # run_turn blocks on the model, so run it in a thread or the whole app freezes.
-        result = await cl.make_async(run_turn)(message.content, state, CATALOG, CATEGORIES, openai_llm)
+        result = await cl.make_async(run_turn)(content, state, CATALOG, CATEGORIES, openai_llm,
+                                               INDEX, thread_id)
     except Exception as error:
         # Keep the old state and the app running. Log only the type, never the text.
         logger.warning("Turn failed: %s", type(error).__name__)
-        await send_notice(ERROR_TEXT)
+        if cl.context.session.thread_id == thread_id:
+            await send_notice(ERROR_TEXT)
         return
 
+    if cl.context.session.thread_id != thread_id:
+        return  # the user resumed a different chat while the model was running
     cl.user_session.set("state", result.state)
     # The metadata is saved with the message: it is what a resumed chat is rebuilt from.
     msg = cl.Message(content=result.reply, metadata=turn_metadata(result))
-    await msg.send()
-    await send_cards(msg, result.outcomes)
+    # Chainlit writes after the pure pipeline returns; carry its parent trace into
+    # the async persistence tasks instead of opening unrelated root traces.
+    from langsmith import tracing_context
+    with tracing_context(parent=result.trace_context or None):
+        await msg.send()
+        await send_cards(msg, result.outcomes)
+
+
+@cl.on_message
+async def on_message(message: cl.Message) -> None:
+    """Queue overlapping messages instead of silently dropping user input."""
+    thread_id = cl.context.session.thread_id
+    async with turn_lock():
+        if cl.context.session.thread_id == thread_id:
+            await _handle_message(message.content)
+
+
+def turn_lock() -> asyncio.Lock:
+    lock = cl.user_session.get("turn_lock")
+    if lock is None:
+        lock = asyncio.Lock()
+        cl.user_session.set("turn_lock", lock)
+    return lock
 
 
 @cl.action_callback("show_more")
 async def on_show_more(action: cl.Action) -> None:
-    """Add the next cards with no model call and no reply text."""
-    await remove_old_buttons(action)  # one click, one use: a second click finds no button
-    state = cl.user_session.get("state")
-    if state is None:  # e.g. a button left over from before the server restarted
-        await send_notice(NO_MORE_TEXT)
-        return
-
-    # show_more is a quick filter over 194 products, so it runs right here with no await
-    # between reading the state and saving the new one. Two quick clicks therefore can't
-    # both read the same state and show the same cards twice.
-    outcomes, new_state = show_more(state, CATALOG)
-    if not any(o.shown for o in outcomes):
-        await send_notice(NO_MORE_TEXT)
-        return
-    cl.user_session.set("state", new_state)
-
-    # The message has no text: the cards are the answer, so no language is needed.
-    msg = cl.Message(content="", metadata=more_metadata(outcomes, new_state))
-    await msg.send()
-    await send_cards(msg, outcomes)
+    """Use the ordinary turn path so every new alternative is disclosed."""
+    thread_id = cl.context.session.thread_id
+    async with turn_lock():
+        if cl.context.session.thread_id != thread_id:
+            return
+        stored = cl.user_session.get("show_more_action")
+        if stored is None or stored.id != action.id:
+            await remove_button(action)
+            return
+        await remove_old_buttons(action)
+        if cl.context.session.thread_id != thread_id:
+            return
+        state = cl.user_session.get("state") or ConversationState()
+        from app.responder import is_hebrew
+        recent = next((t.text for t in reversed(state.history) if t.role == "user"), "")
+        await _handle_message("עוד" if is_hebrew(recent) else "show more")

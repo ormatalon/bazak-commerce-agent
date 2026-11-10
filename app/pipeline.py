@@ -1,301 +1,197 @@
-"""One conversation turn with no Chainlit in it, so the UI, tests and evals share the same code."""
+"""A complete turn independent of Chainlit, shared by UI and dataset replay."""
 
 import json
-from typing import Any
+from time import perf_counter
 
 from pydantic import ValidationError
 
 from app.catalog import category_tags
-from app.parser import merge_refine, parse_request, search_is_empty
-from app.responder import write_reply
-from app.schemas import (
-    LLM,
-    ChatTurn,
-    ConversationState,
-    ParsedRequest,
-    Product,
-    SearchOutcome,
-    SearchSpec,
-    TurnResult,
-)
-from app.search import relevant_products, search_with_fallback
+from app.config import source_revision
+from app.currency import RateSource, RateUnavailable, UnsupportedCurrency, convert_search, currency_code, get_rate_provider, needs_rate
+from app.fallback import search_with_fallback
+from app.index import ProductIndex
+from app.monitoring import record_turn
+from app.observability import span
+from app.parser import CurrencyRefinementError, HISTORY_LIMIT, merge_searches, parse_request, PROMPT_VERSION as PARSER_VERSION
+from app.product_type import check_product_types, PROMPT_VERSION as TYPE_VERSION
+from app.responder import is_hebrew, write_reply
+from app.schemas import ChatTurn, ConversationState, CurrencyRate, LLM, ParsedRequest, Product, SearchOutcome, SearchSpec, TurnResult
+from app.search import rank_all
 
-# Cards shown per search unless the user asked for a number (top_k).
-CARDS_PER_SEARCH = 3
-
-# The fields the card element reads (public/elements/ProductCards.jsx).
+METADATA_VERSION = 2
 CARD_FIELDS = {"id", "title", "description", "price", "rating", "brand", "thumbnail", "category"}
 
 
-def card_props(outcome: SearchOutcome) -> dict[str, Any]:
-    """The props app/main.py gives the ProductCards element for one outcome."""
-    return {"products": [p.model_dump(include=CARD_FIELDS) for p in outcome.shown]}
+def _unique(products: list[Product]) -> list[Product]:
+    return list({p.id: p for p in products}.values())
 
 
-def has_more(outcome: SearchOutcome) -> bool:
-    """True when the outcome matched products that have no card yet."""
-    return len(outcome.products) > len(outcome.shown)
-
-
-def _add_unique(shown: list[Product], new: list[Product]) -> list[Product]:
-    """A new list: `shown` followed by the products in `new` that are not in it yet."""
-    result = list(shown)
-    known_ids = {p.id for p in result}
-    for product in new:
-        if product.id not in known_ids:
-            result.append(product)
-            known_ids.add(product.id)
-    return result
-
-
-def _words_message(message: str, history: list[ChatTurn]) -> str:
-    """The latest user message with a letter in it, so answering "$300" keeps the language."""
+def _language_message(message: str, state: ConversationState) -> str:
     if any(c.isalpha() for c in message):
         return message
-    for turn in reversed(history):
-        if turn.role == "user" and any(c.isalpha() for c in turn.text):
-            return turn.text
-    return message
+    return next((t.text for t in reversed(state.history) if t.role == "user" and any(c.isalpha() for c in t.text)), message)
 
 
-def _merge_refines(changes: list[SearchSpec], previous: list[SearchSpec]) -> list[SearchSpec]:
-    """Apply each change to the previous search it names. With no previous search, to an empty one."""
-    merged = []
-    for change in changes:
-        index = change.refines_index or 0
-        if index < 0 or index >= len(previous):
-            index = 0  # out of range: the model named a search that doesn't exist
-        base = previous[index] if previous else SearchSpec()
-        merged.append(merge_refine(base, change))
-    return merged
-
-
-def _card_candidates(outcome: SearchOutcome) -> list[Product]:
-    """The products that may get a card next: those matching a keyword, when any do.
-
-    Not when both limits were loosened: those products answer the limits, not the keywords,
-    so a backpack can still be the suggestion for "a bag".
-    """
-    if len(outcome.loosened) == 2:
-        return outcome.products
-    return relevant_products(outcome.spec, outcome.products)
-
-
-def _run_searches(specs: list[SearchSpec], catalog: list[Product]) -> list[SearchOutcome]:
-    """Search each spec with the fallback and choose its cards: all, the first top_k, or 3."""
-    outcomes = []
+def _convert_searches(specs: list[SearchSpec], saved_rates: dict[str, CurrencyRate], source: RateSource | None
+                      ) -> tuple[list[tuple[SearchSpec, list[str], CurrencyRate | None]], dict[str, CurrencyRate]]:
+    rates = dict(saved_rates)
+    converted = []
     for spec in specs:
-        outcome = search_with_fallback(spec, catalog)
-        candidates = _card_candidates(outcome)
-        outcome.total = len(candidates)
-        count = len(candidates) if spec.show_all else spec.top_k or CARDS_PER_SEARCH
-        outcome.shown = candidates[:count]
+        rate = None
+        if needs_rate(spec):
+            code = currency_code(spec.currency)
+            rate = rates.get(code)
+            if rate is None:
+                rate = (source or get_rate_provider()).get_rate(code)
+                rates[code] = rate
+        normalized, notes = convert_search(spec, rate)
+        converted.append((normalized, notes, rate))
+    return converted, rates
+
+
+def _outcomes(specs: list[SearchSpec], converted: list[tuple[SearchSpec, list[str], CurrencyRate | None]],
+              index: ProductIndex, seen: set[int], llm: LLM) -> list[SearchOutcome]:
+    outcomes = []
+    query_cache = {}
+    used = set(seen)
+    rankings = [rank_all(normalized, index, query_cache) for normalized, notes, rate in converted]
+    checked = check_product_types([normalized for normalized, notes, rate in converted], rankings, llm, seen)
+    for spec, (normalized, notes, rate), ranked in zip(specs, converted, checked, strict=True):
+        outcome = search_with_fallback(spec, normalized, index, used, query_cache, ranked=ranked)
+        outcome.conversions = notes
+        outcome.exchange_rate = rate
         outcomes.append(outcome)
+        used.update(p.id for p in outcome.shown)
     return outcomes
 
 
-def show_more(
-    state: ConversationState,
-    catalog: list[Product],
-) -> tuple[list[SearchOutcome], ConversationState]:
-    """Next cards for the current searches, excluding shown IDs. Makes no LLM call.
-
-    state.searches stays as it is and history is not touched.
-    """
-    if not state.searches:
-        return [], state
-
-    shown_ids = {p.id for p in state.shown}
-    outcomes = []
-    new_cards: list[Product] = []
-    for spec in state.searches:
-        outcome = search_with_fallback(spec, catalog)
-        outcome.total = len(_card_candidates(outcome))
-        # Everything still unseen. Cards from an earlier search in this loop count as seen.
-        seen = shown_ids | {p.id for p in new_cards}
-        outcome.products = [p for p in outcome.products if p.id not in seen]
-        outcome.shown = _card_candidates(outcome)[:CARDS_PER_SEARCH]
-        new_cards = _add_unique(new_cards, outcome.shown)
-        outcomes.append(outcome)
-
-    new_state = state.model_copy(update={"shown": _add_unique(state.shown, new_cards)})
-    return outcomes, new_state
-
-
-def run_turn(
-    message: str,
-    state: ConversationState,
-    catalog: list[Product],
-    categories: list[str],
-    llm: LLM,
-) -> TurnResult:
-    """Parse, merge any refine, search with fallback, choose the cards and write the reply.
-
-    LLM errors are not caught here, so evals can see them. `state` is never changed:
-    the new state is returned, so a caller that hits an error still has the old one.
-    """
-    parsed = parse_request(
-        message, state.history, state.searches, state.shown, categories, llm, category_tags(catalog)
-    )
-
-    outcomes: list[SearchOutcome] = []
-    searches = state.searches
-    shown = state.shown
-
-    if parsed.intent == "product_search":
-        if parsed.mode == "show_more":
-            outcomes, more_state = show_more(state, catalog)
-            if not outcomes:
-                parsed = ParsedRequest(intent="needs_clarification")  # nothing to show more of
-            shown = more_state.shown
-        else:
-            if parsed.mode == "refine":
-                specs = _merge_refines(parsed.searches, state.searches)
-            else:
-                specs = list(parsed.searches)
-            if not specs or any(search_is_empty(s) for s in specs):
-                # Running it would match all 194 products and present them as a match.
+def _run_turn(message: str, state: ConversationState, catalog: list[Product], categories: list[str], llm: LLM,
+             index: ProductIndex, conversation_id: str | None = None, traffic: str = "application",
+             *, rate_provider: RateSource | None = None) -> TurnResult:
+    started = perf_counter()
+    metadata = {"conversation_id": conversation_id, "session_id": conversation_id,
+                "traffic": traffic, "git_sha": source_revision(), "parser_version": PARSER_VERSION,
+                "product_type_version": TYPE_VERSION, "config_hash": index.config.fingerprint(), **index.identity}
+    with span("shopping_turn", {"message": message}, metadata) as run:
+        parsed = parse_request(message, state, categories, llm, category_tags(catalog))
+        outcomes = []
+        searches, shown = state.searches, state.shown
+        exchange_rates = state.exchange_rates
+        question: str | None = None
+        hebrew = is_hebrew(_language_message(message, state))
+        if parsed.intent == "product_search":
+            try:
+                if parsed.mode == "show_more":
+                    if not searches:
+                        raise ValueError("nothing to show more of")
+                    specs = searches
+                else:
+                    specs = merge_searches(parsed, state.searches)
+                if not specs or any(not s.directions for s in specs):
+                    raise ValueError("no positive product query")
+                converted, new_rates = _convert_searches(specs, exchange_rates, rate_provider)
+            except UnsupportedCurrency:
+                parsed = ParsedRequest(intent="needs_clarification")
+                question = "אין שער זמין למטבע הזה. מה התקציב בדולרים?" if hebrew else "A reference rate is not available for that currency. What is your budget in US dollars?"
+            except RateUnavailable:
+                parsed = ParsedRequest(intent="needs_clarification")
+                question = "המרת המטבע אינה זמינה כרגע. מה התקציב בדולרים?" if hebrew else "Currency conversion is temporarily unavailable. What is your budget in US dollars?"
+            except CurrencyRefinementError:
+                parsed = ParsedRequest(intent="needs_clarification")
+                question = "מה טווח המחירים המלא במטבע החדש?" if hebrew else "What is the complete price range in the new currency?"
+            except ValueError:
                 parsed = ParsedRequest(intent="needs_clarification")
             else:
-                outcomes = _run_searches(specs, catalog)
+                # Runtime/model/index errors must reach callers, not masquerade as
+                # shopper ambiguity. Only request preparation is handled above.
+                more = parsed.mode == "show_more"
+                outcomes = _outcomes(specs, converted, index, {p.id for p in shown} if more else set(), llm)
                 searches = specs
-                shown = _add_unique([], [p for o in outcomes for p in o.shown])
-
-    reply = write_reply(_words_message(message, state.history), parsed, outcomes, llm)
-
-    history = state.history + [
-        ChatTurn(role="user", text=message),
-        ChatTurn(role="assistant", text=reply),
-    ]
-    new_state = ConversationState(history=history, searches=searches, shown=shown)
-    return TurnResult(parsed=parsed, outcomes=outcomes, reply=reply, state=new_state)
-
-
-# --- Saving and resuming a chat -------------------------------------------------------
-#
-# Every assistant message is saved with a small `metadata` dict (built below). When a chat
-# is resumed, `rebuild_state` reads those dicts back and `card_elements` redraws the cards.
-# Nothing here imports Chainlit, so tests can run it on plain dicts.
-
-# Marks metadata written by this app. A message without it (an error or notice) is skipped.
-METADATA_VERSION = 1
+                exchange_rates = new_rates
+                cards = [p for outcome in outcomes for p in outcome.shown]
+                shown = _unique(shown + cards if more else cards)
+        reply = question or write_reply(message, parsed, outcomes, llm, categories, hebrew=hebrew)
+        history = state.history + [ChatTurn(role="user", text=message), ChatTurn(role="assistant", text=reply)]
+        new_state = ConversationState(history=history[-HISTORY_LIMIT:],
+                                      searches=searches, shown=shown, exchange_rates=exchange_rates)
+        result = TurnResult(parsed=parsed, outcomes=outcomes, reply=reply, state=new_state,
+                            trace_id=str(run.id) if run is not None else None,
+                            trace_context=run.to_headers() if run is not None else {},
+                            timings={"total_ms": (perf_counter()-started)*1000})
+        if run is not None:
+            run.end(outputs={"intent": parsed.intent, "cards": [c.model_dump(mode="json") for o in outcomes for c in o.cards],
+                             "reply": reply, "timings": result.timings,
+                             "exchange_rates": {code: rate.model_dump(mode="json") for code, rate in exchange_rates.items()}})
+        return result
 
 
-def message_metadata(
-    outcomes: list[SearchOutcome],
-    state: ConversationState,
-    parsed: ParsedRequest | None,
-    in_history: bool,
-) -> dict[str, Any]:
-    """What to save with one assistant message, so a resumed chat can rebuild itself.
-
-    Only what was SHOWN is saved, never `outcome.products` (everything that matched),
-    which can be most of the catalog. `parsed` is None for a "Show more" button click.
-    """
-    metadata: dict[str, Any] = {
-        "app": METADATA_VERSION,
-        # False for a "Show more" button click: it adds cards but no turn of conversation.
-        "in_history": in_history,
-        # One list of cards per search that has cards. Each list is one card element.
-        "cards": [card_props(o)["products"] for o in outcomes if o.shown],
-    }
-    # A product search also stores the current searches. Typed or clicked "show more" keeps
-    # the old shown cards and adds to them; any other search replaces them (as run_turn does).
-    if parsed is None or parsed.intent == "product_search":
-        metadata["searches"] = [s.model_dump(mode="json") for s in state.searches]
-        metadata["replace_shown"] = parsed is not None and parsed.mode != "show_more"
-    return metadata
+def run_turn(message: str, state: ConversationState, catalog: list[Product], categories: list[str], llm: LLM,
+             index: ProductIndex, conversation_id: str | None = None, traffic: str = "application",
+             *, rate_provider: RateSource | None = None) -> TurnResult:
+    """Record success/failure without swallowing pipeline errors or retrying calls."""
+    started = perf_counter()
+    try:
+        result = _run_turn(message, state, catalog, categories, llm, index, conversation_id, traffic, rate_provider=rate_provider)
+    except Exception as error:
+        record_turn(None, traffic, (perf_counter()-started)*1000, type(error).__name__)
+        raise
+    record_turn(result, traffic, (perf_counter()-started)*1000)
+    return result
 
 
-def turn_metadata(result: TurnResult) -> dict[str, Any]:
-    """Metadata for the reply to a typed message."""
-    return message_metadata(result.outcomes, result.state, result.parsed, in_history=True)
+def card_props(outcome: SearchOutcome) -> dict:
+    return {"products": [{**c.product.model_dump(include=CARD_FIELDS), "alternative": c.alternative} for c in outcome.cards]}
 
 
-def more_metadata(outcomes: list[SearchOutcome], state: ConversationState) -> dict[str, Any]:
-    """Metadata for the cards a "Show more" click added. They are not part of the history."""
-    return message_metadata(outcomes, state, None, in_history=False)
+def has_more(outcome: SearchOutcome) -> bool:
+    return outcome.has_more
 
 
-def metadata_of(step: dict[str, Any]) -> dict[str, Any]:
-    """A step's metadata as a dict. SQLite hands it back as a JSON string."""
+def metadata_of(step: dict) -> dict:
     metadata = step.get("metadata")
     if isinstance(metadata, str):
         try:
             metadata = json.loads(metadata)
-        except json.JSONDecodeError:
+        except ValueError:
             return {}
     return metadata if isinstance(metadata, dict) else {}
 
 
-def rebuild_state(steps: list[dict[str, Any]]) -> ConversationState:
-    """Rebuild the conversation state from a saved chat's steps, oldest first.
+def turn_metadata(result: TurnResult) -> dict:
+    return {"app": METADATA_VERSION, "state": result.state.model_dump(mode="json"),
+            "cards": [card_props(o)["products"] for o in result.outcomes if o.cards],
+            "outcomes": [{"reason": o.reason, "cards": [c.model_dump(mode="json") for c in o.cards]} for o in result.outcomes],
+            "trace_id": result.trace_id}
 
-    History comes from the user and assistant text. `searches` and `shown` come from the
-    assistant messages' metadata. A step that can't be read is skipped, so one bad row
-    can't stop a chat from resuming.
-    """
-    history: list[ChatTurn] = []
-    searches: list[SearchSpec] = []
-    shown: list[Product] = []
-    pending_user: str | None = None
 
-    for step in steps:
-        if step.get("type") == "user_message":
-            pending_user = step.get("output") or ""
-            continue
-        if step.get("type") != "assistant_message":
-            continue
+def rebuild_state(steps: list[dict]) -> ConversationState:
+    for step in reversed(steps):
         metadata = metadata_of(step)
-        if metadata.get("app") != METADATA_VERSION:
-            continue  # an error or notice, not a reply
-        try:
-            cards = [Product.model_validate(c) for group in metadata.get("cards", []) for c in group]
-            new_searches = (
-                [SearchSpec.model_validate(s) for s in metadata["searches"]]
-                if "searches" in metadata
-                else None
-            )
-        except (ValidationError, TypeError):
-            pending_user = None
-            continue
-        if new_searches is not None:
-            searches = new_searches
-        # Same rule as run_turn: a new or refined search replaces the shown cards, "show more" adds.
-        shown = _add_unique([] if metadata.get("replace_shown") else shown, cards)
-        if metadata.get("in_history") and pending_user is not None:
-            history += [
-                ChatTurn(role="user", text=pending_user),
-                ChatTurn(role="assistant", text=step.get("output") or ""),
-            ]
-        pending_user = None
-
-    return ConversationState(history=history, searches=searches, shown=shown)
+        if metadata.get("app") == METADATA_VERSION:
+            try:
+                return ConversationState.model_validate(metadata["state"])
+            except (KeyError, ValidationError, TypeError):
+                continue
+    return ConversationState()
 
 
-def card_elements(steps: list[dict[str, Any]], thread_id: str) -> list[dict[str, Any]]:
-    """Chainlit element dicts that redraw the saved cards under their messages.
-
-    Chainlit would store elements itself only with a file storage provider, which we don't
-    use. The cards are in the messages' metadata, so we rebuild the elements from there.
-    """
+def card_elements(steps: list[dict], thread_id: str) -> list[dict]:
     elements = []
     for step in steps:
+        if not step.get("id") or metadata_of(step).get("app") != METADATA_VERSION:
+            continue
         groups = metadata_of(step).get("cards")
-        if step.get("type") != "assistant_message" or not isinstance(groups, list):
+        if not isinstance(groups, list):
             continue
         for number, products in enumerate(groups):
-            elements.append(
-                {
-                    # Fixed, so the same chat always gets the same element IDs.
-                    "id": f"{step['id']}-cards-{number}",
-                    "threadId": thread_id,
-                    "type": "custom",
-                    "name": "ProductCards",
-                    "display": "inline",
-                    "forId": step["id"],
-                    "props": {"products": products},
-                    "mime": "application/json",
-                }
-            )
+            if not isinstance(products, list) or not products:
+                continue
+            try:
+                for product in products:
+                    Product.model_validate(product)
+            except ValidationError:
+                continue
+            elements.append({"id": f"{step['id']}-cards-{number}", "threadId": thread_id,
+                             "type": "custom", "name": "ProductCards", "display": "inline",
+                             "forId": step["id"], "props": {"products": products}, "mime": "application/json"})
     return elements

@@ -22,10 +22,13 @@ from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
 from chainlit.session import WebsocketSession
 from chainlit.types import ThreadDict
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from app.pipeline import card_elements, metadata_of
+from app.observability import span
 
 logger = logging.getLogger("app.storage")
 
@@ -143,7 +146,7 @@ def prepare_database(path: Path = DB_PATH) -> str | None:
     """Make sure a healthy database with all tables exists. Run once at startup.
 
     - Missing file: created.
-    - Damaged file: renamed to <name>.bak (an older .bak is replaced) and a fresh file
+    - Damaged file: backed up without replacing an earlier backup, and a fresh file
       is started. The returned text tells the user, because the old chats are gone from view.
     - Any other problem (file locked, folder not writable) is raised as is, because
       moving a healthy file away would be worse than stopping.
@@ -157,6 +160,9 @@ def prepare_database(path: Path = DB_PATH) -> str | None:
             raise  # locked, unreadable, no permission: not proof of damage
         except sqlite3.DatabaseError:
             backup = path.with_name(path.name + ".bak")
+            if backup.exists():
+                stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%f")
+                backup = path.with_name(path.name + f".{stamp}.bak")
             os.replace(path, backup)
             logger.warning("The chat database was damaged. Saved it as %s and started a new one.", backup.name)
             notice = (
@@ -205,8 +211,10 @@ def _open_chat() -> OpenChat | None:
         session = cl.context.session
     except ChainlitContextException:
         return None
+    if not isinstance(session, WebsocketSession):
+        return None
     user_id = getattr(session.user, "id", None)
-    if not isinstance(session, WebsocketSession) or user_id is None:
+    if user_id is None:
         return None
     return OpenChat(session.thread_id, user_id, session.user.identifier)
 
@@ -243,9 +251,14 @@ class ChatDataLayer(SQLAlchemyDataLayer):
         self._missing_file_notice_pending = False
 
     async def execute_sql(self, query: str, parameters: dict) -> Any:
-        """Run one statement. The base class returns None when it failed (and logged why)."""
+        """Trace persistence without exporting SQL parameters or credentials."""
+        with span("persistence", {"operation": query.lstrip().split(None, 1)[0] if query.strip() else "empty"}):
+            return await self._execute_sql(query, parameters)
+
+    async def _execute_sql(self, query: str, parameters: dict) -> Any:
+        """Run one statement, recover a missing schema once, and report failed writes."""
         await self._recover_deleted_file()
-        result = await super().execute_sql(query, parameters)
+        result = await self._execute_once(query, parameters)
         if result is None:
             # The file may have been deleted or replaced while the app runs: make the
             # tables again and try once more.
@@ -254,7 +267,7 @@ class ChatDataLayer(SQLAlchemyDataLayer):
             except (sqlite3.Error, OSError) as error:
                 logger.warning("Could not recreate the chat database: %s", type(error).__name__)
             else:
-                result = await super().execute_sql(query, parameters)
+                result = await self._execute_once(query, parameters)
 
         if _is_write(query):
             if result is None:
@@ -262,6 +275,19 @@ class ChatDataLayer(SQLAlchemyDataLayer):
             else:
                 self._failure_reported = False  # saving works again
         return result
+
+    async def _execute_once(self, query: str, parameters: dict) -> Any:
+        """Avoid the base class's exception logging, which includes SQL parameters."""
+        try:
+            async with self.async_session() as session:
+                async with session.begin():
+                    result = await session.execute(text(query), parameters)
+                    if result.returns_rows:
+                        return self.clean_result([dict(row._mapping) for row in result.fetchall()])
+                    return result.rowcount
+        except (SQLAlchemyError, OSError) as error:
+            logger.warning("Chat database statement failed: %s", type(error).__name__)
+            return None
 
     async def _recover_deleted_file(self) -> None:
         """If the file is gone, make it again, then tell the user once a chat is open.
@@ -273,12 +299,14 @@ class ChatDataLayer(SQLAlchemyDataLayer):
         if not self.db_path.exists():
             logger.warning("The chat database file disappeared. Starting a new one.")
             self._missing_file_notice_pending = True
+        if self._missing_file_notice_pending:
             try:
                 ensure_schema(self.db_path)
                 if chat is not None:
                     restore_owner(self.db_path, chat)
             except (sqlite3.Error, OSError) as error:
                 logger.warning("Could not recreate the chat database: %s", type(error).__name__)
+                return
         if self._missing_file_notice_pending and chat is not None:
             self._missing_file_notice_pending = False
             await self._show_notice(FILE_MISSING_TEXT)

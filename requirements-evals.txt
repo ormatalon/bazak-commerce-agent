@@ -1,9 +1,0 @@
-# Only for evals/ragas_eval.py, in its own virtualenv (.venv-evals), never the app's.
-# Ragas needs `instructor`, which caps jiter below 0.15, while the app's openai==3.45.0
-# needs jiter 0.16 or newer, so the two can't share one environment.
-ragas==0.4.3
-# Ragas 0.4.3 imports a module that langchain-community 0.4.2 removed.
-langchain-community==0.4.1
-# The same versions as requirements.txt, because the script imports app/responder.py.
-pydantic==2.14.2
-python-dotenv==1.2.4

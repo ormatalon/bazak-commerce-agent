@@ -10,9 +10,23 @@
 .message-content h1,
 .message-content h2,
 .message-content h3,
-.message-content h4 {
+.message-content h4,
+.message-content h5,
+.message-content h6,
+.message-content th,
+.message-content td,
+#chat-input,
+#edit-chat-input {
   unicode-bidi: plaintext;
   text-align: start;
+}
+
+/* Inline code and fenced code keep their own reading order within Hebrew text. */
+.message-content code,
+.message-content pre {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: left;
 }
 
 /* Phones: bigger tap targets for the buttons under a message ("Show more").

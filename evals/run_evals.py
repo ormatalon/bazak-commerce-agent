@@ -1,645 +1,146 @@
-"""Run both eval sets and print a summary. One command: python evals/run_evals.py
-
-Deterministic set: parse_request, then search(), with no fallback and no display cap.
-Scored against evals/ground_truth.py.
-Behavioral set: replay every turn through run_turn and score the last one.
-datasets/deterministic.csv and datasets/behavioral.jsonl hold the English cases, and
-datasets/hebrew.jsonl holds Hebrew cases of both kinds. They are scored the same way, and
-the tables report English and Hebrew apart, each split into basic and hard.
-
-This makes real model calls (about 170), so only the Lead runs it (the key lives in the
-main folder's .env). The app modules are imported inside main(), so importing this file
-needs no key and no network.
-
-To protect the paid run, each raw result is appended to evals/runs/run_<time>.jsonl
-straight after its call. The report is built from that file, so a scoring bug can be
-fixed and the run re-scored for free:
-
-    python evals/run_evals.py --rescore evals/runs/run_<time>.jsonl
-"""
+"""Reproducible full-conversation replay. Outputs local evidence before upload."""
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import asdict
+from datetime import datetime, timezone
 import json
-import logging
-import sys
-from collections.abc import Callable
-from dataclasses import dataclass
-from datetime import datetime
+import hashlib
 from pathlib import Path
-from typing import Any
+import subprocess
+from time import perf_counter
 
-# `python evals/run_evals.py` puts only evals/ on the import path, so add the repo root.
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT))
+from dotenv import load_dotenv
 
-from app.catalog import category_tags  # noqa: E402
-from app.schemas import (  # noqa: E402
-    LLM,
-    ConversationState,
-    ParsedRequest,
-    Product,
-    SearchSpec,
-    TurnResult,
-)
-from evals.ground_truth import (  # noqa: E402
-    HEBREW_JSONL,
-    expected_ids,
-    is_hebrew_id,
-    load_all_rows,
-    row_to_spec,
-)
-from evals.scoring import (  # noqa: E402
-    CaseScores,
-    RetrievalScores,
-    filter_matches,
-    score_case,
-    score_retrieval,
-)
-
-BEHAVIORAL_JSONL = REPO_ROOT / "datasets" / "behavioral.jsonl"
-ADVERSARIAL_JSONL = REPO_ROOT / "datasets" / "adversarial.jsonl"
-# The three kinds of line in adversarial.jsonl, each reported in its own row.
-ADVERSARIAL_TYPES = ("attack", "should_answer", "edge")
-RUNS_DIR = Path(__file__).resolve().parent / "runs"
-RESULTS_MD = Path(__file__).resolve().parent / "results.md"
-
-# The last argument is the category tags, the same as the app sends.
-ParseFn = Callable[
-    [str, list[Any], list[SearchSpec], list[Product], list[str], LLM, dict[str, list[str]]], ParsedRequest
-]
-SearchFn = Callable[[SearchSpec, list[Product]], list[Product]]
-RunTurnFn = Callable[[str, ConversationState, list[Product], list[str], LLM], TurnResult]
-RecordFn = Callable[[dict[str, Any]], None]
+from app.catalog import load_catalog_data
+from app.config import ROOT, RetrievalConfig, catalog_hash
+from app.currency import RateSource, get_rate_provider
+from app.embeddings import LocalEmbedder
+from app.index import ProductIndex
+from app.llm import openai_llm
+from app.observability import flush
+from app.pipeline import run_turn
+from app.schemas import ConversationState
+from app.parser import SYSTEM as PARSER_PROMPT
+from app.product_type import SYSTEM as TYPE_PROMPT, BATCH_SIZE
+from app.responder import SYSTEM as RESPONSE_PROMPT
+from evals.datasets import FrozenRateProvider, load_cases, load_overlay
+from evals.scoring import aggregate, failure_metrics, score_record
 
 
-# ---------------------------------------------------------------------------
-# Counting the parser's safe-default fallbacks
-# ---------------------------------------------------------------------------
+def run_case(case, catalog, categories, index, llm=openai_llm, overlay=None, rate_provider: RateSource | None = None) -> dict:
+    started=perf_counter()
+    rate_provider = rate_provider or FrozenRateProvider()
+    state=ConversationState()
+    turns=[]
+    try:
+        for number,message in enumerate(case['turns']):
+            result=run_turn(message,state,catalog,categories,llm,index,case['key'],traffic='evaluation',rate_provider=rate_provider)
+            state=result.state
+            turn={'turn':number,'result':result.model_dump(mode='json')}
+            turns.append(turn)
+        error_name = None
+    except Exception as error:
+        # Keep failures in denominator. Never persist provider exception text/secrets.
+        error_name = type(error).__name__
+    row = {'key':case['key'],'source':case['source'],'difficulty':case.get('difficulty'),
+           'case':case,'v2_expectation':overlay,'turns':turns,'error':error_name,
+           'error_stage':'pipeline' if error_name else None, 'duration_ms':(perf_counter()-started)*1000}
+    try:
+        return score_record(row, catalog)
+    except Exception as error:
+        # Preserve all predictions even when a scorer itself fails, so a free
+        # re-score can recover them. Do not abort the other dataset cases.
+        row.update(error=type(error).__name__, error_stage='scoring', metrics=failure_metrics(case))
+        return row
 
 
-class ParseFailureCounter(logging.Handler):
-    """Counts the warnings app.parser logs when it gives up and returns the safe default.
-
-    Why: a row that expects needs_clarification would score correct on garbage output.
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.count = 0
-
-    def emit(self, record: logging.LogRecord) -> None:
-        if record.levelno == logging.WARNING:
-            self.count += 1
-
-
-PARSE_FAILURES = ParseFailureCounter()
-
-
-def start_counting_parse_failures() -> None:
-    logger = logging.getLogger("app.parser")
-    if PARSE_FAILURES not in logger.handlers:
-        logger.addHandler(PARSE_FAILURES)
-
-
-# ---------------------------------------------------------------------------
-# Running: each function returns raw dicts, which are also written to the JSONL file
-# ---------------------------------------------------------------------------
-
-
-def run_deterministic(
-    rows: list[dict[str, str]],
-    catalog: list[Product],
-    categories: list[str],
-    llm: LLM,
-    parse_fn: ParseFn,
-    search_fn: SearchFn,
-    on_record: RecordFn | None = None,
-) -> list[dict[str, Any]]:
-    raws = []
-    tags = category_tags(catalog)  # the same prompt the app sends
+def report(rows, metadata) -> str:
+    errors=sum(bool(r['error']) for r in rows)
+    summary=aggregate(rows)
+    lines=['# V2 dataset evaluation', '', f"Cases: {len(rows)}; execution errors: {errors}.",
+           '', 'Semantic labels are drafts unless explicitly marked reviewed. Automatic checks do not establish full grounding or task success.',
+           '', '## Run configuration', '', '```json',json.dumps(metadata,indent=2,ensure_ascii=False),'```', '', '## Automatic metrics', '']
+    for key,score in summary.items():
+        lines.append(f"- {key}: {score['mean']:.3f} ({score['numerator']:g}/{score['denominator']})")
+    for field in ('source','difficulty'):
+        lines.extend(['',f'## By {field}',''])
+        for value in sorted({str(r.get(field)) for r in rows}):
+            subset=[r for r in rows if str(r.get(field))==value]
+            lines.append(f"### {value} ({len(subset)} cases)")
+            lines.append('')
+            for metric,score in aggregate(subset).items():
+                lines.append(f"- {metric}: {score['mean']:.3f} (n={score['denominator']})")
+    lines.extend(['','## Case evidence',''])
     for row in rows:
-        failures_before = PARSE_FAILURES.count
-        raw: dict[str, Any] = {"kind": "deterministic", "row_id": row["id"], "parsed": None,
-                               "returned_ids": [], "error": None}  # fmt: skip
-        try:
-            parsed = parse_fn(row["query"], [], [], [], categories, llm, tags)
-            raw["parsed"] = parsed.model_dump(mode="json")
-            # Score every search together: the union of their products, no repeats.
-            returned_ids: list[int] = []
-            for spec in parsed.searches:
-                products = search_fn(spec, catalog)
-                # search() returns every match with no display cap, so cut to top_k here.
-                if spec.top_k is not None:
-                    products = products[: spec.top_k]
-                returned_ids += [p.id for p in products if p.id not in returned_ids]
-            raw["returned_ids"] = returned_ids
-        except Exception as error:  # noqa: BLE001 - one bad call must not lose the whole run
-            raw["error"] = repr(error)
-        raw["parse_failures"] = PARSE_FAILURES.count - failures_before
-        raws.append(raw)
-        if on_record:
-            on_record(raw)
-    return raws
-
-
-def run_behavioral(
-    cases: list[dict[str, Any]],
-    catalog: list[Product],
-    categories: list[str],
-    llm: LLM,
-    run_turn_fn: RunTurnFn,
-    on_record: RecordFn | None = None,
-) -> list[dict[str, Any]]:
-    raws = []
-    for case in cases:
-        failures_before = PARSE_FAILURES.count
-        raw: dict[str, Any] = {"kind": "behavioral", "case_id": case["id"], "results": [], "error": None}
-        try:
-            state = ConversationState()
-            for turn in case["turns"]:
-                result = run_turn_fn(turn, state, catalog, categories, llm)
-                state = result.state  # carry the conversation into the next turn
-                raw["results"].append(result.model_dump(mode="json"))
-        except Exception as error:  # noqa: BLE001 - one bad call must not lose the whole run
-            raw["error"] = repr(error)
-        raw["parse_failures"] = PARSE_FAILURES.count - failures_before
-        raws.append(raw)
-        if on_record:
-            on_record(raw)
-    return raws
-
-
-class RunWriter:
-    """Appends each raw result to the JSONL file, then prints one progress line."""
-
-    def __init__(self, path: Path, total: int) -> None:
-        self.path = path
-        self.total = total
-        self.done = 0
-
-    def __call__(self, raw: dict[str, Any]) -> None:
-        with self.path.open("a", encoding="utf-8") as file:
-            file.write(json.dumps(raw, ensure_ascii=False) + "\n")
-        self.done += 1
-        name = f"row {raw['row_id']}" if raw["kind"] == "deterministic" else f"case {raw['case_id']}"
-        status = f"ERROR {raw['error']}" if raw["error"] else "ok"
-        print(f"[{self.done}/{self.total}] {raw['kind']} {name}: {status}", flush=True)
-
-
-def load_run(path: Path) -> list[dict[str, Any]]:
-    with path.open(encoding="utf-8") as file:
-        return [json.loads(line) for line in file if line.strip()]
-
-
-def load_cases(path: Path = BEHAVIORAL_JSONL) -> list[dict[str, Any]]:
-    with path.open(encoding="utf-8") as file:
-        return [json.loads(line) for line in file if line.strip()]
-
-
-def load_hebrew_cases(path: Path = HEBREW_JSONL) -> list[dict[str, Any]]:
-    """The behavioral lines of hebrew.jsonl, with IDs like "h6"."""
-    lines = load_cases(path)
-    return [{**line, "id": f"h{line['id']}"} for line in lines if line["type"] == "behavioral"]
-
-
-def load_adversarial_cases(path: Path = ADVERSARIAL_JSONL) -> list[dict[str, Any]]:
-    """The lines of adversarial.jsonl, with IDs like "a3" so they can't clash with the others."""
-    return [{**line, "id": f"a{line['id']}"} for line in load_cases(path)]
-
-
-def is_adversarial_id(case_id: object) -> bool:
-    return str(case_id).startswith("a")
-
-
-def load_all_cases() -> list[dict[str, Any]]:
-    """Every behavioral case of every dataset."""
-    return load_cases() + load_hebrew_cases() + load_adversarial_cases()
-
-
-# ---------------------------------------------------------------------------
-# Scoring the raw results
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class DeterministicRecord:
-    row: dict[str, str]
-    expected: list[int]
-    returned: list[int]
-    searches: list[SearchSpec]
-    scores: RetrievalScores
-    filter_ok: bool
-    parse_failures: int
-    error: str | None = None
-
-
-def score_deterministic(raw: dict[str, Any], row: dict[str, str], catalog: list[Product]) -> DeterministicRecord:
-    expected_spec = row_to_spec(row)
-    expected = expected_ids(expected_spec, catalog)
-    failures = raw.get("parse_failures", 0)
-    if raw["error"]:
-        # A failed call earns no credit, even on a row where nothing is expected.
-        top_k_ok = False if expected_spec.top_k is not None else None
-        return DeterministicRecord(row, expected, [], [], RetrievalScores(0.0, 0.0, 0.0, top_k_ok),
-                                   False, failures, raw["error"])  # fmt: skip
-    searches = ParsedRequest.model_validate(raw["parsed"]).searches
-    returned = raw["returned_ids"]
-    scores = score_retrieval(expected_spec, catalog, searches, returned)
-    # One query should give exactly one search with exactly the CSV's filter.
-    filter_ok = len(searches) == 1 and filter_matches(expected_spec, searches[0])
-    return DeterministicRecord(row, expected, returned, searches, scores, filter_ok, failures)
-
-
-@dataclass
-class BehavioralRecord:
-    case: dict[str, Any]
-    result: TurnResult | None
-    scores: CaseScores | None
-    parse_failures: int
-    error: str | None = None
-
-
-def score_behavioral(raw: dict[str, Any], case: dict[str, Any], catalog: list[Product]) -> BehavioralRecord:
-    failures = raw.get("parse_failures", 0)
-    if raw["error"] or len(raw["results"]) != len(case["turns"]):
-        return BehavioralRecord(case, None, None, failures, raw["error"] or "not all turns ran")
-    results = [TurnResult.model_validate(r) for r in raw["results"]]
-    last = results[-1]
-    # A reply may talk about a product shown in any turn of the conversation.
-    shown_anywhere = [p for r in results for o in r.outcomes for p in o.shown]
-    titles = [product.title for product in catalog]
-    scores = score_case(last, case, case["turns"], titles, shown_anywhere)
-    return BehavioralRecord(case, last, scores, failures)
-
-
-def score_run(
-    raws: list[dict[str, Any]], catalog: list[Product]
-) -> tuple[list[DeterministicRecord], list[BehavioralRecord]]:
-    rows = {row["id"]: row for row in load_all_rows()}
-    cases = {case["id"]: case for case in load_all_cases()}
-    det, beh = [], []
-    for raw in raws:
-        if raw["kind"] == "deterministic":
-            det.append(score_deterministic(raw, rows[raw["row_id"]], catalog))
-        elif raw["kind"] == "behavioral":
-            beh.append(score_behavioral(raw, cases[raw["case_id"]], catalog))
-    return det, beh
-
-
-# ---------------------------------------------------------------------------
-# Report
-# ---------------------------------------------------------------------------
-
-
-def percent(hits: int, total: int) -> str:
-    return f"{hits}/{total} ({100 * hits / total:.0f}%)" if total else "n/a"
-
-
-def mean(values: list[float]) -> str:
-    return f"{sum(values) / len(values):.2f}" if values else "n/a"
-
-
-def table(header: list[str], rows: list[list[str]]) -> list[str]:
-    """A markdown table, which reads fine in the console too."""
-    lines = ["| " + " | ".join(header) + " |", "|" + "|".join(" --- " for _ in header) + "|"]
-    lines += ["| " + " | ".join(row) + " |" for row in rows]
-    return lines
-
-
-def dataset_groups(records: list[Any], case_of: Callable[[Any], dict[str, Any]]) -> list[tuple[str, list[Any]]]:
-    """English basic and hard, Hebrew basic and hard, then everything together.
-
-    Adversarial cases are written in English but never join the English rows, so those
-    rows stay comparable with runs from before adversarial.jsonl existed.
-    """
-    groups = []
-    for language, wanted in (("english", False), ("hebrew", True)):
-        for difficulty in ("basic", "hard"):
-            group = [
-                r for r in records
-                if is_hebrew_id(case_of(r)["id"]) == wanted
-                and not is_adversarial_id(case_of(r)["id"])
-                and case_of(r)["difficulty"] == difficulty
-            ]  # fmt: skip
-            groups.append((f"{language} {difficulty}", group))
-    return groups + [("all", records)]
-
-
-def adversarial_groups(records: list[Any], case_of: Callable[[Any], dict[str, Any]]) -> list[tuple[str, list[Any]]]:
-    """One row per kind of adversarial case. Empty when the run has none."""
-    groups = []
-    for kind in ADVERSARIAL_TYPES:
-        group = [r for r in records if is_adversarial_id(case_of(r)["id"]) and case_of(r)["type"] == kind]
-        if group:
-            groups.append((f"adversarial {kind}", group))
-    return groups
-
-
-DETERMINISTIC_HEADER = ["set", "n", "precision", "recall", "F1", "top_k correct", "filter match",
-                        "errors", "parse fails"]  # fmt: skip
-
-
-def deterministic_table_rows(records: list[DeterministicRecord]) -> list[list[str]]:
-    """One row of cells per group. Tests read these cells."""
-    groups = dataset_groups(records, lambda r: r.row)
-    table_rows = []
-    for name, group in groups:
-        top_k_rows = [r for r in group if r.scores.top_k_ok is not None]
-        table_rows.append(
-            [
-                name,
-                str(len(group)),
-                mean([r.scores.precision for r in group]),
-                mean([r.scores.recall for r in group]),
-                mean([r.scores.f1 for r in group]),
-                percent(sum(1 for r in top_k_rows if r.scores.top_k_ok), len(top_k_rows)),
-                percent(sum(1 for r in group if r.filter_ok), len(group)),
-                str(sum(1 for r in group if r.error)),
-                str(sum(1 for r in group if r.parse_failures)),
-            ]
-        )
-    return table_rows
-
-
-def filter_text(spec: SearchSpec | None) -> str:
-    if spec is None:
-        return "(no search)"
-    names = ["category", "price_min", "price_max", "rating_min", "sort_by", "order", "top_k"]
-    return ", ".join(f"{name}={getattr(spec, name)}" for name in names)
-
-
-def deterministic_report(records: list[DeterministicRecord]) -> list[str]:
-    lines = [f"## Deterministic set ({len(records)} queries)", ""]
-    lines += table(DETERMINISTIC_HEADER, deterministic_table_rows(records))
-    lines += ["", "### Failures (any metric below perfect)", ""]
-    failures = [
-        r for r in records
-        if r.scores.f1 < 1 or r.scores.top_k_ok is False or not r.filter_ok or r.error
-    ]  # fmt: skip
-    if not failures:
-        lines.append("None.")
-    for r in failures:
-        row = r.row
-        lines.append(f"- row {row['id']} [{row['difficulty']}] {row['query']}")
-        if r.error:
-            lines.append(f"    ERROR: {r.error}")
-            continue
-        missing = sorted(set(r.expected) - set(r.returned))
-        extra = sorted(set(r.returned) - set(r.expected))
-        lines.append(
-            f"    P={r.scores.precision:.2f} R={r.scores.recall:.2f} F1={r.scores.f1:.2f}  "
-            f"expected {len(r.expected)} IDs, returned {len(r.returned)}; missing {missing}, extra {extra}"
-        )
-        if not r.filter_ok:
-            lines.append(f"    expected filter: {filter_text(row_to_spec(row))}")
-            extracted = " | ".join(filter_text(s) for s in r.searches) or "(no search)"
-            lines.append(f"    extracted filter ({len(r.searches)} searches): {extracted}")
-        if r.scores.top_k_ok is False:
-            lines.append(f"    top_k answer is wrong: expected {r.expected}, got {r.returned}")
-    parse_failed = [r.row["id"] for r in records if r.parse_failures]
-    lines += ["", f"Parser returned the safe default on rows: {parse_failed or 'none'}"]
-    return lines
-
-
-BEHAVIORAL_HEADER = ["set", "n", "intent", "mode (rows with a mode)", "category", "fallback fired",
-                     "no false fallback", "exact cards", "card rules", "language", "grounded",
-                     "no leak", "refused", "parse fails"]  # fmt: skip
-
-
-def behavioral_table_rows(records: list[BehavioralRecord]) -> list[list[str]]:
-    """One row of cells per group. A crashed case counts as wrong on every metric. Tests read these cells."""
-    groups = dataset_groups(records, lambda r: r.case)
-    groups[-1:-1] = adversarial_groups(records, lambda r: r.case)  # before "all"
-    groups.append(("multi-turn", [r for r in records if len(r.case["turns"]) > 1]))
-    table_rows = []
-    for name, group in groups:
-        intent = sum(1 for r in group if r.scores and r.scores.intent_ok)
-
-        mode_cases = [r for r in group if r.case["expected_mode"]]
-        mode = sum(1 for r in mode_cases if r.scores and r.scores.mode_ok)
-
-        category_cases = [r for r in group if r.case["expected_categories"]]
-        category = sum(1 for r in category_cases if r.scores and r.scores.category_ok)
-
-        # Fallback is two questions. Did it fire when it should? Did it stay quiet when it should?
-        fired_cases = [r for r in group if r.case["expect_fallback"]]
-        fired = sum(1 for r in fired_cases if r.scores and r.scores.fallback_ok)
-        quiet_cases = [
-            r for r in group
-            if r.case["expected_intent"] == "product_search" and not r.case["expect_fallback"]
-        ]  # fmt: skip
-        quiet = sum(1 for r in quiet_cases if r.scores and r.scores.fallback_ok)
-
-        card_cases = [r for r in group if r.case.get("expected_card_ids")]
-        cards = sum(1 for r in card_cases if r.scores and r.scores.cards_ok)
-
-        language_cases = [r for r in group if r.case.get("expected_language")]
-        language = sum(1 for r in language_cases if r.scores and r.scores.language_ok)
-
-        rule_cases = [
-            r for r in group
-            if r.case.get("required_card_ids") or r.case.get("forbidden_card_ids") or r.case.get("min_cards")
-        ]  # fmt: skip
-        rules = sum(1 for r in rule_cases if r.scores and r.scores.card_rules_ok)
-
-        # Against the whole group, so crashes cannot shrink the denominator.
-        grounded = sum(1 for r in group if r.scores and r.scores.grounding.ok)
-        no_leak = sum(1 for r in group if r.scores and not r.scores.leaks)
-        not_run = sum(1 for r in group if r.scores is None)
-
-        # The refusal rate: of the requests the store can answer, how many got no answer.
-        # A crashed case counts as refused, like every other metric counts it as wrong.
-        answerable = [r for r in group if r.case["expected_intent"] == "product_search"]
-        refused = sum(1 for r in answerable if r.scores is None or r.scores.refused)
-
-        table_rows.append(
-            [
-                name,
-                str(len(group)),
-                percent(intent, len(group)),
-                percent(mode, len(mode_cases)),
-                percent(category, len(category_cases)),
-                f"fired correctly {fired}/{len(fired_cases)}",
-                f"no false fire {quiet}/{len(quiet_cases)}",
-                f"{cards}/{len(card_cases)}",
-                f"{rules}/{len(rule_cases)}",
-                f"{language}/{len(language_cases)}",
-                f"grounded {grounded} of {len(group)}, {not_run} not run",
-                f"{no_leak}/{len(group)}",
-                f"refused {refused} of {len(answerable)}",
-                str(sum(1 for r in group if r.parse_failures)),
-            ]
-        )
-    return table_rows
-
-
-def behavioral_report(records: list[BehavioralRecord]) -> list[str]:
-    lines = [f"## Behavioral set ({len(records)} conversations)", ""]
-    lines += table(BEHAVIORAL_HEADER, behavioral_table_rows(records))
-
-    lines += ["", "### Failures", ""]
-    any_failure = False
-    for r in records:
-        problems = behavioral_problems(r)
-        if problems:
-            any_failure = True
-            lines.append(f"- case {r.case['id']} [{r.case['difficulty']}] {r.case['case']}: {'; '.join(problems)}")
-    if not any_failure:
-        lines.append("None.")
-    parse_failed = [r.case["id"] for r in records if r.parse_failures]
-    lines += ["", f"Parser returned the safe default on cases: {parse_failed or 'none'}"]
-
-    lines += ["", "### Replies, to read beside expected_behavior", ""]
-    for r in records:
-        lines += reply_block(r)
-    return lines
-
-
-def behavioral_problems(record: BehavioralRecord) -> list[str]:
-    if record.error:
-        return [f"ERROR {record.error}"]
-    scores, result, case = record.scores, record.result, record.case
-    assert scores is not None and result is not None
-    problems = []
-    if not scores.intent_ok:
-        problems.append(f"intent {result.parsed.intent!r}, expected {case['expected_intent']!r}")
-    if not scores.mode_ok:
-        problems.append(f"mode {result.parsed.mode!r}, expected {case['expected_mode']!r}")
-    if scores.category_ok is False:
-        shown = sorted({p.category for o in result.outcomes for p in o.shown})
-        problems.append(
-            f"category shown {shown}, expected {case['category_match']} of {case['expected_categories']}"
-        )
-    if not scores.fallback_ok:
-        loosened = sorted({name for o in result.outcomes for name in o.loosened})
-        problems.append(f"fallback loosened {loosened}, expected {case['expect_fallback']!r}")
-    if scores.cards_ok is False:
-        shown_ids = sorted(p.id for o in result.outcomes for p in o.shown)
-        problems.append(f"cards shown {shown_ids}, expected exactly {sorted(case['expected_card_ids'])}")
-    if scores.language_ok is False:
-        problems.append(f"reply language is not {case['expected_language']!r}")
-    if scores.card_rules_ok is False:
-        shown_ids = sorted(p.id for o in result.outcomes for p in o.shown)
-        rules = {k: case[k] for k in ("required_card_ids", "forbidden_card_ids", "min_cards") if case.get(k)}
-        problems.append(f"cards shown {shown_ids} break the card rules {rules}")
-    if scores.leaks:
-        problems.append(f"LEAK: the reply contains {scores.leaks}")
-    if scores.refused:
-        problems.append("REFUSED an answerable request: no search or no cards")
-    if not scores.grounding.ok:
-        problems.append(
-            f"NOT GROUNDED: unshown titles {scores.grounding.bad_titles}, "
-            f"ungrounded amounts {scores.grounding.bad_amounts}"
-        )
-    return problems
-
-
-def reply_block(record: BehavioralRecord) -> list[str]:
-    case = record.case
-    lines = [f"#### case {case['id']} [{case['difficulty']}] {case['case']}"]
-    for number, turn in enumerate(case["turns"], start=1):
-        lines.append(f"- user turn {number}: {turn}")
-    lines.append(f"- expected_behavior: {case['expected_behavior']}")
-    if record.error or record.result is None or record.scores is None:
-        lines += [f"- ERROR: {record.error}", ""]
-        return lines
-    result = record.result
-    shown = [f"{p.title} (${p.price})" for o in result.outcomes for p in o.shown]
-    lines.append(f"- cards shown: {shown if shown else 'none'}")
-    lines.append(f"- reply: {result.reply}")
-    # Counts, ratings and one-word product names are not scored, so Or reads them here.
-    grounding = record.scores.grounding
-    lines.append(f"- other numbers in the reply (not scored): {grounding.other_numbers}")
-    lines.append(f"- one-word product names in the reply, unshown (not scored): {grounding.unscored_title_hits}")
-    lines.append("")
-    return lines
-
-
-def build_report(det_records: list[DeterministicRecord], beh_records: list[BehavioralRecord]) -> str:
-    lines = ["# Eval results", ""]
-    lines += deterministic_report(det_records)
-    lines += [""]
-    lines += behavioral_report(beh_records)
-    return "\n".join(lines) + "\n"
-
-
-def run_has_problems(det_records: list[Any], beh_records: list[Any]) -> bool:
-    """True when results.md must be left alone: a call failed, or the run stopped early.
-
-    A run killed halfway leaves a shorter file with no errors in it, and its scores would
-    look like real ones.
-    """
-    if any(r.error for r in det_records) or any(r.error for r in beh_records):
-        return True
-    return len(det_records) != len(load_all_rows()) or len(beh_records) != len(load_all_cases())
-
-
-def save_report(
-    report: str, run_path: Path, has_errors: bool, results_path: Path = RESULTS_MD
-) -> Path:
-    """Write results.md, unless the run had errors: then save next to the run file instead."""
-    path = run_path.with_suffix(".md") if has_errors else results_path
-    with path.open("w", encoding="utf-8") as file:
-        file.write(report)
-    return path
-
-
-def main() -> None:
-    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
-
-    cli = argparse.ArgumentParser(description="Run the evals, or re-score a saved run for free.")
-    cli.add_argument("--rescore", type=Path, help="an evals/runs/*.jsonl file; makes no model calls")
-    cli.add_argument(
-        "--only",
-        choices=["deterministic", "behavioral", "adversarial"],
-        help="run one dataset to save calls; behavioral includes the Hebrew conversations. "
-        "A partial run never replaces results.md",
-    )
-    args = cli.parse_args()
-
-    from app.catalog import load_catalog, load_categories
-
-    catalog = load_catalog()
-
-    if args.rescore:
-        run_path = args.rescore
-    else:
-        # Imported here so that importing this file needs no key and no network.
-        from app.llm import openai_llm
-        from app.parser import parse_request
-        from app.pipeline import run_turn
-        from app.search import search
-
-        categories = load_categories()
-        rows, cases = load_all_rows(), load_all_cases()
-        if args.only == "deterministic":
-            cases = []
-        elif args.only == "behavioral":
-            rows, cases = [], [c for c in cases if not is_adversarial_id(c["id"])]
-        elif args.only == "adversarial":
-            rows, cases = [], [c for c in cases if is_adversarial_id(c["id"])]
-        RUNS_DIR.mkdir(exist_ok=True)
-        run_path = RUNS_DIR / f"run_{datetime.now():%Y%m%d_%H%M%S}.jsonl"
-        writer = RunWriter(run_path, total=len(rows) + len(cases))
-        start_counting_parse_failures()
-        run_deterministic(rows, catalog, categories, openai_llm, parse_request, search, writer)
-        run_behavioral(cases, catalog, categories, openai_llm, run_turn, writer)
-
-    # The report comes from the saved file, the same path --rescore takes.
-    det_records, beh_records = score_run(load_run(run_path), catalog)
-    report = build_report(det_records, beh_records)
-    has_errors = run_has_problems(det_records, beh_records)
-    saved_to = save_report(report, run_path, has_errors)  # written before printing
-    print(report)
-    print(f"Raw results: {run_path}")
-    if has_errors:
-        print(
-            "The run had errors, stopped early or covered only some datasets, so evals/results.md "
-            f"was left alone. Report saved to {saved_to}"
-        )
-    else:
-        print(f"Saved to {saved_to}")
-
-
-if __name__ == "__main__":
+        lines.extend([f"### {row['key']}",'', 'Turns: '+json.dumps(row['case']['turns'],ensure_ascii=False),
+                      '', 'Legacy expectation: '+str(row['case'].get('expected_behavior','CSV filters')), ''])
+        if row['error']:
+            lines.append('ERROR: '+row['error']+' (stage: '+str(row.get('error_stage','unspecified'))+')')
+        for turn in row['turns']:
+            result=turn['result']
+            lines.extend([f"Turn {turn['turn']+1}: {result['reply']}",'',f"Trace ID: {result['trace_id']}",''])
+        failures=[k for k,v in row['metrics'].items() if isinstance(v,(int,float)) and v<1]
+        lines.append('Non-perfect automatic checks: '+', '.join(failures))
+        lines.append('')
+    return '\n'.join(lines)+'\n'
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--live',action='store_true',help='Required: explicitly enable paid gpt-6-luna calls.')
+    parser.add_argument('--source',choices=['all','deterministic','behavioral','adversarial','hebrew'],default='all')
+    parser.add_argument('--limit',type=int)
+    parser.add_argument('--workers',type=int,default=4)
+    parser.add_argument('--config',type=Path,help='JSON RetrievalConfig overrides, e.g. calibrated thresholds.')
+    parser.add_argument('--output',type=Path)
+    parser.add_argument('--live-rates',action='store_true',help='Use current API rates instead of the frozen evaluation fixture.')
+    args=parser.parse_args()
+    if args.workers < 1 or (args.limit is not None and args.limit < 1):
+        parser.error('workers and limit must be positive integers')
+    if not args.live:
+        parser.error('Use --live to enable provider calls; unit checks use pytest.')
+    load_dotenv(ROOT/'.env')
+    cases=[c for c in load_cases() if args.source=='all' or c['source']==args.source]
+    overlays=load_overlay()
+    if args.limit: cases=cases[:args.limit]
+    rate_provider = get_rate_provider() if args.live_rates else FrozenRateProvider()
+    config=RetrievalConfig(**json.loads(args.config.read_text(encoding='utf-8'))) if args.config else RetrievalConfig()
+    catalog, categories = load_catalog_data()
+    index=ProductIndex(catalog,LocalEmbedder(config),config)
+    timestamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    output=args.output or ROOT/'evals'/'artifacts'/timestamp
+    output.mkdir(parents=True,exist_ok=False)
+    metadata={'timestamp_utc':timestamp,'git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+              'catalog_hash':catalog_hash(catalog),'config':asdict(config),
+              'source_hashes':{c['source']:c['source_hash'] for c in cases},
+              'labels_status':'draft; semantic release gates not certified',
+              'overlay_cases':len(overlays),'reviewed_overlay_cases':sum(o.get('review_status')=='reviewed' for o in overlays.values()),
+              'case_count':len(cases),'case_keys':[case['key'] for case in cases],
+              'model':'gpt-6-luna','workers':args.workers,'sdk_retries':1}
+    metadata['exchange_rate_mode'] = 'live cached, conversation-pinned' if args.live_rates else 'frozen fixture'
+    if not args.live_rates:
+        metadata['exchange_rate_fixture_sha256'] = hashlib.sha256((ROOT/'datasets/v2/exchange_rates.json').read_bytes()).hexdigest()
+    metadata['prompt_hashes']={name:hashlib.sha256(text.encode()).hexdigest() for name,text in
+                               [('parser',PARSER_PROMPT),('product_type',TYPE_PROMPT),('responder',RESPONSE_PROMPT)]}
+    metadata['product_type_batch_size']=BATCH_SIZE
+    (output/'metadata.json').write_text(json.dumps(metadata,indent=2),encoding='utf-8')
+    (output/'catalog.json').write_text(json.dumps({'products':[p.model_dump(mode='json') for p in catalog],
+                                                  'categories':categories},ensure_ascii=False,indent=2),encoding='utf-8')
+    rows=[]
+    with (output/'cases.jsonl').open('w',encoding='utf-8') as handle, ThreadPoolExecutor(max_workers=args.workers) as pool:
+        futures={pool.submit(run_case,c,catalog,categories,index,overlay=overlays.get(c['key']),rate_provider=rate_provider):c['key'] for c in cases}
+        for future in as_completed(futures):
+            row=future.result()
+            rows.append(row)
+            handle.write(json.dumps(row,ensure_ascii=False)+'\n'); handle.flush()
+            print(f"{len(rows)}/{len(cases)} {row['key']} {'ERROR '+row['error'] if row['error'] else 'done'}",flush=True)
+    rows.sort(key=lambda row:row['key'])
+    (output/'report.md').write_text(report(rows,metadata),encoding='utf-8')
+    (output/'summary.json').write_text(json.dumps(aggregate(rows),indent=2),encoding='utf-8')
+    flush()
+    print('Evidence directory:', output)
+
+
+if __name__=='__main__':
     main()

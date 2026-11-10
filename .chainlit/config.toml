@@ -41,9 +41,8 @@ assistant_message_autoscroll = true
 # Automatically tag threads with the current chat profile (if a chat profile is used)
 auto_tag_thread = true
 
-# Allow users to edit their own messages. Off: an edit re-runs the turn, but the conversation
-# state would still hold the filters of the turn it replaced.
-edit_message = false
+# Allow users to edit their own messages
+edit_message = true
 
 # Allow users to share threads (backend + UI). Requires an app-defined on_shared_thread_view callback.
 allow_thread_sharing = false
@@ -121,7 +120,7 @@ name = "Assistant"
 
 # Force a specific language for all users (e.g., "en-US", "he-IL", "fr-FR")
 # If not set, the browser's language will be used
-language = "en-US"
+# language = "en-US"
 
 # layout = "wide"
 

@@ -1,168 +1,202 @@
-"""Shared data models. Every module builds against these, and only the Lead edits them."""
+"""Shared contracts for parsing, retrieval, UI, persistence, and evaluation."""
 
 from collections.abc import Callable
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    ValidationInfo,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
-Intent = Literal["product_search", "needs_clarification", "off_catalog", "small_talk"]
-Mode = Literal["new", "refine", "show_more"]
-ClearableField = Literal[
-    "keywords", "exclude_keywords", "category", "price_min", "price_max", "rating_min",
-    "sort_by", "order", "top_k",
-]
 
-# Tests pass a fake, so nothing outside app/llm.py needs the OpenAI client.
-# Takes chat messages and an optional output schema, returns the model's raw text.
-LLM = Callable[[list[dict[str, str]], type[BaseModel] | None], str]
+class Model(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
 class Product(BaseModel):
-    """One catalog product, keeping only the fields the app can show or answer from."""
-
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
-
+    model_config = ConfigDict(extra="ignore", allow_inf_nan=False)
     id: int
     title: str
-    description: str
+    description: str = ""
     category: str
-    price: float
+    price: float = Field(ge=0)
     rating: float
     tags: list[str] = Field(default_factory=list)
     brand: str | None = None
     thumbnail: str = ""
-    availability: str | None = Field(default=None, alias="availabilityStatus")
-    warranty: str | None = Field(default=None, alias="warrantyInformation")
-    shipping: str | None = Field(default=None, alias="shippingInformation")
-    return_policy: str | None = Field(default=None, alias="returnPolicy")
 
 
-class SearchSpec(BaseModel):
-    """One structured search. Field names match datasets/deterministic.csv.
+class Direction(Model):
+    query: str = Field(min_length=1)
+    categories: list[str] = Field(default_factory=list)
 
-    Bounds are inclusive. On a refine, null means "keep the previous value", so
-    keywords is nullable too: an empty list would wipe them. Defaults are None or
-    default_factory so the strict structured-output schema carries no default keys.
+    @field_validator("query")
+    @classmethod
+    def nonempty_query(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("query must contain text")
+        return value.strip()
+
+    @field_validator("categories")
+    @classmethod
+    def known_categories(cls, value: list[str], info: ValidationInfo) -> list[str]:
+        known = (info.context or {}).get("categories")
+        if known is not None and any(slug not in known for slug in value):
+            raise ValueError("unknown category")
+        return list(dict.fromkeys(value))
+
+
+class SearchSpec(Model):
+    """One request; directions are alternatives, searches are independent requests.
+
+    Price values remain in the original currency in saved state. Currency conversion
+    produces a separate copy for retrieval. Null means keep during a refinement.
     """
 
-    keywords: list[str] | None = None
-    # Words for what the shopper does not want ("not Apple", "no iPhones", "without heels").
-    # A product with one in its title, brand or tags is dropped: a hard filter that the
-    # fallback never loosens. Null on a refine means keep.
-    exclude_keywords: list[str] | None = None
-    category: str | None = None
-    price_min: float | None = None
-    price_max: float | None = None
-    # No upper limit: "rated above 5" is valid input and must reach the fallback.
+    directions: list[Direction] | None = None
+    exclude: list[str] | None = None
+    price_min: float | None = Field(default=None, ge=0)
+    price_max: float | None = Field(default=None, ge=0)
+    price_min_strict: bool | None = Field(default=None, description="True only when price_min is an exclusive lower bound (over/above a price).")
+    price_max_strict: bool | None = Field(default=None, description="True only when price_max is an exclusive upper bound (under/below a price).")
     rating_min: float | None = None
+    rating_min_strict: bool | None = Field(default=None, description="True only when rating_min is an exclusive lower rating bound.")
+    currency: str | None = None
+    currency_term: str | None = None
     sort_by: Literal["price", "rating"] | None = None
     order: Literal["asc", "desc"] | None = None
-    # Checked in a validator, not Field(gt=0), to keep exclusiveMinimum out of the schema.
-    top_k: int | None = None
-    # True when the shopper asks to see all of a kind. A separate field, because "top_k"
-    # is a number the shopper stated and the evals compare it. Null on a refine means keep.
+    top_k: int | None = Field(default=None, ge=1, description="Explicit count, including a singular superlative request (1); otherwise null.")
     show_all: bool | None = None
-    # Set by the model when the budget is not in dollars. The parser converts the price
-    # limits to dollars and clears this, so no other code ever sees another currency.
-    currency: str | None = None
-    # Which previous search a refine edits; None means the first.
-    refines_index: int | None = None
-    clear_fields: list[ClearableField] = Field(default_factory=list)
+    vague: bool | None = None
+    refines_index: int | None = Field(default=None, ge=0)
+    clear_fields: list[Literal[
+        "directions", "exclude", "price_min", "price_max", "rating_min",
+        "currency", "sort_by", "order", "top_k", "show_all",
+    ]] = Field(default_factory=list)
 
-    @field_validator("category")
-    @classmethod
-    def category_is_known(cls, value: str | None, info: ValidationInfo) -> str | None:
-        """Check against the real slugs, which are only known once the catalog loads.
-
-        Pass them with SearchSpec.model_validate(data, context={"categories": slugs}).
-        Without that context nothing is checked, which lets tests build specs directly.
-        parse_request must always pass it.
-        """
-        categories = (info.context or {}).get("categories")
-        if value is not None and categories is not None and value not in categories:
-            raise ValueError(f"unknown category: {value}")
-        return value
-
-    @field_validator("top_k")
-    @classmethod
-    def top_k_is_positive(cls, value: int | None) -> int | None:
-        if value is not None and value < 1:
-            raise ValueError("top_k must be at least 1")
-        return value
+    @model_validator(mode="after")
+    def sensible_request(self) -> "SearchSpec":
+        if self.show_all and self.top_k is not None:
+            raise ValueError("choose an explicit count or all products, not both")
+        for field in ("price_min", "price_max", "rating_min"):
+            if getattr(self, field + "_strict") and getattr(self, field) is None:
+                raise ValueError("a strict operator requires its corresponding bound")
+        if self.price_min is not None and self.price_max is not None:
+            if self.price_min > self.price_max:
+                raise ValueError("minimum price exceeds maximum")
+            if self.price_min == self.price_max and (self.price_min_strict or self.price_max_strict):
+                raise ValueError("empty price interval")
+        if self.directions is not None:
+            if len(self.directions) > 3 or any(not d.query.strip() for d in self.directions):
+                raise ValueError("provide up to three nonempty query directions")
+        return self
 
 
-class ParsedRequest(BaseModel):
-    """What the parser understood from one user message. The user never sees it."""
-
-    intent: Intent
-    # Set only for product_search.
-    mode: Mode | None = None
-    # Empty unless the intent is product_search; more than one means multi-intent.
+class ParsedRequest(Model):
+    intent: Literal["product_search", "needs_clarification", "off_catalog", "small_talk"]
+    mode: Literal["new", "refine", "show_more"] | None = None
     searches: list[SearchSpec] = Field(default_factory=list)
-    # What we can't do, e.g. "book a flight", so a mixed request can still show products.
     unsupported: list[str] = Field(default_factory=list)
-    # On needs_clarification: the categories the request could mean, for the reply to offer.
-    category_options: list[str] = Field(default_factory=list)
-    # Written by code, not the model: one line per amount converted to dollars.
-    conversions: list[str] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod
-    def only_product_search_has_a_search(cls, data: Any) -> Any:
-        """Drop stray search fields, so an off-catalog request can never show cards.
-
-        Runs before field validation: an invented slug in a stray search would
-        otherwise raise, turning a correct decline into the safe default.
-        """
-        if isinstance(data, dict) and data.get("intent") != "product_search":
-            return {**data, "mode": None, "searches": []}
+    def valid_intent(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Discard stray searches before validating nested category guesses.
+            if data.get("intent") != "product_search":
+                return {**data, "searches": [], "mode": None}
+            if data.get("mode") is None:
+                raise ValueError("product search requires a mode")
         return data
 
 
-class SearchOutcome(BaseModel):
-    """The result of one search, after any fallback."""
+class Candidate(Model):
+    product: Product
+    direction: int
+    similarity: float
+    z_score: float
+    category_boost: float
+    score: float
+    zone: Literal["strong", "borderline", "weak", "uninformative"]
+    relevant: bool
+    reason: str
+    type_compatible: bool | None = None
 
-    # The merged search as the user asked for it, before loosening, so the reply
-    # can still say "nothing under $10".
+
+class Relaxation(Model):
+    field: Literal["rating_min", "price_min", "price_max"]
+    original: float
+    actual: float
+
+
+class Card(Model):
+    product: Product
+    alternative: bool = False
+    relaxations: list[Relaxation] = Field(default_factory=list)
+
+
+class CurrencyRate(Model):
+    """One immutable quote, expressed as currency units for one US dollar."""
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False, frozen=True)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    units_per_usd: Decimal = Field(gt=0)
+    rate_date: date
+    fetched_at: datetime
+    source: str = Field(min_length=1)
+    stale: bool = False
+
+    @field_validator("fetched_at")
+    @classmethod
+    def aware_timestamp(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("rate timestamps must include a timezone")
+        return value
+
+
+class SearchOutcome(Model):
     spec: SearchSpec
-    # Everything that matched, ranked, with no display cap.
-    products: list[Product] = Field(default_factory=list)
-    # The cards to display. The pipeline fills this; the responder may only mention these.
-    shown: list[Product] = Field(default_factory=list)
-    # How many products fit the search, for "how many do you have?". The pipeline fills this.
+    candidates: list[Candidate] = Field(default_factory=list)
+    cards: list[Card] = Field(default_factory=list)
+    exact_ids: list[int] = Field(default_factory=list)
     total: int = 0
-    # In the order they were loosened, so the reply can say what changed.
-    loosened: list[Literal["rating", "price"]] = Field(default_factory=list)
+    has_more: bool = False
+    reason: str = "exact"
+    conversions: list[str] = Field(default_factory=list)
+    exchange_rate: CurrencyRate | None = None
+
+    @property
+    def shown(self) -> list[Product]:
+        return [card.product for card in self.cards]
 
 
-class ChatTurn(BaseModel):
-    """One history entry passed to the parser."""
-
+class ChatTurn(Model):
     role: Literal["user", "assistant"]
     text: str
 
 
-class ConversationState(BaseModel):
-    """What a conversation carries between turns. Storage saves and restores this."""
-
+class ConversationState(Model):
     history: list[ChatTurn] = Field(default_factory=list)
-    # The most recent searches, even if small talk came after them.
     searches: list[SearchSpec] = Field(default_factory=list)
-    # Products shown for those searches, which show_more excludes.
     shown: list[Product] = Field(default_factory=list)
+    exchange_rates: dict[str, CurrencyRate] = Field(default_factory=dict)
+
+    @field_validator("exchange_rates")
+    @classmethod
+    def matching_rate_keys(cls, rates: dict[str, CurrencyRate]) -> dict[str, CurrencyRate]:
+        if any(code != rate.currency for code, rate in rates.items()):
+            raise ValueError("saved rate keys must match their quote currency")
+        return rates
 
 
-class TurnResult(BaseModel):
-    """Everything one turn produced, for the UI, the flow test and the evals."""
-
+class TurnResult(Model):
     parsed: ParsedRequest
     outcomes: list[SearchOutcome] = Field(default_factory=list)
     reply: str
     state: ConversationState
+    trace_id: str | None = None
+    trace_context: dict[str, str] = Field(default_factory=dict)
+    timings: dict[str, float] = Field(default_factory=dict)
+    error: str | None = None
+
+
+LLM = Callable[[list[dict[str, str]], type[BaseModel] | None], str]

@@ -1,129 +1,109 @@
-# Decisions made without Or
+# V2 implementation decisions
 
-Each entry: what was decided, why, and what else was considered. The Lead keeps this log and reports new entries at the end of each wave.
+## macOS setup, 10 November 2026
 
-## After Or's README review (7 Nov 2026)
+- The owner requested macOS setup in addition to Windows. Document native Apple Silicon macOS 14+, Python 3.12 via uv, PyPI-based installation, safe `.env` creation, local auth-secret generation, the model download, run/test commands and troubleshooting. Keep the Windows CPU index confined to the Windows instructions.
+- Preserve the pinned dependencies and CPU embedding configuration. Cross-platform dependency resolution confirms `torch==2.15.0` provides a macOS 14 arm64 wheel; Intel and macOS 13 targets cannot use this wheel. Do not silently downgrade torch or claim native Intel support. This limitation agrees with PyTorch's official x86 macOS build deprecation.
+- Require binary wheels only for torch/NumPy in the Mac command. A blanket binary-only policy fails because pinned Chainlit depends on source-only literalai; allowing that published pure-Python source dependency resolves the full Apple Silicon set. Dependency resolution is not a real Mac install or startup test; state that limit explicitly.
 
-- **Or's dataset rule: the English files are English only, and Hebrew cases are only in `hebrew.jsonl`.** 5 Hebrew cases moved with their wording and expected answers unchanged, as `h11` to `h15`. IDs 27 to 30 of `behavioral.jsonl` stay unused, so older notes still point to the right cases.
-- **The 3 Spanish rows were deleted, and the Spanish language check with them.** They had no dataset to move to under the rule. Alternatives: translate them to English, which only duplicates existing rows, or add a `spanish.jsonl`, which Or didn't ask for. They can be restored from git. So Hebrew is now the only other language with a dataset, and the README says so. Those 3 rows passed in every full run while they existed.
-- **The results were re-scored instead of paying for another run.** No code had changed since the final run, so `evals/runs/run_20261105_151853_regrouped.jsonl` is that run with the Hebrew results relabelled and the Spanish ones dropped, and `--rescore` built `results.md` from it. Alternative: another full run of about 170 calls, for the same answers.
-- **The tables now report English and Hebrew in separate rows,** each split into basic and hard, instead of counting Hebrew inside the basic and hard rows.
-- **`Design Decisions.md` was deleted, as Or asked.** Its still-true content moved to the README: the assumptions, one pass against tool calling, and Postgres as a rejected store. Its eval tables were checked to be covered by `datasets/`. Its `conversations` and `messages` schema and its "no exchange rates" rule were already out of date, so they were left out.
-- **The macOS setup uses `python3.12` and plain `pip`,** which any Mac can get, rather than `uv`. It hasn't been run on a Mac. The commands were run on Linux, and the dependencies were resolved for macOS. Alternative: claim macOS support untested.
-- **The install uses `--prefer-binary`, after the second Reviewer pass.** The newest `cryptography` has no Intel Mac build, so plain pip would try to compile it, and the README's "every compiled dependency has macOS builds" was false. The flag takes the older build instead. Alternative: pin `cryptography`, a dependency change that needs Or's approval.
-- **The other findings of that pass stay as they are.** One test fails when run as root, because root ignores read-only files, and the English-only tests use `isascii()`, so unaccented foreign words would pass. Neither affects a normal user, and every English row was read and is English today.
+## Experience pilot replay and comparison report
 
-## Wave 6
+- The owner requested a Markdown summary of all results, explaining each test, comparing V1 and V2, and ending with a short conclusion. Replay all 20 frozen cases through original staging V1 (`18af131`) and V2 (`818d19c`), using the same catalog, numerical frozen FX rates, allowed model, four workers per version, and native rounding. No application behavior or input expectations were changed after seeing outputs.
+- Preserve all 40 conversation results and 48 turns. Both versions completed every pilot case without a recorded case error; no manual model replay was made. Save raw evidence locally and a compact, auditable output/assessment packet with the report. Upload recorded outputs to one immutable 20-case LangSmith snapshot; uploads make no additional model calls.
+- Distinguish programmatic completion/card/price/reference checks from unblinded assistant judgments about usefulness, courtesy, phrasing, progress and preferences. Those judgments are not human gold or a blind semantic win rate. A negated mention of an invented price is not automatically an affirmative price hallucination.
+- Keep the 20-case pilot, earlier 167-case compatibility suite, and earlier post-hoc refusal cohorts separate. Report appropriate no-match behavior independently of supported-request stalls. Do not use polite wording or category F1 to excuse irrelevant products, prohibited alternatives or lost conversation context.
 
-- **Chose option A for cards, because Or said to continue without picking.** A was the recommendation given on 5 Nov. When any product in a search matches a keyword, only those get cards. Why in the pipeline: `search()` and the deterministic scores stay as they are. Alternative: leave it and list it as a limitation, which shows speakers for a phone case. To reverse it, make `_card_candidates` return `outcome.products`.
-- **`show_all` is its own field, not a large `top_k`.** "All fragrances" is a dataset row with no `top_k`, and `datasets/` changes only with Or's approval. Alternative: lean on Show more, which leaves "list all" answering with 3.
-- **The count is a number from code, passed as `total`.** The responder still sees only `shown`. Alternative: let the model count the cards, which gives 3 for 5 laptops.
-- **`total` counts the products that get cards, not everything in the category.** So "how many phone cases?" is 1, not 14.
-- **Phone refresh and the first drawer tap stay as they are.** Both come from Chainlit mounting its sidebar late. A fix needs custom JavaScript, outside the stack rule and hard to defend. Alternative: a script that mounts the sidebar early. Past chats stay reachable, so it's listed as a known limitation.
-- **A file deleted while the app runs is checked before each statement.** SQLite would otherwise recreate it empty on connect and hide what happened. The user and chat rows go back with plain `sqlite3`, with no `await`, so no other write can slip in first. Alternative: rebuild everything from the session, which is more code for a rare failure.
-- **No new dataset rows for counts and "list all".** `datasets/` changes only with Or's approval, so these were checked by unit tests and 8 short real-model conversations. They aren't in the eval scores.
-- **The final eval run was restarted once.** A real-model check found that "how many is that?" started a new search, so the run was stopped a minute in and the prompt fixed, to report numbers from the final code.
-- **The responder now calls a product what its title says.** The card rule made a regression: with one word matching, a bedside table was called a dining table match. The eval scores missed it and reading the replies caught it. Alternative: require every keyword to match, which would empty real searches such as "laptop for my son".
-- **A limit our code worked out is never written, even rounded, and an amount the shopper dictates isn't repeated, even to refuse.** "Under $1,800" and "$1" failed the grounding score. Alternative: loosen the scorer, which would hide them.
-- **The final run happens after the Reviewer's fixes, so it runs once.** The README's numbers are filled in from it.
-- **The Reviewer's one pass gave no-ship with two critical issues, both fixed.** "List all" then "the 2 cheapest" kept showing everything, so a stated number now clears `show_all`. Editing a sent message kept the filters of the turn it replaced, so `edit_message` is off. Alternative for editing: roll back state per turn, which is a lot of code for a feature nobody asked for. The other findings are listed in the README's limitations and not fixed, as Or asked for critical fixes only.
-- **The final run's three reply problems were left in and written into the README.** A broad request that asked for a budget, one stray Hindi word in a Hebrew reply, and "ILS" for someone who typed NIS. They come from the model varying between runs. Or asked for critical fixes only, and chasing them would mean more prompt rules and another paid run with no way to prove they are gone. Alternative: keep tuning, which also fits the prompt further to these datasets.
-- **Drafted LangChain as the second rejected alternative.** The plan leaves this choice to Or, who should replace it if a different alternative is the honest answer. Alternative: assistant-ui, also a real option, but it says less about the pipeline.
+## Owner-approved experience pilot: 20 cases
 
-## Wave 5
+- The owner requested a small evaluation set focused on refusal behavior, actual recommendations, courtesy and phrasing. Add 14 English and 6 Hebrew cases, including 4 multi-turn conversations and 4 genuine no-match controls, without changing the original source-suite labels or runtime behavior.
+- Draft expectations before replaying either implementation. Pin the existing 194-product comparison snapshot and FX fixture. Treat product IDs as non-exhaustive evidence, not an exact expected list; judge catalog descriptions and user purpose rather than category membership alone.
+- Separate usefulness, courtesy, phrasing and task progress on 0-2 scales, with factual/constraint gates and justified abstention scored independently. Keep assistant drafts distinct from human-reviewed ground truth. Known-failure-inspired scenarios form a development pilot, not a prospective holdout.
+- Provide a no-network validator and a readable case list. Creation and validation are authorized now; do not spend on another model replay merely to create the set. Preserve the user's staging checkout, implement on a separate branch, and merge the completed dataset change into v2.
+- Validation: the pilot validator confirms 20 unique cases, 14 English/6 Hebrew, 4 multi-turn conversations, 4 no-match controls, frozen file hashes, valid catalog references and budget-compliant positive examples. All 86 existing offline tests pass; no new model outputs or human ratings are claimed.
 
-- **Fixed two reply rules after the first real run, before Or read the results.** A fallback reply said "Nothing in the catalog is under $10", copied from a prompt example, though 46 products cost less. Another stated "$49.98", a limit our code worked out from "cheaper". Both broke existing rules, so no design changed. The fix was checked by replaying 6 fallback cases on the real model (16 calls), not a full run. Alternative: wait for Or, which would leave a known false sentence in the app.
-- **`evals/results.md` is committed from the run before that fix.** Its scores don't depend on the wording, but its replies for those cases show the old sentences. The final full run replaced it in wave 6.
+## Hebrew layout fix, 9 November 2026
 
-## Before wave 5
+- Enable the existing `public/style.css` through Chainlit's supported `UI.custom_css` setting. It was present but not loaded. Extend paragraph-aware bidirectional layout to the composer, message editor, remaining headings and table cells. Each paragraph follows its first strong character, so Hebrew reads right-to-left and English reads left-to-right in the same chat.
+- Keep code blocks and inline code isolated left-to-right. Keep the English catalog cards left-to-right, and isolate the Hebrew alternative badge with `bdi`. Reuse existing CSS/JSX without a new dependency, global page direction, custom JavaScript, or any pipeline change.
+- Validation: parsed the updated TOML, resolved the configured public stylesheet, checked selectors against the installed Chainlit frontend, and passed `git diff --check`. No browser surface was available for a visual preview. Restart Chainlit and hard-refresh the page to load the configuration and stylesheet.
 
-- **Exchange rates are a fixed table in `app/currency.py`, dated 4 Nov 2026.** Or asked for conversion and "roughly" fits a snapshot. It adds no network call or failure, and tests can check every number. Alternatives: a live rates API, which adds a failure on every message, or the model's own knowledge, which breaks the grounding rule and can't be tested.
-- **The model reads the currency and code does the arithmetic.** The model writes the number as stated, with no 0.01 adjustment, and code converts. Alternative: let the model convert.
-- **Converted limits are whole dollars.** The rate is rough, and the reply states the same number the search uses. The cost: "under 3,000 NIS" searches up to and including $948. Alternative: keep cents, which reads as false precision.
-- **Seven currencies have rates: AUD, CAD, CHF, EUR, GBP, ILS, JPY.** Any other asks for the budget in dollars. Alternative: list more, each one more rate to keep current.
-- **A question for a broad request asks only about the category, not the budget.** This replaces the earlier rule for shoes and watches, which also asked for a budget. Or's newer instruction is about finding the category. Alternative: also ask the budget.
-- **Case 3, "Something nice for my living room", now expects a question.** It fits furniture and home decoration, so Or's rule applies. It used to expect cards from either.
-- **Case 30, the shekel budget, now expects a converted search.** It used to expect a question, and four new cases cover both rules.
+## Approved extension: API currency rates, 9 November 2026
 
-- **Or's rule for shoes and watches names only those two kinds.** They're the only kinds the catalog sells in both a men's and a women's category. Alternative: a general rule the model applies, which is harder to test.
-- **The two-card eval cases check the exact product IDs.** `both` alone can't tell two suggestions from a search that dropped both limits. Alternative: read the replies by hand.
-- **When one limit works alone, only that limit is dropped.** "Laptops rated 1 or more under $10" now keeps the rating and drops the price. Or's rule set the two-product case; this follows from it. Before, both limits were dropped. Alternative: keep the old order, rating then price.
-- **The user's sort doesn't choose the two suggestions.** Each one answers its own limit, so "cheapest first" could otherwise pick the wrong one. Alternative: follow the sort.
-- **The two suggestions can't grow with Show more.** There are exactly two, so no button appears. Alternative: add more products for each limit.
-- **`datasets/answers/` shows the fallback's suggestions from the app's own code.** There's no independent source for them, and the file says so. Alternative: leave them out, which hides what Or wanted to see.
+- The owner approved replacing the fixed runtime table with API-backed reference rates, caching, conversation pinning, source/date disclosure, frozen evaluation rates and graceful fallback. This explicitly amends the original fixed-rate design and does not add an LLM node. Reuse the existing `httpx` dependency and the keyless Frankfurter pair endpoint; do not send budgets, chat text or user identifiers to the provider.
+- Refresh shared local quotes after one hour. On transient failure, accept a previously validated cached quote only when both fetch age and reference-date age are at most seven days; disclose the fallback. With no usable quote or an unsupported pair, ask for a USD budget and retain existing search state. Do not fall back to hardcoded runtime rates. Cache write errors leave valid in-memory quotes usable.
+- Pin each quote when a search succeeds, retain it across refinements/new requests in the same conversation and resume, and show its date so aging is visible. Multi-request preparation is transactional: a failed conversion cannot partially commit quotes. A new conversation can acquire newer rates through the shared cache.
+- Persist immutable decimal quotes in conversation state and each evaluation outcome. Trace fetch/cache/fallback decisions through `currency_rate` spans. Default evaluation to a versioned fixture; current-rate evaluation requires `--live-rates`. The independent scorer uses recorded quotes; only pre-extension archives missing the quote field use the original fixture for compatibility.
+- Follow the owner's changes-first/tests-last workflow. Validate offline contracts and rescore existing evidence, then smoke-test the public rate API without another paid model replay. Leave unrelated local file deletions/translations untouched.
+- Final validation: 86 offline tests passed; compilation and whitespace checks passed. All 167 saved cases rescored with zero execution errors and identical aggregate metrics to `evals/artifacts/review-rescored`; new evidence is in ignored `evals/artifacts/live-currency-rescored`. Public ILS lookup returned 3.1918 units/USD dated 2026-11-09; conversion, memory-cache reuse and disk reload succeeded. The API returned 2026-11-10 for INR/EUR while UTC was 2026-11-09; future-dated responses were correctly rejected rather than silently accepted. No paid model calls were made.
 
-## Wave 4
+## Comprehensive code review — 9 November 2026
 
-- **A login page, not auto-login.** Chainlit's only password-free route is header auth, which lets in anyone who can reach the port and makes `APP_PASSWORD` meaningless. Alternative: header auth.
-- **No Show more button on a resumed chat.** Chainlit sends the thread to the UI after `on_chat_resume`, so a button sent during resume is lost. Typing "show more" still works. Alternative: override more of Chainlit.
-- **Cards are redrawn from message metadata, not stored as elements.** Chainlit only stores elements with a file storage provider. This keeps it to one SQLite file. Alternative: add a file provider.
-- **Only shown products are saved, never every match.** All matches can be most of the catalog.
-- **No connection stays open between statements (`NullPool`).** On Windows an open connection locks the file, so it couldn't be deleted or replaced while the app runs. The cost is one connection per statement, which is fine for one local user.
-- **A failed statement is retried once after recreating any missing table, and a failed write shows one notice per outage.** Chainlit's writes run in the background and its layer swallows errors, so a failure would otherwise be silent. Alternative: log only.
-- **A locked or unreadable file stops the app; only a damaged one is backed up.** Moving a healthy file away would look like lost chats. One backup is kept, and a newer one replaces it.
-- **Notices and errors aren't saved.** They aren't part of the conversation, and saving a "could not save" notice would fail again.
-- **Login values are checked for presence only.** A placeholder such as `choose-a-password` is accepted. Alternative: reject known placeholders, which adds a list to maintain.
-- **Chainlit's thumbs buttons stay.** Their data goes into the `feedbacks` table, and nothing reads it.
-- **Chainlit's warnings for failed statements stay in the console.** They include the SQL and its parameters, so chat text, but no secrets. Alternative: silence them, which hides the reason for a failure.
-- **`greenlet` added with Or's approval,** through `sqlalchemy[asyncio]`. Chainlit's async layer can't load without it.
+- The owner requested implementing all review changes before testing. Review is manual; no review-agent/plugin workflow or new dependency was introduced. All runtime edits and regression cases precede the final test batch.
+- Preserve the approved ranking, relevance thresholds, product-type node and fallback order. This review fixes implementation defects rather than adopting another retrieval policy or treating draft labels as reviewed.
+- Reject currency changes that would reinterpret an untouched price bound; ask for a complete range instead. Preserve explicit count/sort clearing semantics and give the responder the actual numeric-only message with a separate language hint.
+- Queue overlapping turns per session, reject stale pagination actions and discard replies for a chat the user has already left. Keep only the six structured messages the parser consumes; Chainlit retains the full visible transcript independently.
+- Isolate trace initialization, updates, headers and shutdown; use the SDK's existing batching rather than a redundant second buffer. Keep client initialization thread-safe. Database logging records exception types rather than SQL parameters, and corruption recovery preserves older backups.
+- Use one immutable catalog snapshot per startup/run; reject malformed/non-finite data and rebuild corrupt caches. A failed optional cache write must not discard an otherwise usable in-memory index.
+- Share one score-record function between live replay and offline re-scoring. Failed cases remain in applicable accuracy denominators; ties receive equivalent credit; a rating is not a dollar amount. Validate complete, unique evidence before uploads and refuse uninformative/stale-label calibration.
 
-## Wave 3
+## Approved extension — product-type node, 9 November 2026
 
-- **The "nothing found" and "no more products" notes are written by code, not inferred by the model.** Whether anything was shown is a fact our code already has. Alternative: tell the model to work it out from the results.
-- **The responder gets search bounds as stored, and the prompt explains them.** `price_max` 19.99 reads as "under $20". Alternative: pass the user's wording, which the schema doesn't carry.
-- **Replies are one to three short sentences.** The cards carry the detail. This is prompt advice, not enforced.
-- **A blank model reply raises an error.** It takes the same path as a failed call, so the chat shows the error. Alternative: send an empty message.
-- **A refine replaces the current searches with the ones it edited.** If "a laptop and a phone case" is followed by "cheaper ones" aimed at one of them, the other is dropped. Alternative: keep every search, which needs rules for which ones still show.
-- **A refine with an out-of-range index edits the first search, and one with no previous search merges into an empty search.** Neither should crash on a model mistake. Alternative: return the safe default.
-- **A search with no field set, a typed "show more" with nothing before it, and a refine that clears everything all become a clarifying question.** Each would otherwise show all 194 products as a match or nothing at all. Alternative: run them.
-- **A search with only a sort or a count still runs.** "The cheapest thing you sell" has an honest answer. The cost: "show me 5" with no earlier search shows the 5 highest rated products. Alternative: require a category, keywords or a bound, which would make the first question a clarification too.
-- **Show more always gives 3 cards, even after a `top_k`.** After "the cheapest tablet", it gives the next 3 cheapest. Alternative: repeat the `top_k` count, which gives one card per click.
-- **Cards from Show more arrive in a message with no text.** A fixed English label would break the rule that the button needs no language.
-- **Show more runs in the click handler, not in a thread.** It is a quick filter, and with no pause between reading and saving the state, a double click can't show the same cards twice. Tested: a double click added 3 cards, not 6.
-- **Errors in the chat use fixed text, and the log holds only the exception's type.** OpenAI errors can contain request details. Alternative: show the exception text.
-- **Right-to-left uses `unicode-bidi: plaintext` in `public/style.css`.** Each paragraph follows its own first strong letter, so Hebrew and English both display correctly with no language detection. Alternative: detect the language and set `dir`, which is more code.
-- **Buttons are at least 44px tall on a phone.** "Show more" measured 36px before the rule. Alternative: leave Chainlit's size.
+- The owner approved adding a `gpt-6-luna` product-type check after ranking, before exact/fallback card selection, after z-scores accepted unrelated inventory for unsupported types. This supersedes the original two-call parser/responder path for product searches.
+- Check all semantically shortlisted, unseen, nonexcluded products, including candidates that may become price/rating alternatives. Batch across requests/directions; deduplicate identical query/product pairs. A normal shortlist takes one additional call; larger shortlists use batches of at most 64 pairs so inventory and show-more are not silently capped.
+- The node checks product type and named identity using catalog evidence. It does not decide numeric eligibility, loosen exclusions, reorder results or invent products. Category guesses remain soft. The code validates complete response identity coverage and fails closed on missing, duplicate, fabricated or invalid decisions.
+- Checker reasons and per-candidate decisions are visible in LangSmith. No new dependency or model was introduced. Tests, supported/unsupported-type probes and the complete 167-case source replay run after the implementation checks; draft semantic labels remain drafts.
+- The first full replay exposed incorrect parser strict-bound flags and omitted singular counts. Clarify each existing flag in the prompt/schema, reject strict flags without their corresponding bound, and interpret explicit singular superlatives as count 1. This fixes the existing numeric/count contract; no retrieval or pipeline-design change is made. Preserve the first run and score the corrected configuration separately.
+- Validate all existing source card-count labels and distinguish no fallback, rating, price and both in legacy scoring. These are diagnostic compatibility checks; they do not replace V2 semantic labels or change the source expectations.
+- A source case exposed plural exclusion leakage (`iPhones` did not match `iPhone`). Normalize common English plural suffixes on both catalog text and exclusion phrases, retaining phrase boundaries. This implements the existing hard-exclusion contract; it does not add a model node or relax exclusions. Also specify response language explicitly and prohibit unsupported dollar arithmetic in the existing responder prompt, retaining the grounding rule.
+- Correct known-title grounding checks to ignore title prefixes and shorter titles embedded in shown names; retain unknown semantic grounding as unknown. Re-score immutable recorded predictions without model calls, record scorer provenance, and compare V1/V2 on verified-identical LangSmith snapshot inputs. Recorded experiment overhead is not model latency; publish measured conversation duration separately.
+- Final replay completed 167 cases/182 turns without execution errors. Source numeric/sort/count extraction matched 72/72 labels and forbidden-card checks passed 10/10. Legacy retrieval F1 regressed relative to V1; retain these failures and the missing sunglasses item in the handoff. Human-reviewed relevance labels and prospective cases are unavailable, so do not invent them or certify threshold calibration. Detailed evidence is in `plan/FINAL_EVALUATION.md`.
 
-## Wave 2
+## Execution rules — 9 November 2026
 
-- **Each word of a keyword counts separately.** "Coffee table" must find the only table, and "running shoes" with no category must find shoes. The cost: "face cream" with no category also matches Ice Cream. Alternative: require all words, which returned nothing for those cases.
-- **Loosened results rank by keyword count before distance from the limit.** Otherwise "iphone rated above 5" shows no iPhone and the reply reads as if we don't carry one. Alternative: distance only, as first written in `CLAUDE.md`.
-- **A search with no category and no keywords is never loosened.** Loosening it would return all 194 products as a match. The cost: "anything under 50 cents" finds nothing. Alternative: loosen and show the cheapest, which contradicts the rule against returning the whole catalog.
-- **Non-Latin keywords stay as words and match nothing.** A Hebrew keyword used to vanish, which returned all 194 products. The parser is told to write keywords in English, so this is only a safety net.
-- **Ties on the sort value score as either being right.** Search breaks ties by rating then ID, but a shopper asking for the cheapest can't tell tied products apart, and rows 38, 54 and 57 failed a perfect agent. Alternative: copy search's order into the ground truth, which makes it depend on search.
-- **The prompt rewords every phrase close to a dataset row, including ones `CLAUDE.md` suggested.** The rule against dataset text comes first, and these would inflate scores. A test checks new phrases by similarity. Alternative: keep the suggested phrases.
-- **A `new` search with no field set gets the safe default.** It would otherwise match the whole catalog. Alternative: run it.
-- **The safe default logs a warning with the reason only.** A failed parse otherwise looks like a real clarification and scores as correct on rows expecting one. Alternative: no logging.
-- **The OpenAI client retries once.** A persistent error then shows in about 2 minutes, not 3. Alternative: the client's default of two retries.
-- **`keywords` stays null when the shopper names only the category.** The plan's Hebrew check now only requires any keywords to be English. Alternative: always fill keywords, which adds nothing because a category search doesn't filter on them.
-- **A row expecting nothing earns 1.0 only if a search ran with its category, and a crashed row earns 0.** Otherwise a parser that always asks a question scores perfectly on those rows. Alternative: both-empty is always 1.0.
-- **A correct `top_k` answer gets F1 1.0.** The returned set is treated as the expected set, because a tied product is equally right. Alternative: add all tied products to the expected set, which is harder to explain.
-- **A currency word before a number has no left word boundary.** That lets the Hebrew prefix in "בדולר 30" match. The cost: "30 dollars 5 results" scores the 5 as an amount, which a read of the failure list would catch. Alternative: require a boundary and miss the Hebrew form.
-- **"No false fallback" is scored over `product_search` rows with no expected fallback, and a crash counts as wrong.** Other intents never search, so including them would inflate the number. Alternative: all 30 cases.
-- **A conversation with an error or missing turns counts as crashed.** Scoring the turns that did run would hide the failure. Alternative: score the last turn that ran.
-- **Every report is built from the saved run file.** A rescore can't disagree with the live run. Alternative: build the live report from memory.
-- **A run with errors, or one that stopped early, leaves `results.md` alone.** The report goes next to the run file instead. Alternative: overwrite, which could replace good numbers with partial ones.
+- User instructions override V1-only clauses in CLAUDE.md: implement Design V2 in separate phase branches, merge each completed phase into v2, do not pause for stage reviews, and run evaluations at the end. Keep simple typed functions, explicit code, secrets handling, Chainlit/SQLite, and decision logging.
+- Keep the existing deleted `Design Decisions.md` and `plan/PLAN.md` untouched. The active plan is `plan/V2_PLAN.md`. Existing local run files and Chainlit configuration are not staged wholesale.
+- Branches use `v2-phase-N-*`: Git cannot create `v2/phase-*` while branch `v2` exists.
+- Local multilingual embeddings, LangSmith, and their runtime dependencies are authorized by the V2 plan. Pin installed versions and the Hugging Face model revision. No other OpenAI model is called.
+- Dataset expectation changes and semantic annotations are drafts until human reviewed; no assistant-generated label is presented as human ground truth. Final reports must expose this coverage limitation. Per the user's no-review instruction, do not request intermediate annotation reviews.
+- Unit checks may run as implementation verification. Dataset replay, threshold calibration, baseline runs, and relevance feasibility measurements are deferred to the final evaluation, as explicitly requested. Initial thresholds remain marked provisional.
+- Reuse the V1 catalog loader and Chainlit SQLAlchemy persistence integration, already implemented on staging, rather than choosing a new database architecture. Review the reused source directly; no review subagents or approval gates.
 
-## Wave 1
+## Phase 1
 
-- **A broken cache file counts as missing.** The app downloads the catalog again and overwrites it, because the file is only derived data. Alternative: crash with a message.
-- **A failed cache save warns and carries on.** The catalog is already in memory, so stopping would be worse, but every load then downloads again, so it prints a warning. Alternative: fail silently, which the Reviewer rejected.
-- **The cache holds raw API data, validated on load.** That way it doesn't depend on our model's field names. Alternative: save `Product.model_dump()` output.
-- **`CatalogError` is its own exception,** so `app/main.py` can catch it and show the message at startup. Alternative: a bare `RuntimeError`.
+- Original numeric amounts and strict operators remain in conversation state. Conversion produces an independent USD search copy to avoid cumulative rounding and accidental budget changes during fallback.
+- A request owns one to three alternative directions; independent searches have independent limits. This follows the revised plan and avoids assigning one budget to unrelated product requests.
+- Minimal tracing uses LangSmith's public trace context instead of wrapping every pure function. This is one of the SDK approaches described by the implementation references and preserves explicit stage boundaries.
 
-## Wave 0
+## Phase 2
 
-- **Eval labels for the new language cases.** Added Hebrew and Spanish rows to `datasets/`, with Hebrew chosen because Bazak is Israeli. Alternative: test only Spanish, which would miss right-to-left text.
-- **Grounding score covers titles and money amounts only.** Other numbers are printed for Or to read. Alternative: an allow-list for every number, which failed true replies such as "5 laptops; here are 3".
-- **Reply language is checked with Hebrew script and short stopword lists.** Alternative: a language detection library, which adds a dependency for 4 eval cases.
-- **Show more makes no LLM call.** It only adds cards, so it needs no language. Alternative: pass the last typed message to the responder, which costs a call for no new information.
-- **Chainlit stays after the mobile test.** At 375px in headless Chromium, the login, chat, past-chats drawer and resuming a chat all worked with no sideways scrolling. One early run clicked the sidebar button and no drawer appeared; it worked in every later run and wasn't explained, so Or's phone-width check in wave 3 should try it. Alternative: switch frameworks, which the test gave no reason to do.
-- **Hebrew needs CSS.** In the same test, a Hebrew reply rendered left-to-right with its punctuation misplaced. The App role fixes this in Step 5.
-- **`app/main.py` adds the repo root to `sys.path`.** `chainlit run` only puts `app/` on the path, so `from app...` failed. Alternative: run from another layout, which would move every module for one import.
-- **`app/llm.py` holds the real OpenAI client, owned by the LLM role.** Keeping it separate means the other modules and all tests only see a plain callable.
-- **Pinned the direct dependencies** to the tested versions, so a stranger's install matches.
-- **`app/pipeline.py` runs one turn with no Chainlit in it.** The UI, the flow test and the evals all call it, so scores measure the shipped wiring. Alternative: put the logic in the Chainlit handler, which evals would have to copy.
-- **The responder only sees `shown`, not every match.** Otherwise it could name a fourth phone when three cards appear. Alternative: tell it in the prompt to mention only some, which nothing would enforce.
-- **`keywords` is nullable.** On a refine, null means keep, the same as every other field. Alternative: treat an empty list as keep, a special case for one field.
-- **`top_k` is checked in a validator, not `Field(gt=0)`.** That keeps `exclusiveMinimum` out of the structured-output schema, because no real call has confirmed the API accepts it. Alternative: test it first, which needs the key.
-- **Stray search fields are dropped when the intent isn't `product_search`.** An off-catalog request can't show cards. Alternative: reject the output, which would turn a correct decline into a clarifying question.
+- Use E5 query/passage prefixes for every language, normalized vectors, CPU execution, and a 512-token limit, following the pinned model card. A first explicit download populates `.models/`; normal startup is offline for model loading.
+- The cache stores two aligned arrays and plain JSON metadata in NPZ with pickle loading disabled. Rebuild on invalid metadata, vector shape, or norms; atomic replacement avoids half-written caches.
+- Per the user's evaluation-at-end instruction, the relevance feasibility checkpoint runs at the final stage. No calibrated relevance or unsupported-type accuracy is claimed before that checkpoint.
+
+## Phase 3
+
+- Apply the revised plan's proposed all-qualified sorting policy: sort the full relevant inventory and paginate it. A top-10 list is trace/evaluation diagnostics only; truncating it before sorting would violate ordinary cheapest/highest-rated behavior and break show-more.
+- Compute relevance z-scores without category boosts over the full catalog. Filter numeric constraints before selecting any candidates/cards, but preserve full-catalog score statistics. No category or keyword hard filters are introduced.
+- Merge alternative directions by round-robin; raw similarities from different queries are not compared. Keep independent requests and their bounds separate.
+- Exclusions use normalized whole phrases in catalog fields. Parser translates Hebrew exclusions to positive English matching phrases. This deterministic rule is conservative and requires semantic coverage evaluation; no untested claim of understanding all negation is made.
+
+## Phase 4
+
+- Reuse Chainlit's SQLAlchemy data layer and existing recovery/login code from staging. V2 messages have metadata version 2; V1 structured searches are not silently reinterpreted as V2 searches.
+- Follow the revised plan's two-sided-range fallback rule: relax one price bound, retain the other, choose smallest absolute USD violation, then semantic rank and product ID. Keep rating-only alternatives before price alternatives.
+- Disclosures for each alternative and currency conversions are generated by code and prepended to the grounded model reply. The show-more button uses the same turn path, so it cannot introduce undisclosed over-budget alternatives.
+- Preserve original user constraints in saved state; conversion and fallback operate on copies. Save structured outcomes with each assistant message for replay and diagnosis.
+
+## Phase 5
+
+- Pure scoring functions distinguish legacy compatibility, observable V2 invariants, and unreviewed semantic metrics. Unknown semantic judgments are null, not an automatic success. Recall/nDCG require complete eligible judgments.
+- Calibration refuses to use draft labels as human ground truth. Source expectations remain preserved; draft overrides and prospective holdout status are reported explicitly.
+- Live replay requires `--live`, limits concurrency, stores every conversation's evidence as it finishes, and retains execution errors. Provider exception messages are omitted to prevent credential/request leakage.
+
+## Phase 6
+
+- The owner supplied a LangSmith credential; store it only in ignored `.env`. Workspace read access was verified without exposing its value. Use the `bazak-v2` destination for runtime traces.
+- Required monitoring is a sanitized local event journal/dashboard plus LangSmith stage/LLM traces and a runbook. Automatic judges, alerts, and dataset synchronization remain deferred as the revised plan permits.
+- Upload immutable evaluation snapshots and score recorded predictions rather than making a second set of model calls. Preserve source trace IDs and configuration so LangSmith experiment scores refer to the exact local evidence.
+- Pass the pipeline's public trace headers into Chainlit message/card persistence so async SQL spans retain their turn parent. SQL parameters and authentication values are never exported.
+- Final integration checks found a console-encoding issue in draft Hebrew relevance text; restore UTF-8 Hebrew. Final evaluation artifacts now save the complete normalized catalog alongside its hash for reproducibility.

@@ -1,462 +1,339 @@
-"""Scoring functions for the evals. All pure: they take plain data and return plain results.
+"""Independent, pure evaluation math and checks. No production search imports."""
 
-Nothing here calls a model, the pipeline or search(), so every function can be tested
-with hand-made inputs. Two groups:
-  1. Deterministic: compare the product IDs and the extracted filter with the CSV row.
-  2. Behavioral: score one TurnResult against one line of datasets/behavioral.jsonl.
-"""
-
+from collections import defaultdict
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
+import math
+from math import log2
 import re
-from dataclasses import dataclass, field
-from typing import Any
 
-from app.schemas import Product, SearchSpec, TurnResult
-from evals.ground_truth import expected_ids, passes_filter, sort_value
+from functools import lru_cache
 
-# ---------------------------------------------------------------------------
-# Deterministic set
-# ---------------------------------------------------------------------------
+from app.currency import UnsupportedCurrency
+from app.schemas import CurrencyRate, Product, SearchOutcome, SearchSpec, TurnResult
+from evals.datasets import FrozenRateProvider
 
-
-def precision_recall_f1(expected: set[int], returned: set[int]) -> tuple[float, float, float]:
-    """Precision, recall and F1 of the returned IDs against the expected IDs.
-
-    Both empty is a correct answer ("nothing matches" and the agent found nothing): 1.0.
-    Exactly one empty is a miss or a false alarm: 0.0.
-    """
-    if not expected and not returned:
-        return 1.0, 1.0, 1.0
-    if not expected or not returned:
-        return 0.0, 0.0, 0.0
-    hits = len(expected & returned)
-    precision = hits / len(returned)
-    recall = hits / len(expected)
-    if precision + recall == 0:
-        return precision, recall, 0.0
-    return precision, recall, 2 * precision * recall / (precision + recall)
-
-
-def top_k_is_correct(spec: SearchSpec, catalog: list[Product], returned_ids: list[int]) -> bool:
-    """True when the returned list is a right answer for a top_k row.
-
-    Products that tie on the sort value are equally right, so we do not demand one
-    particular tie order. A list is right when:
-      - it has the expected length and no repeated product,
-      - every product passes the row's filter,
-      - its sequence of sort values equals the expected sequence of sort values.
-    """
-    by_id = {product.id: product for product in catalog}
-    expected = expected_ids(spec, catalog)
-    if len(returned_ids) != len(expected) or len(set(returned_ids)) != len(returned_ids):
-        return False
-    if any(i not in by_id or not passes_filter(by_id[i], spec) for i in returned_ids):
-        return False
-    expected_values = [sort_value(by_id[i], spec) for i in expected]
-    returned_values = [sort_value(by_id[i], spec) for i in returned_ids]
-    return expected_values == returned_values
-
-
-@dataclass
-class RetrievalScores:
-    precision: float
-    recall: float
-    f1: float
-    top_k_ok: bool | None  # None on rows without top_k
-
-
-def score_retrieval(
-    expected_spec: SearchSpec,
-    catalog: list[Product],
-    searches: list[SearchSpec],
-    returned_ids: list[int],
-) -> RetrievalScores:
-    """Score the IDs one query returned (all its searches together) against the CSV row.
-
-    Two rules beyond plain P/R/F1:
-    - A row where nothing matches earns its 1.0 for returning nothing only if a search
-      with the row's category actually ran. A parser that just asks a question gets 0.
-    - On a top_k row whose answer is correct (see top_k_is_correct), tied products count
-      as hits, so F1 is 1.0.
-    """
-    expected = set(expected_ids(expected_spec, catalog))
-    returned = set(returned_ids)
-
-    top_k_ok = None
-    if expected_spec.top_k is not None:
-        top_k_ok = top_k_is_correct(expected_spec, catalog, returned_ids)
-        if top_k_ok:
-            expected = returned
-
-    if not expected and not returned:
-        search_ran = any(search.category == expected_spec.category for search in searches)
-        if not search_ran:
-            return RetrievalScores(0.0, 0.0, 0.0, top_k_ok)
-
-    precision, recall, f1 = precision_recall_f1(expected, returned)
-    return RetrievalScores(precision, recall, f1, top_k_ok)
-
-
-def _same_number(a: float | None, b: float | None) -> bool:
-    if a is None or b is None:
-        return a is None and b is None
-    return abs(a - b) < 0.001
-
-
-def filter_matches(expected: SearchSpec, got: SearchSpec | None) -> bool:
-    """True when every CSV column of the extracted spec equals the expected one.
-
-    Keywords are not compared: the CSV has no keywords column. `got` is None when the
-    parser produced no search at all, which is a mismatch.
-    """
-    if got is None:
-        return False
-    return (
-        got.category == expected.category
-        and _same_number(got.price_min, expected.price_min)
-        and _same_number(got.price_max, expected.price_max)
-        and _same_number(got.rating_min, expected.rating_min)
-        and got.sort_by == expected.sort_by
-        and got.order == expected.order
-        and got.top_k == expected.top_k
-    )
-
-
-# ---------------------------------------------------------------------------
-# Reply language
-# ---------------------------------------------------------------------------
-
-HEBREW_FIRST = "֐"
-HEBREW_LAST = "׿"
-
-
-def whole_word(phrase: str) -> str:
-    """A regex that matches the phrase only when it is not glued to other letters or digits.
-
-    So the title "Realme X" does not match inside "Realme XT".
-    """
-    return rf"(?<!\w){re.escape(phrase)}(?!\w)"
-
-
-def remove_titles(text: str, titles: list[str]) -> str:
-    """Blank out whole product titles (longest first) so their words are not counted."""
-    for title in sorted(set(titles), key=len, reverse=True):
-        text = re.sub(whole_word(title), " ", text)
-    return text
-
-
-def remove_title_words(text: str, titles: list[str]) -> str:
-    """Blank out each single word of the titles, for replies that shorten a title.
-
-    "מצאתי Gucci Bloom" names the product without its full title.
-    """
-    words = {word for title in titles for word in re.findall(r"\w+", title)}
-    for word in sorted(words, key=len, reverse=True):
-        text = re.sub(whole_word(word), " ", text)
-    return text
-
-
-def detect_language(reply: str, shown_titles: list[str]) -> str:
-    """Return "he" or "en". No detection library; the rule is from CLAUDE.md.
-
-    The shown titles, whole and word by word, are removed first. "he" means most of the
-    remaining letters are in Hebrew script. Anything else counts as "en".
-    """
-    text = remove_title_words(remove_titles(reply, shown_titles), shown_titles)
-    letters = [char for char in text if char.isalpha()]
-    hebrew = [char for char in letters if HEBREW_FIRST <= char <= HEBREW_LAST]
-    return "he" if letters and len(hebrew) > len(letters) / 2 else "en"
-
-
-# ---------------------------------------------------------------------------
-# Grounding
-# ---------------------------------------------------------------------------
-
-# A number: "1,234.56" (comma thousands) or "1500" or "4.98".
-NUMBER = r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?"
-CURRENCY_WORDS = r"(?:דולרים|דולר|dólares|dólar|dolares|dolar|dollars|dollar|bucks|USD)"
-# Spaces and the invisible left-to-right / right-to-left marks that Hebrew text can carry.
-SEPARATOR = r"[\s‎‏؜‪-‮⁦-⁩]*"
-# "$30", "$ 30".
-AMOUNT_AFTER_SIGN = re.compile(rf"\${SEPARATOR}({NUMBER})")
-# "USD 777", "דולר 777".
-AMOUNT_AFTER_WORD = re.compile(rf"{CURRENCY_WORDS}{SEPARATOR}({NUMBER})", re.IGNORECASE)
-# "30$", "30 dólares", "1500 דולר". A "$" that starts the next amount ("30 $40") is not
-# the sign for 30, hence the (?!...\d).
-AMOUNT_BEFORE_WORD = re.compile(
-    rf"({NUMBER}){SEPARATOR}(?:\$(?!{SEPARATOR}\d)|{CURRENCY_WORDS}\b)", re.IGNORECASE
+INVARIANT_KEYS = (
+    'catalog_card_fidelity', 'no_duplicates', 'no_known_prompt_leak', 'no_unshown_catalog_titles',
+    'no_unsupported_dollar_amounts', 'exact_numeric_compliance',
+    'parsed_exclusion_rule_compliance', 'alternative_disclosure',
 )
-AMOUNT_PATTERNS = [AMOUNT_AFTER_SIGN, AMOUNT_AFTER_WORD, AMOUNT_BEFORE_WORD]
-PLAIN_NUMBER = re.compile(NUMBER)
-# "10k", "2 grand".
-THOUSANDS = re.compile(rf"({NUMBER})\s*(?:k|grand)\b", re.IGNORECASE)
-BOUND_ALLOWANCE = 0.01
 
 
-def to_float(text: str) -> float:
-    return float(text.replace(",", ""))
+def set_scores(expected: set[int], returned: set[int], executed: bool = True) -> dict:
+    if not expected and not returned:
+        return {"precision": float(executed), "recall": float(executed), "f1": float(executed)}
+    hits = len(expected & returned)
+    precision = hits / len(returned) if returned else 0.0
+    recall = hits / len(expected) if expected else 0.0
+    return {"precision": precision, "recall": recall,
+            "f1": 2*precision*recall/(precision+recall) if precision+recall else 0.0}
 
 
-def find_dollar_amounts(text: str) -> list[float]:
-    """Every scored amount: after a "$", before a "$", or next to a currency word."""
-    amounts = []
-    for pattern in AMOUNT_PATTERNS:
-        amounts += [to_float(match) for match in pattern.findall(text)]
-    return amounts
+def ranking_scores(returned: list[int], grades: dict[int, int], eligible_ids: set[int], k: int = 3,
+                   exhaustive: bool = True) -> dict:
+    """Unknown labels are not negatives. Full-catalog metrics need full judgments."""
+    if k < 1:
+        raise ValueError('k must be positive')
+    if exhaustive and not eligible_ids <= grades.keys():
+        raise ValueError('exhaustive metrics require judgments for every eligible product')
+    direct = {i for i in eligible_ids if grades.get(i) == 2}
+    first = returned[:k]
+    unique_hits = len(set(first) & direct)
+    judged = [i for i in first if i in grades]
+    result = {"precision_at_k": unique_hits/k if len(judged) == len(first) else None,
+              "shown_precision": unique_hits/len(first) if first and len(judged) == len(first) else None,
+              "judged_fraction": len(judged)/len(first) if first else None}
+    hits = len(set(returned[:10]) & direct)
+    result.update({"hit_at_10": float(hits > 0) if exhaustive and direct else None,
+                   "recall_at_10": hits/len(direct) if exhaustive and direct else None,
+                   "recall_at_10_ceiling": min(10,len(direct))/len(direct) if exhaustive and direct else None,
+                   "achievable_recall_at_10": hits/min(10,len(direct)) if exhaustive and direct else None})
+    if exhaustive:
+        ideal = sorted([grades.get(i, 0) for i in eligible_ids], reverse=True)[:k]
+        ideal_dcg = sum((2**grade-1)/log2(n+2) for n,grade in enumerate(ideal))
+        known = set()
+        dcg = 0.0
+        for n,identifier in enumerate(first):
+            grade = grades.get(identifier, 0) if identifier in eligible_ids and identifier not in known else 0
+            dcg += (2**grade-1)/log2(n+2)
+            known.add(identifier)
+        result["ndcg_at_k"] = dcg/ideal_dcg if ideal_dcg else None
+        result["slot_coverage"] = unique_hits/min(k,len(direct)) if direct else None
+    return result
 
 
-def find_other_numbers(text: str) -> list[str]:
-    """Numbers that are not dollar amounts (counts, ratings). These are printed, never scored."""
-    for pattern in AMOUNT_PATTERNS:
-        text = pattern.sub(" ", text)
-    return PLAIN_NUMBER.findall(text)
+def number(value):
+    return None if value in (None, "") else float(value)
 
 
-def numbers_in_user_text(text: str) -> list[float]:
-    """Numbers a user wrote: digits, "10k" or "2 grand" as thousands, and "a grand" as 1000."""
-    numbers = [to_float(match) * 1000 for match in THOUSANDS.findall(text)]
-    text = THOUSANDS.sub(" ", text)
-    numbers += [to_float(match) for match in PLAIN_NUMBER.findall(text)]
-    # "a grand" with no number in front of it.
-    if re.search(r"\bgrand\b", text, re.IGNORECASE):
-        numbers.append(1000.0)
-    return numbers
+def expected_ids(case: dict, catalog) -> list[int]:
+    """Legacy CSV oracle: independent of production filtering and ranking."""
+    category = case.get("category")
+    low, high, rating = (number(case.get(field)) for field in ("price_min", "price_max", "rating_min"))
+    products = [p for p in catalog if (not category or p.category == category)
+                and (low is None or p.price >= low) and (high is None or p.price <= high)
+                and (rating is None or p.rating >= rating)]
+    sort = case.get("sort_by")
+    if sort:
+        products.sort(key=lambda p: ((-1 if case.get("order")=="desc" else 1)*getattr(p,sort),p.id))
+    else:
+        products.sort(key=lambda p: (-p.rating,p.id))
+    top = number(case.get("top_k"))
+    return [p.id for p in (products[:int(top)] if top else products)]
 
 
-def find_unshown_titles(
-    text: str, shown_titles: list[str], catalog_titles: list[str]
-) -> tuple[list[str], list[str]]:
-    """Catalog titles that appear in the text although their product was not shown.
-
-    Returns (scored, unscored). One-word titles ("Apple", "Water", "Sunglasses") are
-    also ordinary words, so a hit on one is not scored, only returned to be printed.
-    Shown titles are blanked out first (whole words only), so a short unshown title that
-    is part of a longer shown title is not a false alarm. Matching is exact and
-    case-sensitive, because titles must stay exactly as in the catalog.
-    """
-    text = remove_titles(text, shown_titles)
-    scored, unscored = [], []
-    for title in sorted(set(catalog_titles) - set(shown_titles)):
-        if re.search(whole_word(title), text):
-            (unscored if len(title.split()) == 1 else scored).append(title)
-    return scored, unscored
+def _same(left, right) -> bool:
+    if left is None or right is None:
+        return left is None and right is None
+    return abs(left-right) < 0.00001
 
 
-@dataclass
-class GroundingResult:
-    bad_titles: list[str] = field(default_factory=list)
-    bad_amounts: list[float] = field(default_factory=list)
-    # Not scored. Printed beside the reply for Or to read.
-    other_numbers: list[str] = field(default_factory=list)
-    unscored_title_hits: list[str] = field(default_factory=list)
-
-    @property
-    def ok(self) -> bool:
-        return not self.bad_titles and not self.bad_amounts
+def unshown_catalog_titles(reply: str, catalog, shown: set[int]) -> list[str]:
+    """Avoid prefix titles and shorter titles embedded in a shown product's name."""
+    text = reply
+    for product in sorted((p for p in catalog if p.id in shown), key=lambda p: len(p.title), reverse=True):
+        text = re.sub(r'(?<!\w)' + re.escape(product.title) + r'(?!\w)', ' ', text)
+    return [p.title for p in catalog if p.id not in shown and len(p.title.split()) > 1
+            and re.search(r'(?<!\w)' + re.escape(p.title) + r'(?!\w)', text)]
 
 
-def shown_products(result: TurnResult) -> list[Product]:
-    """The products with a card in this turn."""
-    return [product for outcome in result.outcomes for product in outcome.shown]
+def normalized_bounds(spec: SearchSpec, rate: CurrencyRate | None = None) -> dict[str, float | None] | None:
+    """Independent arithmetic using the recorded quote, never today's API rate."""
+    code = (spec.currency or 'USD').strip().upper()
+    units_per_usd = Decimal(1)
+    if code != 'USD' and (spec.price_min is not None or spec.price_max is not None):
+        if rate is None or rate.currency != code:
+            return None
+        units_per_usd = rate.units_per_usd
+    bounds = {}
+    for field in ('price_min', 'price_max', 'rating_min'):
+        value = getattr(spec, field)
+        if value is None:
+            bounds[field] = None
+            continue
+        units = units_per_usd if field != 'rating_min' else Decimal(1)
+        cents = Decimal(str(value)) * 100 / units
+        minimum = field != 'price_max'
+        strict = bool(getattr(spec, field + '_strict'))
+        rounding = ROUND_CEILING if minimum else ROUND_FLOOR
+        integer = cents.to_integral_value(rounding=rounding)
+        if strict and integer == cents:
+            integer += 1 if minimum else -1
+        bounds[field] = float(integer / 100)
+    return bounds
 
 
-def check_grounding(
-    result: TurnResult,
-    user_turns: list[str],
-    catalog_titles: list[str],
-    shown: list[Product] | None = None,
-) -> GroundingResult:
-    """Score a reply with the Grounding rule in CLAUDE.md.
+@lru_cache(maxsize=1)
+def _legacy_rates() -> FrozenRateProvider:
+    return FrozenRateProvider()
 
-    `shown` is every product shown anywhere in the conversation, because a follow-up reply
-    may talk about a product from an earlier turn. If not given, this turn's cards are used.
-    Titles: no catalog title outside the shown products.
-    Dollar amounts must be a shown price, a number from any user turn, or a bound of the
-    current search (price_min or price_max, within 0.01 because "under $20" is stored as 19.99).
-    """
-    if shown is None:
-        shown = shown_products(result)
-    shown_titles = [product.title for product in shown]
 
-    allowed_exact = [product.price for product in shown]
-    for turn in user_turns:
-        allowed_exact += numbers_in_user_text(turn)
-    bounds = []
+def recorded_rate(outcome: SearchOutcome) -> CurrencyRate | None:
+    if outcome.exchange_rate is not None or 'exchange_rate' in outcome.model_fields_set:
+        return outcome.exchange_rate
+    # Archives made before API rates used this exact fixture. Only those old
+    # records may omit provenance; new records must carry their actual quote.
+    try:
+        return _legacy_rates().get_rate(outcome.spec.currency or 'USD')
+    except UnsupportedCurrency:
+        return None
+
+
+def passes_bounds(product: Product, bounds: dict) -> bool:
+    return ((bounds['price_min'] is None or product.price >= bounds['price_min'])
+            and (bounds['price_max'] is None or product.price <= bounds['price_max'])
+            and (bounds['rating_min'] is None or product.rating >= bounds['rating_min']))
+
+
+def disclosure_matches(card, reply: str) -> bool:
+    if card.alternative != bool(card.relaxations):
+        return False
+    if not card.alternative:
+        return True
+    prefixes = (f'Alternative outside your limits: {card.product.title} — ',
+                f'חלופה מחוץ למגבלות: {card.product.title} — ')
+    lines = [line for line in reply.splitlines() if line.startswith(prefixes)]
+    for line in lines:
+        values = []
+        for change in card.relaxations:
+            if change.field == 'rating_min':
+                values.extend((f'{change.original:g}', f'{change.actual:g}'))
+            else:
+                values.extend((f'${change.original:,.2f}', f'${change.actual:,.2f}'))
+        if all(value in line for value in values):
+            return True
+    return False
+
+
+def top_k_matches(case: dict, catalog: list[Product], returned: list[int]) -> bool:
+    by_id = {p.id: p for p in catalog}
+    expected = expected_ids(case, catalog)
+    eligible = set(expected_ids({**case, 'top_k': None}, catalog))
+    if len(returned) != len(expected) or len(set(returned)) != len(returned) or not set(returned) <= eligible:
+        return False
+    field = 'price' if case.get('sort_by') == 'price' else 'rating'
+    return [getattr(by_id[i], field) for i in returned] == [getattr(by_id[i], field) for i in expected]
+
+
+def score_turn(result: TurnResult, case: dict, catalog: list[Product]) -> dict:
+    """Observable checks only. Unknown semantic correctness remains None."""
+    by_id = {p.id:p for p in catalog}
+    cards = [c for o in result.outcomes for c in o.cards]
+    identifiers = [c.product.id for c in cards]
+    facts_ok = all(c.product.id in by_id and c.product.model_dump() == by_id[c.product.id].model_dump() for c in cards)
+    metrics = {"catalog_card_fidelity": float(facts_ok),
+               "no_duplicates": float(len(identifiers)==len(set(identifiers))),
+               "intent_accuracy": float(result.parsed.intent==case["expected_intent"]) if case.get("expected_intent") else None,
+               "mode_accuracy": float(result.parsed.mode==case.get("expected_mode")) if "expected_mode" in case else None,
+               "semantic_grounding_reviewed": None, "task_success_reviewed": None}
+    expected_categories = set(case.get("expected_categories", []))
+    shown_categories = {c.product.category for c in cards}
+    match = case.get("category_match")
+    metrics["legacy_category_accuracy"] = (float(shown_categories==expected_categories) if match=="all" else
+        float(bool(shown_categories) and shown_categories <= expected_categories) if match=="any" else None)
+    forbidden = set(case.get("forbidden_card_ids", []))
+    metrics["forbidden_card_compliance"] = float(not (forbidden & set(identifiers))) if forbidden else None
+    required = set(case.get("required_card_ids", []))
+    metrics["required_cards_present"] = float(required <= set(identifiers)) if required else None
+    if "expected_card_ids" in case:
+        metrics["legacy_expected_cards"] = float(set(identifiers) == set(case["expected_card_ids"]))
+    if "min_cards" in case:
+        metrics["minimum_cards"] = float(len(identifiers) >= case["min_cards"])
+    if case.get("expected_language"):
+        # Remove product names so English catalog titles do not bias Hebrew replies.
+        text=result.reply
+        for p in catalog:
+            text=text.replace(p.title, '')
+        letters=[c for c in text if c.isalpha()]
+        language='he' if letters and sum('\u0590'<=c<='\u05ff' for c in letters)>len(letters)/2 else 'en'
+        metrics["language_accuracy"]=float(language==case['expected_language'])
+    # Structured disclosure plus literal presence is evidence of code disclosure only.
+    metrics['alternative_disclosure']=float(all(disclosure_matches(c, result.reply) for c in cards))
+    if 'expect_fallback' in case:
+        actual={r.field for c in cards for r in c.relaxations}
+        expected=case['expect_fallback']
+        expected=set() if expected is None else ({'price','rating'} if expected=='both' else set(expected if isinstance(expected,list) else [expected]))
+        actual={"rating" if f=='rating_min' else "price" for f in actual}
+        metrics['legacy_fallback_accuracy']=float(actual==expected)
+    normalized=[]
     for outcome in result.outcomes:
-        for bound in (outcome.spec.price_min, outcome.spec.price_max):
-            if bound is not None:
-                bounds.append(bound)
-
-    # Titles can contain digits, so blank them out before reading amounts and numbers.
-    text = remove_titles(result.reply, shown_titles)
-
-    bad_amounts = []
-    for amount in find_dollar_amounts(text):
-        # round(..., 2) keeps float noise (1399.99 - 1399.98 = 0.01000000000000227) out of the test.
-        is_exact = any(round(abs(amount - value), 2) == 0 for value in allowed_exact)
-        is_bound = any(round(abs(amount - bound), 2) <= BOUND_ALLOWANCE for bound in bounds)
-        if not is_exact and not is_bound:
-            bad_amounts.append(amount)
-
-    bad_titles, unscored_hits = find_unshown_titles(result.reply, shown_titles, catalog_titles)
-    return GroundingResult(
-        bad_titles=bad_titles,
-        bad_amounts=bad_amounts,
-        other_numbers=find_other_numbers(text),
-        unscored_title_hits=unscored_hits,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Behavioral set
-# ---------------------------------------------------------------------------
-
-
-def score_intent(result: TurnResult, case: dict[str, Any]) -> bool:
-    return result.parsed.intent == case["expected_intent"]
-
-
-def score_mode(result: TurnResult, case: dict[str, Any]) -> bool:
-    """expected_mode is null for every intent but product_search, and the parser must match that."""
-    return result.parsed.mode == case["expected_mode"]
-
-
-def shown_categories(result: TurnResult) -> set[str]:
-    return {product.category for product in shown_products(result)}
-
-
-def score_category(result: TurnResult, case: dict[str, Any]) -> bool | None:
-    """The categories of the cards shown this turn.
-
-    all: they equal the expected categories (a missing or an extra category fails).
-    any: they are a non-empty part of the expected categories.
-    None (not applicable) when the case expects no categories.
-    """
-    expected = set(case["expected_categories"])
-    if not expected:
-        return None
-    shown = shown_categories(result)
-    if case["category_match"] == "any":
-        return bool(shown) and shown <= expected
-    return shown == expected
-
-
-def loosened_fields(result: TurnResult) -> set[str]:
-    return {name for outcome in result.outcomes for name in outcome.loosened}
+        bounds = normalized_bounds(outcome.spec, recorded_rate(outcome))
+        if bounds is not None:
+            normalized.append((outcome, bounds))
+    numeric_ok=True; exclusions_ok=True
+    for outcome,bounds in normalized:
+        for card in outcome.cards:
+            p=card.product
+            if not card.alternative:
+                numeric_ok &= passes_bounds(p, bounds)
+    for outcome in result.outcomes:
+        for card in outcome.cards:
+            p=card.product
+            text=' '.join(re.findall(r'\w+', ' '.join([p.title,p.description,p.brand or '',p.category,*p.tags]).casefold()))
+            exclusions_ok &= not any(' '+ ' '.join(re.findall(r'\w+',term.casefold())) +' ' in ' '+text+' ' for term in outcome.spec.exclude or [] if term.strip())
+    exact_cards = [card for card in cards if not card.alternative]
+    metrics['exact_numeric_compliance']=float(numeric_ok) if exact_cards and len(normalized)==len(result.outcomes) else None
+    metrics['parsed_exclusion_rule_compliance']=float(exclusions_ok) if cards else None
+    allowed_amounts={p.price for p in result.state.shown}
+    for outcome,bounds in normalized:
+        allowed_amounts.update(bounds[field] for field in ('price_min','price_max') if bounds[field] is not None)
+        allowed_amounts.update(value for value in (outcome.spec.price_min,outcome.spec.price_max) if value is not None)
+    dollar_amounts=[float(s.replace(',','')) for s in re.findall(r'\$\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)',result.reply)]
+    metrics['no_unsupported_dollar_amounts']=float(all(any(_same(value,allowed) for allowed in allowed_amounts) for value in dollar_amounts))
+    # Title and amount checks catch known violations; they do not prove grounding.
+    shown={c.product.id for c in cards} | {p.id for p in result.state.shown}
+    unseen_titles=unshown_catalog_titles(result.reply,catalog,shown)
+    metrics['no_unshown_catalog_titles']=float(not unseen_titles)
+    leak_terms=['you extract shopping intent','return structured json only','system prompt:','v2-parser-1']
+    version_leak = re.search(r'\bv2-(?:parser|responder|product-type)-\d+\b', result.reply.casefold())
+    metrics['no_known_prompt_leak']=float(not version_leak and not any(t in result.reply.casefold() for t in leak_terms))
+    is_deterministic=case.get('source')=='deterministic' or case.get('type')=='deterministic'
+    if is_deterministic:
+        labeled_bounds={field:number(case.get(field)) for field in ('price_min','price_max','rating_min')}
+        exact_cards=[c for c in cards if not c.alternative]
+        metrics['labeled_exact_numeric_compliance']=(float(all(passes_bounds(c.product,labeled_bounds) for c in exact_cards))
+            if exact_cards and any(v is not None for v in labeled_bounds.values()) else None)
+        expected=expected_ids(case,catalog)
+        returned=list(dict.fromkeys(i for o in result.outcomes for i in o.exact_ids))
+        top=number(case.get('top_k'))
+        if top: returned=returned[:int(top)]
+        executed = any(case.get('category') in direction.categories for outcome in result.outcomes for direction in outcome.spec.directions or [])
+        top_ok = top_k_matches(case,catalog,returned) and (bool(expected) or executed) if top else None
+        retrieval=set_scores(set(returned) if top_ok else set(expected),set(returned),executed)
+        metrics.update({'legacy_'+key:value for key,value in retrieval.items()})
+        if normalized:
+            outcome,bounds=normalized[0]
+            categories={slug for d in outcome.spec.directions or [] for slug in d.categories}
+            numeric_fields=all(_same(number(case.get(f)),bounds[f]) for f in bounds)
+            options=all((case.get(f) or None)==getattr(outcome.spec,f) for f in ('sort_by','order'))
+            metrics['numeric_sort_count_exact_match']=float(numeric_fields and options and _same(number(case.get('top_k')),outcome.spec.top_k))
+            metrics['legacy_category_guess']=float(case.get('category') in categories)
+        else:
+            metrics['numeric_sort_count_exact_match']=0.0
+        if top:
+            metrics['legacy_top_k_order']=float(top_ok)
+    return metrics
 
 
-def score_fallback(result: TurnResult, case: dict[str, Any]) -> bool:
-    """The loosened fields must be exactly the expected one, both, or none when null is expected."""
-    value = case["expect_fallback"]
-    if value == "both":
-        return loosened_fields(result) == {"rating", "price"}
-    return loosened_fields(result) == ({value} if value else set())
+def failure_metrics(case: dict) -> dict:
+    """An execution failure is a failed applicable accuracy case, never excluded."""
+    metrics = {'execution_success': 0.0}
+    if case.get('expected_intent'):
+        metrics['intent_accuracy'] = 0.0
+    if 'expected_mode' in case:
+        metrics['mode_accuracy'] = 0.0
+    if case.get('source') == 'deterministic' or case.get('type') == 'deterministic':
+        metrics.update({key: 0.0 for key in ('legacy_precision', 'legacy_recall', 'legacy_f1', 'numeric_sort_count_exact_match')})
+        if number(case.get('top_k')):
+            metrics['legacy_top_k_order'] = 0.0
+    if case.get('category_match') in ('all', 'any'):
+        metrics['legacy_category_accuracy'] = 0.0
+    for label, key in (('required_card_ids', 'required_cards_present'),
+                       ('expected_card_ids', 'legacy_expected_cards'), ('min_cards', 'minimum_cards'), ('expected_language', 'language_accuracy')):
+        if label in case and case[label] is not None:
+            metrics[key] = 0.0
+    return metrics
 
 
-def score_cards(result: TurnResult, case: dict[str, Any]) -> bool | None:
-    """The cards shown must be exactly these products. None when the case doesn't list any."""
-    expected = case.get("expected_card_ids")
-    if not expected:
-        return None
-    return {product.id for product in shown_products(result)} == set(expected)
+def score_record(record: dict, catalog: list[Product]) -> dict:
+    """One scoring path for live replay and free re-scoring of saved predictions."""
+    row = {**record, 'turns': [dict(turn) for turn in record['turns']]}
+    if row.get('error_stage') == 'scoring' and len(row['turns']) == len(row['case']['turns']):
+        row['prior_scoring_error'] = row['error']
+        row['error'] = None
+        row['error_stage'] = None
+    results = []
+    for turn in row['turns']:
+        result = TurnResult.model_validate(turn['result'])
+        results.append(result)
+        turn['metrics'] = score_turn(result, row['case'], catalog)
+    if row['error']:
+        metrics = failure_metrics(row['case'])
+    else:
+        if len(results) != len(row['case']['turns']):
+            raise ValueError('Successful record must contain every conversation turn')
+        metrics = dict(row['turns'][-1]['metrics'])
+        metrics['execution_success'] = 1.0
+    for key in INVARIANT_KEYS:
+        values = [turn['metrics'][key] for turn in row['turns'] if turn['metrics'].get(key) is not None]
+        metrics[key] = min(values) if values else None
+    overlay = row.get('v2_expectation')
+    if overlay:
+        case = {**row['case'], **overlay}
+        scores = failure_metrics(case) if row['error'] else score_turn(results[-1], case, catalog)
+        prefix = 'v2_' if overlay.get('review_status') == 'reviewed' else 'v2_draft_'
+        metrics.update({prefix + key: value for key, value in scores.items()
+                        if key in ('intent_accuracy', 'mode_accuracy', 'legacy_category_accuracy')})
+    row['metrics'] = metrics
+    return row
 
 
-def score_language(
-    result: TurnResult, case: dict[str, Any], shown: list[Product] | None = None
-) -> bool | None:
-    """None (not applicable) when the case sets no expected_language."""
-    expected = case.get("expected_language")
-    if not expected:
-        return None
-    if shown is None:
-        shown = shown_products(result)
-    return detect_language(result.reply, [product.title for product in shown]) == expected
-
-
-def score_card_rules(result: TurnResult, case: dict[str, Any]) -> bool | None:
-    """The card rules a case may set. None when it sets none.
-
-    required_card_ids: each must be among the cards ("knives" must show the Knife).
-    forbidden_card_ids: none may be among the cards ("not Apple" must show no iPhone).
-    min_cards: at least this many cards ("the cheapest phones" is more than one).
-    """
-    required = case.get("required_card_ids") or []
-    forbidden = case.get("forbidden_card_ids") or []
-    min_cards = case.get("min_cards")
-    if not required and not forbidden and min_cards is None:
-        return None
-    shown = {product.id for product in shown_products(result)}
-    return set(required) <= shown and not set(forbidden) & shown and len(shown) >= (min_cards or 0)
-
-
-# Phrases from the parser and responder prompts, and the internal labels, that no reply
-# should ever contain. Whole phrases, so ordinary replies don't trip them.
-LEAK_PHRASES = [
-    "turn a shopper's message into a structured search",
-    "you only fill in the fields",
-    "short chat reply of a shopping assistant",
-    "summary of what the system understood",
-    "xml-style tags",
-    "shopper_message",
-    "product_search",
-    "needs_clarification",
-    "off_catalog",
-    "small_talk",
-    "show_more",
-    "category_options",
-    "clear_fields",
-    "refines_index",
-]
-
-
-def find_leaks(reply: str) -> list[str]:
-    """The prompt phrases and internal labels found in a reply, in any letter case."""
-    text = reply.lower().replace("’", "'")  # the model often writes a curly apostrophe
-    return [phrase for phrase in LEAK_PHRASES if phrase in text]
-
-
-def score_refused(result: TurnResult, case: dict[str, Any]) -> bool | None:
-    """Did an answerable request get no answer? None when the case isn't answerable.
-
-    Answerable means the case expects a product search. Refused means the parser chose
-    another intent, or no card was shown. A refusal worded in the reply while cards still
-    show is left to the judge in evals/ragas_eval.py.
-    """
-    if case["expected_intent"] != "product_search":
-        return None
-    return result.parsed.intent != "product_search" or not shown_products(result)
-
-
-@dataclass
-class CaseScores:
-    intent_ok: bool
-    mode_ok: bool
-    category_ok: bool | None
-    fallback_ok: bool
-    cards_ok: bool | None
-    language_ok: bool | None
-    grounding: GroundingResult
-    card_rules_ok: bool | None = None
-    leaks: list[str] = field(default_factory=list)
-    refused: bool | None = None
-
-
-def score_case(
-    result: TurnResult,
-    case: dict[str, Any],
-    user_turns: list[str],
-    catalog_titles: list[str],
-    shown: list[Product] | None = None,
-) -> CaseScores:
-    """Score the last turn of a conversation. `shown` is every product shown in any turn."""
-    return CaseScores(
-        intent_ok=score_intent(result, case),
-        mode_ok=score_mode(result, case),
-        category_ok=score_category(result, case),
-        fallback_ok=score_fallback(result, case),
-        cards_ok=score_cards(result, case),
-        language_ok=score_language(result, case, shown),
-        grounding=check_grounding(result, user_turns, catalog_titles, shown),
-        card_rules_ok=score_card_rules(result, case),
-        leaks=find_leaks(result.reply),
-        refused=score_refused(result, case),
-    )
+def aggregate(rows: list[dict]) -> dict:
+    groups=defaultdict(list)
+    for row in rows:
+        for key,value in row.get('metrics',{}).items():
+            if isinstance(value,(float,int)):
+                if not math.isfinite(value):
+                    raise ValueError(f'Non-finite metric: {key}')
+                groups[key].append(float(value))
+    return {key:{'mean':sum(values)/len(values),'numerator':sum(values),'denominator':len(values)} for key,values in sorted(groups.items())}

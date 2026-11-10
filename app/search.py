@@ -1,239 +1,109 @@
-"""Filter and rank the cached catalog in plain Python, with our own fallback."""
+"""Numeric filtering and semantic relevance, without LLM or fallback decisions."""
 
 import re
+import unicodedata
 
-from app.schemas import Product, SearchOutcome, SearchSpec
+import numpy as np
 
-
-def words_of(text: str) -> list[str]:
-    """Lower-case words of a text. Apostrophes are dropped, so "men's" and "mens" agree."""
-    # [^\W_]+ is a run of letters or digits in any script, so a Hebrew keyword stays a
-    # word (that matches nothing) instead of vanishing and letting everything through.
-    return re.findall(r"[^\W_]+", text.lower().replace("'", ""))
+from app.index import ProductIndex
+from app.observability import span
+from app.schemas import Candidate, Product, SearchSpec
 
 
-def same_word(a: str, b: str) -> bool:
-    """True for equal words, or a word and its plural, in either order.
-
-    Whole words only, so "car" does not match "card". The parser is asked to write
-    keywords in the singular, but catalog titles mix forms ("Knife", "Eggs"), so both
-    directions are checked here.
-    """
-    return a == b or is_plural_of(a, b) or is_plural_of(b, a)
+def normalize(text: str) -> str:
+    return " ".join(re.findall(r"\w+", unicodedata.normalize("NFKC", text).casefold()))
 
 
-def is_plural_of(singular: str, plural: str) -> bool:
-    """The regular English plurals: + s or es (laptop, laptops; glass, glasses), y to ies
-    (battery, batteries) and f or fe to ves (shelf, shelves; knife, knives).
-
-    Truly irregular words (mouse, mice) are left to the parser, which writes the singular.
-    """
-    return (
-        plural in (singular + "s", singular + "es")
-        or (singular.endswith("y") and plural == singular[:-1] + "ies")
-        or (singular.endswith("fe") and plural == singular[:-2] + "ves")
-        or (singular.endswith("f") and plural == singular[:-1] + "ves")
-    )
-
-
-def product_words(product: Product) -> list[str]:
-    """The words a keyword is checked against: title, category and tags."""
-    return words_of(" ".join([product.title, product.category, *product.tags]))
+def exclusion_tokens(text: str) -> list[str]:
+    """Treat common English plural inflections equally on both sides of a rule."""
+    tokens = []
+    for word in normalize(text).split():
+        if len(word) > 4 and word.endswith("ies"):
+            word = word[:-3] + "y"
+        elif len(word) > 4 and word.endswith(("ches", "shes", "xes", "zes", "sses")):
+            word = word[:-2]
+        elif len(word) > 3 and word.endswith("s") and not word.endswith(("ss", "us", "is")):
+            word = word[:-1]
+        tokens.append(word)
+    return tokens
 
 
-def keyword_match_count(keywords: list[str], product: Product) -> int:
-    """How many of the keyword words the product matches."""
-    found = product_words(product)
-    count = 0
-    for word in keywords:
-        if any(same_word(word, f) for f in found):
-            count += 1
-    return count
+def excluded(product: Product, terms: list[str] | None) -> bool:
+    text = " " + " ".join(exclusion_tokens(" ".join([product.title, product.description, product.brand or "", product.category, *product.tags]))) + " "
+    return any(" " + " ".join(exclusion_tokens(term)) + " " in text for term in terms or [] if normalize(term))
 
 
-def clean_keywords(keywords: list[str] | None) -> list[str]:
-    """Split every keyword into single words, so "coffee table" counts "coffee" and "table" apart.
-
-    Empty entries disappear, repeated words count once, and None means no keywords.
-    """
-    words = [word for keyword in (keywords or []) for word in words_of(keyword)]
-    return list(dict.fromkeys(words))
+def passes_numeric(product: Product, spec: SearchSpec) -> bool:
+    return ((spec.price_min is None or product.price >= spec.price_min)
+            and (spec.price_max is None or product.price <= spec.price_max)
+            and (spec.rating_min is None or product.rating >= spec.rating_min))
 
 
-def ranking_keywords(spec: SearchSpec) -> list[str]:
-    """The keyword words that can tell the products of a search apart.
-
-    With a category set, a word of the category's own name ("kitchen" in
-    kitchen-accessories) matches every product in it, so it would rank nothing and give
-    every product a card. Those words are dropped. Without a category every word counts.
-    """
-    words = clean_keywords(spec.keywords)
-    if spec.category is None:
-        return words
-    category_words = words_of(spec.category)
-    return [word for word in words if not any(same_word(word, c) for c in category_words)]
-
-
-def is_excluded(spec: SearchSpec, product: Product) -> bool:
-    """True when the product's title, brand or tags contain a word the shopper excluded.
-
-    The brand matters: iPhone titles never say "Apple", but their brand does. The category
-    is not checked: "phones but not Apple" must not drop every smartphone.
-    """
-    excluded = clean_keywords(spec.exclude_keywords)
-    if not excluded:
-        return False
-    found = words_of(" ".join([product.title, product.brand or "", *product.tags]))
-    return any(same_word(word, f) for word in excluded for f in found)
-
-
-def passes_filters(spec: SearchSpec, product: Product) -> bool:
-    """The hard filters: category, excluded words, price and rating. All bounds are inclusive.
-
-    The fallback loosens only price and rating, so an exclusion always holds.
-    """
-    if spec.category is not None and product.category != spec.category:
-        return False
-    if is_excluded(spec, product):
-        return False
-    if spec.price_min is not None and product.price < spec.price_min:
-        return False
-    if spec.price_max is not None and product.price > spec.price_max:
-        return False
-    if spec.rating_min is not None and product.rating < spec.rating_min:
-        return False
-    return True
+def rank_all(spec: SearchSpec, index: ProductIndex, query_cache: dict | None = None) -> list[list[Candidate]]:
+    """Compute relative scores on the WHOLE catalog, independently of price filters."""
+    cache = query_cache if query_cache is not None else {}
+    result = []
+    for number, direction in enumerate(spec.directions or []):
+        if direction.query not in cache:
+            cache[direction.query] = index.embedder.encode([direction.query], query=True)[0]
+        with span("rank_direction", {"query": direction.query}, {"direction": number}) as run:
+            similarities = index.similarities(cache[direction.query])
+            std = float(np.std(similarities))
+            z_scores = (similarities - similarities.mean()) / std if std > 1e-8 else np.zeros_like(similarities)
+            candidates = []
+            for product, similarity, z_score in zip(index.products, similarities, z_scores):
+                matched = product.category in direction.categories
+                if std <= 1e-8:
+                    zone = "uninformative"
+                elif z_score >= index.config.strong_threshold:
+                    zone = "strong"
+                elif z_score >= index.config.borderline_threshold:
+                    zone = "borderline"
+                else:
+                    zone = "weak"
+                relevant = zone == "strong" or (zone == "borderline" and matched)
+                boost = index.config.category_boost if matched else 0.0
+                candidates.append(Candidate(product=product, direction=number,
+                    similarity=float(similarity), z_score=float(z_score), category_boost=boost,
+                    score=float(similarity)+boost, zone=zone, relevant=relevant,
+                    reason="accepted" if relevant else "relative_relevance_rejected"))
+            candidates.sort(key=lambda c: (-c.score, c.product.id))
+            if run is not None:
+                run.end(outputs={"candidates": [c.model_dump(mode="json") for c in candidates[:index.config.candidate_window]],
+                                 "qualified": sum(c.relevant for c in candidates), "std": std})
+            result.append(candidates)
+    return result
 
 
-def sort_direction(spec: SearchSpec) -> int:
-    """1 for ascending, -1 for descending. A sort with no order means cheapest or highest rated."""
-    order = spec.order
-    if order is None:
-        order = "asc" if spec.sort_by == "price" else "desc"
-    return 1 if order == "asc" else -1
+def eligible_lists(spec: SearchSpec, ranked: list[list[Candidate]], seen: set[int] | None = None) -> list[list[Candidate]]:
+    with span("filter", {"directions": len(ranked)}) as run:
+        result = []
+        for candidates in ranked:
+            eligible = [c for c in candidates if c.relevant and c.product.id not in (seen or set())
+                        and not excluded(c.product, spec.exclude) and passes_numeric(c.product, spec)]
+            if spec.sort_by:
+                descending = spec.order == "desc"
+                eligible.sort(key=lambda c: ((-1 if descending else 1) * getattr(c.product, spec.sort_by), c.product.id))
+            result.append(eligible)
+        if run is not None:
+            run.end(outputs={"eligible_counts": [len(items) for items in result]})
+        return result
 
 
-def search(spec: SearchSpec, catalog: list[Product]) -> list[Product]:
-    """Return every match, ranked, with no display cap and no fallback."""
-    keywords = ranking_keywords(spec)
-
-    # Pair each product that passes the filters with its keyword-match count.
-    matches: list[tuple[Product, int]] = []
-    for product in catalog:
-        if not passes_filters(spec, product):
-            continue
-        count = keyword_match_count(keywords, product)
-        # With a category, keywords only rank. With none, at least one must match.
-        if spec.category is None and keywords and count == 0:
-            continue
-        matches.append((product, count))
-
-    def rank(item: tuple[Product, int]) -> tuple[float, int, float, int]:
-        product, count = item
-        # An explicit sort comes first. Without one this part is 0 for every product.
-        primary = 0.0
-        if spec.sort_by == "price":
-            primary = product.price * sort_direction(spec)
-        elif spec.sort_by == "rating":
-            primary = product.rating * sort_direction(spec)
-        # Then more keyword matches, higher rating, and finally the lowest ID.
-        return (primary, -count, -product.rating, product.id)
-
-    matches.sort(key=rank)
-    return [product for product, _ in matches]
+def merge_directions(groups: list[list[Candidate]]) -> list[Candidate]:
+    """Round-robin across query directions, without comparing their raw scores."""
+    merged = []
+    known = set()
+    for position in range(max((len(group) for group in groups), default=0)):
+        for group in groups:
+            if position < len(group) and group[position].product.id not in known:
+                candidate = group[position]
+                known.add(candidate.product.id)
+                merged.append(candidate)
+    return merged
 
 
-def relevant_products(spec: SearchSpec, products: list[Product]) -> list[Product]:
-    """The products matching the most keyword words, or all of them when none match.
-
-    For choosing cards and counting, not for search(): a keyword must not empty a category
-    ("makeup" matches no beauty product), but one phone case should not come with two
-    speakers just because they share its category, and "dog food" should show Dog Food,
-    not Cat Food, which matches only "food".
-
-    Show more runs this again over the products not yet shown, so it steps down to the
-    next best matches, and then to the rest of the category.
-    """
-    keywords = ranking_keywords(spec)
-    counts = {product.id: keyword_match_count(keywords, product) for product in products}
-    best = max(counts.values(), default=0)
-    if best == 0:
-        return products
-    return [product for product in products if counts[product.id] == best]
-
-
-def distance_from_limits(spec: SearchSpec, product: Product) -> tuple[float, float]:
-    """How far a product is outside the original price and rating limits (0 when inside).
-
-    Price counts first, then rating. A bound that was not set gives 0.
-    """
-    price_gap = 0.0
-    if spec.price_max is not None and product.price > spec.price_max:
-        price_gap = product.price - spec.price_max
-    if spec.price_min is not None and product.price < spec.price_min:
-        price_gap = spec.price_min - product.price
-    rating_gap = 0.0
-    if spec.rating_min is not None and product.rating < spec.rating_min:
-        rating_gap = spec.rating_min - product.rating
-    return (price_gap, rating_gap)
-
-
-def nearest_first(spec: SearchSpec, products: list[Product]) -> list[Product]:
-    """More keyword matches first (so "iphone rated above 5" shows iPhones), then nearest
-    to the original limits. The sort is stable, so equal keys keep the order search() gave
-    them (rating, then lowest ID).
-    """
-    keywords = ranking_keywords(spec)
-    return sorted(
-        products,
-        key=lambda product: (-keyword_match_count(keywords, product), *distance_from_limits(spec, product)),
-    )
-
-
-def search_without(spec: SearchSpec, dropped: dict[str, None], catalog: list[Product]) -> list[Product]:
-    """Search with some limits dropped. Unless the user chose a sort, nearest to the limits first."""
-    products = search(spec.model_copy(update=dropped), catalog)
-    return products if spec.sort_by is not None else nearest_first(spec, products)
-
-
-def search_with_fallback(spec: SearchSpec, catalog: list[Product]) -> SearchOutcome:
-    """Run the search, and if it returns nothing, loosen the rating or price limits.
-
-    With one kind of limit, drop it. With both, drop whichever one finds something. If each
-    finds something alone, nothing meets them together, so suggest one product for each:
-    the nearest to the price limit that meets the rating, and the highest rated that meets
-    the price. If neither finds anything alone, drop both.
-
-    The category and keywords are never dropped: with no category that would
-    return the whole catalog and present it as a match.
-    """
-    products = search(spec, catalog)
-    if products:
-        return SearchOutcome(spec=spec, products=products)
-
-    # With no category and no keywords, loosening would return the whole catalog as a match.
-    if spec.category is None and not clean_keywords(spec.keywords):
-        return SearchOutcome(spec=spec, products=[], loosened=[])
-
-    no_rating: dict[str, None] = {"rating_min": None}
-    no_price: dict[str, None] = {"price_min": None, "price_max": None}
-    has_rating = spec.rating_min is not None
-    has_price = spec.price_min is not None or spec.price_max is not None
-
-    meets_price = search_without(spec, no_rating, catalog) if has_rating else []
-    meets_rating = search_without(spec, no_price, catalog) if has_price else []
-
-    if meets_price and meets_rating:
-        # The user's sort can't choose these: each one answers its own limit.
-        suggestions = [nearest_first(spec, meets_rating)[0], nearest_first(spec, meets_price)[0]]
-        return SearchOutcome(spec=spec, products=suggestions, loosened=["rating", "price"])
-    if meets_price:
-        return SearchOutcome(spec=spec, products=meets_price, loosened=["rating"])
-    if meets_rating:
-        return SearchOutcome(spec=spec, products=meets_rating, loosened=["price"])
-
-    if has_rating and has_price:
-        either = search_without(spec, {**no_rating, **no_price}, catalog)
-        if either:
-            return SearchOutcome(spec=spec, products=either, loosened=["rating", "price"])
-    return SearchOutcome(spec=spec, products=[], loosened=[])
+def search(spec: SearchSpec, index: ProductIndex, seen: set[int] | None = None,
+           query_cache: dict | None = None) -> list[Candidate]:
+    """All exact matches, with no display cap and no fallback. Spec must be in USD."""
+    return merge_directions(eligible_lists(spec, rank_all(spec, index, query_cache), seen))
