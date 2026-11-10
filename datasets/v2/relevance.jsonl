@@ -1,0 +1,27 @@
+{"query": "lightweight laptop", "product_id": 1, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "lightweight laptop", "product_id": 2, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "lightweight laptop", "product_id": 3, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "lightweight laptop", "product_id": 78, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "lightweight laptop", "product_id": 79, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "lightweight laptop", "product_id": 80, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "lightweight laptop", "product_id": 81, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "lightweight laptop", "product_id": 82, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "perfume for an adult", "product_id": 1, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "perfume for an adult", "product_id": 2, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "perfume for an adult", "product_id": 3, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "perfume for an adult", "product_id": 6, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "perfume for an adult", "product_id": 7, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "perfume for an adult", "product_id": 8, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "perfume for an adult", "product_id": 9, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "perfume for an adult", "product_id": 10, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "console for video games", "product_id": 1, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "console for video games", "product_id": 2, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "console for video games", "product_id": 3, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "מחשב נייד", "product_id": 1, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "מחשב נייד", "product_id": 2, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "מחשב נייד", "product_id": 3, "semantic_grade": 0, "review_status": "draft", "reason": "Wrong-type negative; human review pending."}
+{"query": "מחשב נייד", "product_id": 78, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "מחשב נייד", "product_id": 79, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "מחשב נייד", "product_id": 80, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "מחשב נייד", "product_id": 81, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}
+{"query": "מחשב נייד", "product_id": 82, "semantic_grade": 2, "review_status": "draft", "reason": "Category-based draft requiring semantic human review; not release ground truth."}

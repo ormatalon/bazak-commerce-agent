@@ -5,9 +5,11 @@
 
 # Python
 .venv/
+.venv-*/
 __pycache__/
 *.pyc
 .pytest_cache/
+.test-tmp/
 
 # Local data
 *.db
@@ -15,6 +17,12 @@ __pycache__/
 *.sqlite3
 *.db.bak
 catalog_cache.json
+embedding_cache.npz
+exchange_rates_cache.json
+.models/
+evals/runs/
+evals/artifacts/
+monitoring/
 
 # Chainlit uploads
 .files/

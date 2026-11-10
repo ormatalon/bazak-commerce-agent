@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "shopping-experience-pilot-20",
+  "created_date": "2026-11-09",
+  "purpose": "Recommendation usefulness, avoidable non-answers, courtesy, natural phrasing and task progress.",
+  "split": "development",
+  "annotation_status": "assistant_draft; no human ratings or model outputs yet",
+  "case_count": 20,
+  "language_counts": {
+    "en": 14,
+    "he": 6
+  },
+  "case_files": [
+    "english.jsonl",
+    "hebrew.jsonl"
+  ],
+  "catalog_file": "catalog.json",
+  "rate_fixture": "exchange_rates.json",
+  "rubric_file": "rubric.json",
+  "catalog_product_count": 194,
+  "catalog_origin": "Same frozen snapshot as the 167-case V1 18af131 / V2 8e8fa7f comparison.",
+  "hash_encoding": "UTF-8 text with LF line endings",
+  "sha256": {
+    "english.jsonl": "51b24a91c52ff1629b3da9bfb72836bf4179a9c4530f9474e1e831a225f2f4de",
+    "hebrew.jsonl": "ec61e3672a64f58fbfdcd5340aa9e27bcd4fbc1850411fe687da7942ecf65606",
+    "rubric.json": "28f016068f478e2d8c6ca9cbabfe81edea0eabe993db7ca9b64b2448205b73d3",
+    "catalog.json": "8223a9ff03bc42243c5f7fa2886fb3ba833bd3952d04dcefe1a6dbd9611cd45d",
+    "exchange_rates.json": "19318fd303c5930354c9c7cafe1eebd8ee45b3fb061d22da7e1579c69e09764f"
+  }
+}

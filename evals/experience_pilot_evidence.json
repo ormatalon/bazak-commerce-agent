@@ -1,0 +1,5056 @@
+{
+  "review_status": "assistant_qualitative_unblinded_not_human_gold",
+  "metadata": {
+    "v1": {
+      "implementation": "v1",
+      "git_sha": "18af131a303831e6b624594641ce201ada0c4665",
+      "timestamp_utc": "2026-11-09T19:34:51.743384+00:00",
+      "model": "gpt-6-luna",
+      "workers": 4,
+      "sdk_retries": 1,
+      "timeout_seconds": 60,
+      "case_count": 20,
+      "case_keys": [
+        "UX01",
+        "UX02",
+        "UX03",
+        "UX04",
+        "UX05",
+        "UX06",
+        "UX07",
+        "UX08",
+        "UX09",
+        "UX10",
+        "UX11",
+        "UX12",
+        "UX13",
+        "UX14",
+        "UX15",
+        "UX16",
+        "UX17",
+        "UX18",
+        "UX19",
+        "UX20"
+      ],
+      "pilot_manifest": {
+        "schema_version": 1,
+        "name": "shopping-experience-pilot-20",
+        "created_date": "2026-11-09",
+        "purpose": "Recommendation usefulness, avoidable non-answers, courtesy, natural phrasing and task progress.",
+        "split": "development",
+        "annotation_status": "assistant_draft; no human ratings or model outputs yet",
+        "case_count": 20,
+        "language_counts": {
+          "en": 14,
+          "he": 6
+        },
+        "case_files": [
+          "english.jsonl",
+          "hebrew.jsonl"
+        ],
+        "catalog_file": "catalog.json",
+        "rate_fixture": "exchange_rates.json",
+        "rubric_file": "rubric.json",
+        "catalog_product_count": 194,
+        "catalog_origin": "Same frozen snapshot as the 167-case V1 18af131 / V2 8e8fa7f comparison.",
+        "hash_encoding": "UTF-8 text with LF line endings",
+        "sha256": {
+          "english.jsonl": "51b24a91c52ff1629b3da9bfb72836bf4179a9c4530f9474e1e831a225f2f4de",
+          "hebrew.jsonl": "ec61e3672a64f58fbfdcd5340aa9e27bcd4fbc1850411fe687da7942ecf65606",
+          "rubric.json": "28f016068f478e2d8c6ca9cbabfe81edea0eabe993db7ca9b64b2448205b73d3",
+          "catalog.json": "8223a9ff03bc42243c5f7fa2886fb3ba833bd3952d04dcefe1a6dbd9611cd45d",
+          "exchange_rates.json": "19318fd303c5930354c9c7cafe1eebd8ee45b3fb061d22da7e1579c69e09764f"
+        }
+      },
+      "protocol": "Original full pipeline, empty state per case, every turn replayed; same catalog and numerical frozen FX rates; native rounding retained.",
+      "quality_review_status": "Pending assistant qualitative review, not human-reviewed ground truth."
+    },
+    "v2": {
+      "implementation": "v2",
+      "git_sha": "818d19c85a6510559637d9a55f46923adecb06bc",
+      "timestamp_utc": "2026-11-09T19:35:06.775082+00:00",
+      "model": "gpt-6-luna",
+      "workers": 4,
+      "sdk_retries": 1,
+      "timeout_seconds": 60,
+      "case_count": 20,
+      "case_keys": [
+        "UX01",
+        "UX02",
+        "UX03",
+        "UX04",
+        "UX05",
+        "UX06",
+        "UX07",
+        "UX08",
+        "UX09",
+        "UX10",
+        "UX11",
+        "UX12",
+        "UX13",
+        "UX14",
+        "UX15",
+        "UX16",
+        "UX17",
+        "UX18",
+        "UX19",
+        "UX20"
+      ],
+      "pilot_manifest": {
+        "schema_version": 1,
+        "name": "shopping-experience-pilot-20",
+        "created_date": "2026-11-09",
+        "purpose": "Recommendation usefulness, avoidable non-answers, courtesy, natural phrasing and task progress.",
+        "split": "development",
+        "annotation_status": "assistant_draft; no human ratings or model outputs yet",
+        "case_count": 20,
+        "language_counts": {
+          "en": 14,
+          "he": 6
+        },
+        "case_files": [
+          "english.jsonl",
+          "hebrew.jsonl"
+        ],
+        "catalog_file": "catalog.json",
+        "rate_fixture": "exchange_rates.json",
+        "rubric_file": "rubric.json",
+        "catalog_product_count": 194,
+        "catalog_origin": "Same frozen snapshot as the 167-case V1 18af131 / V2 8e8fa7f comparison.",
+        "hash_encoding": "UTF-8 text with LF line endings",
+        "sha256": {
+          "english.jsonl": "51b24a91c52ff1629b3da9bfb72836bf4179a9c4530f9474e1e831a225f2f4de",
+          "hebrew.jsonl": "ec61e3672a64f58fbfdcd5340aa9e27bcd4fbc1850411fe687da7942ecf65606",
+          "rubric.json": "28f016068f478e2d8c6ca9cbabfe81edea0eabe993db7ca9b64b2448205b73d3",
+          "catalog.json": "8223a9ff03bc42243c5f7fa2886fb3ba833bd3952d04dcefe1a6dbd9611cd45d",
+          "exchange_rates.json": "19318fd303c5930354c9c7cafe1eebd8ee45b3fb061d22da7e1579c69e09764f"
+        }
+      },
+      "protocol": "Original full pipeline, empty state per case, every turn replayed; same catalog and numerical frozen FX rates; native rounding retained.",
+      "quality_review_status": "Pending assistant qualitative review, not human-reviewed ground truth."
+    }
+  },
+  "cases": [
+    {
+      "id": "UX01",
+      "case": {
+        "id": "UX01",
+        "language": "en",
+        "scenario": "discovery",
+        "turns": [
+          "A colleague has just moved into a small flat. I'd like a practical housewarming gift, no more than $60, but I don't know their taste."
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend_first",
+          "price_limit": {
+            "max": 60,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "acceptable_examples": [
+            {
+              "id": 47,
+              "reason": "A table lamp is a plausible practical home gift."
+            },
+            {
+              "id": 73,
+              "reason": "A spice rack is a plausible small-kitchen gift."
+            },
+            {
+              "id": 65,
+              "reason": "A lunch box is a plausible practical gift."
+            }
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Offer a short, varied set of plausible gifts with cautious fit explanations.",
+            "Respect the budget; do not recommend bulky furniture for a small flat.",
+            "Ask at most one useful narrowing question after making progress."
+          ],
+          "communication": [
+            "Sound welcoming without assuming the colleague's gender or taste.",
+            "Avoid claiming any item is a perfect or guaranteed gift."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 8809.566299896687,
+          "turns": [
+            {
+              "message": "A colleague has just moved into a small flat. I'd like a practical housewarming gift, no more than $60, but I don't know their taste.",
+              "reply": "For a practical housewarming gift under $60, consider Lunch Box, Spice Rack, House Showpiece Plant, or Family Tree Photo Frame. Which kind of gift do you think your colleague would enjoy most?",
+              "cards": [
+                {
+                  "id": 65,
+                  "title": "Lunch Box",
+                  "price": 12.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 73,
+                  "title": "Spice Rack",
+                  "price": 19.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 45,
+                  "title": "House Showpiece Plant",
+                  "price": 39.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 44,
+                  "title": "Family Tree Photo Frame",
+                  "price": 29.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 14,
+                  "title": "Knoll Saarinen Executive Conference Chair",
+                  "price": 499.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 11,
+                  "title": "Annibale Colombo Bed",
+                  "price": 1899.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "kitchen-accessories",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "rating",
+                    "order": "desc",
+                    "top_k": 2,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  },
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "home-decoration",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "rating",
+                    "order": "desc",
+                    "top_k": 2,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  },
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "furniture",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "rating",
+                    "order": "desc",
+                    "top_k": 2,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                65,
+                73,
+                45,
+                44,
+                14,
+                11
+              ],
+              "trace_id": "01a1c1ce-666f-71cb-9600-c8242315da7d"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 6,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [
+            {
+              "id": 14,
+              "price": 499.99,
+              "marked_alternative": false
+            },
+            {
+              "id": 11,
+              "price": 1899.99,
+              "marked_alternative": false
+            }
+          ],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            2,
+            2,
+            1
+          ],
+          "note": "Four plausible affordable gifts are accompanied by a $499.99 conference chair and $1,899.99 bed. The reply discusses gifts under $60 without disclosing these over-budget cards, and bulky furniture conflicts with the small-flat context.",
+          "hard_gate_failures": [
+            "undisclosed budget violations"
+          ]
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 25752.02349992469,
+          "turns": [
+            {
+              "message": "A colleague has just moved into a small flat. I'd like a practical housewarming gift, no more than $60, but I don't know their taste.",
+              "reply": "For a small flat, a Spice Rack ($19.99) or Chopping Board ($12.99) could be practical choices; if lighting might be useful, there’s also a Table Lamp ($49.99). Since you’re unsure of their taste, which seems most useful: kitchen organization, food prep, or lighting?",
+              "cards": [
+                {
+                  "id": 73,
+                  "title": "Spice Rack",
+                  "price": 19.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 53,
+                  "title": "Chopping Board",
+                  "price": 12.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 47,
+                  "title": "Table Lamp",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "compact kitchen storage and organization accessories for a small flat",
+                        "categories": [
+                          "kitchen-accessories"
+                        ]
+                      },
+                      {
+                        "query": "useful compact kitchen tools and cookware for a new home",
+                        "categories": [
+                          "kitchen-accessories"
+                        ]
+                      },
+                      {
+                        "query": "space-saving home lighting for a small flat",
+                        "categories": [
+                          "home-decoration"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 60.0,
+                    "price_min_strict": null,
+                    "price_max_strict": null,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "$",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": true,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                73,
+                53,
+                47
+              ],
+              "trace_id": "01a1c1ce-a159-709c-bf2c-74908b0448ff"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Spice Rack, Chopping Board and Table Lamp all fit the $60 limit. The reply connects the choices to practical uses, qualifies taste uncertainty, and asks one relevant question.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v2"
+    },
+    {
+      "id": "UX02",
+      "case": {
+        "id": "UX02",
+        "language": "en",
+        "scenario": "discovery",
+        "turns": [
+          "Dad's birthday is coming up and I'm stuck. Could you suggest a few different ideas around $120 or less?"
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend_first",
+          "price_limit": {
+            "max": 120,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "acceptable_examples": [
+            {
+              "id": 93,
+              "reason": "A watch within budget is a plausible gift direction."
+            },
+            {
+              "id": 6,
+              "reason": "A fragrance within budget is another plausible direction."
+            }
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Offer more than one plausible gift direction without demanding a category first.",
+            "Keep recommendations within budget and avoid padding with luxury watches.",
+            "A short question about his interests may follow the suggestions."
+          ],
+          "communication": [
+            "Be encouraging and conversational, without gender stereotypes.",
+            "Explain uncertainty about personal taste without a long disclaimer."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 10035.81070015207,
+          "turns": [
+            {
+              "message": "Dad's birthday is coming up and I'm stuck. Could you suggest a few different ideas around $120 or less?",
+              "reply": "I found a few birthday ideas around $120 or less: Brown Leather Belt Watch, Blue & Black Check Shirt, Man Plaid Shirt, Green and Black Glasses, and Black Sun Glasses. Take a look at the cards—what kinds of things does your dad enjoy?",
+              "cards": [
+                {
+                  "id": 95,
+                  "title": "Rolex Cellini Date Black Dial",
+                  "price": 8999.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 93,
+                  "title": "Brown Leather Belt Watch",
+                  "price": 89.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 83,
+                  "title": "Blue & Black Check Shirt",
+                  "price": 29.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 85,
+                  "title": "Man Plaid Shirt",
+                  "price": 34.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 156,
+                  "title": "Green and Black Glasses",
+                  "price": 34.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 154,
+                  "title": "Black Sun Glasses",
+                  "price": 29.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "mens-watches",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "rating",
+                    "order": "desc",
+                    "top_k": 2,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  },
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "mens-shirts",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "rating",
+                    "order": "desc",
+                    "top_k": 2,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  },
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "sunglasses",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "rating",
+                    "order": "desc",
+                    "top_k": 2,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                95,
+                93,
+                83,
+                85,
+                156,
+                154
+              ],
+              "trace_id": "01a1c1ce-6670-7713-ae1d-2cac07a8f559"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 6,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [
+            {
+              "id": 95,
+              "price": 8999.99,
+              "marked_alternative": false
+            }
+          ],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            2,
+            2,
+            1
+          ],
+          "note": "The affordable watch, shirts and sunglasses are plausible, but a $8,999.99 Rolex is also shown. That card is not disclosed as exceeding the $120 budget; the reply only mentions the affordable subset.",
+          "hard_gate_failures": [
+            "undisclosed budget violation"
+          ]
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 14667.645100038499,
+          "turns": [
+            {
+              "message": "Dad's birthday is coming up and I'm stuck. Could you suggest a few different ideas around $120 or less?",
+              "reply": "Here are a few ideas under $120: a Brown Leather Belt Watch ($89.99), Calvin Klein CK One fragrance ($49.99), or a Men Check Shirt ($27.99). The best fit depends on his style and what he’d enjoy. Which kind of gift would he be most likely to use?",
+              "cards": [
+                {
+                  "id": 93,
+                  "title": "Brown Leather Belt Watch",
+                  "price": 89.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 6,
+                  "title": "Calvin Klein CK One",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 87,
+                  "title": "Men Check Shirt",
+                  "price": 27.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "Men's watches",
+                        "categories": [
+                          "mens-watches"
+                        ]
+                      },
+                      {
+                        "query": "Men's fragrances",
+                        "categories": [
+                          "fragrances"
+                        ]
+                      },
+                      {
+                        "query": "Men's shirts",
+                        "categories": [
+                          "mens-shirts"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 120.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "$",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": true,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                93,
+                6,
+                87
+              ],
+              "trace_id": "01a1c1ce-a157-75ac-bd12-d7edb2ed09a9"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "A $89.99 watch, $49.99 fragrance and $27.99 shirt provide three plausible directions within budget. The wording is helpful and cautious about the recipient's taste.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v2"
+    },
+    {
+      "id": "UX03",
+      "case": {
+        "id": "UX03",
+        "language": "en",
+        "scenario": "discovery",
+        "turns": [
+          "My kitchen counter is a mess. Is there a small thing under $25 that might make it easier to keep tidy?"
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend_first",
+          "price_limit": {
+            "max": 25,
+            "inclusive": false,
+            "currency": "USD"
+          },
+          "acceptable_examples": [
+            {
+              "id": 73,
+              "reason": "Spice Rack directly addresses organizing spices."
+            },
+            {
+              "id": 67,
+              "reason": "Mug Tree Stand plausibly organizes mugs."
+            }
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Connect recommendations to organizing rather than merely returning cheap kitchen items.",
+            "Do not invent dimensions or promise that an item fits an unknown counter.",
+            "One or two strong options are preferable to unrelated filler."
+          ],
+          "communication": [
+            "Use simple, practical wording.",
+            "Do not criticize the shopper's tidiness."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 7169.33050006628,
+          "turns": [
+            {
+              "message": "My kitchen counter is a mess. Is there a small thing under $25 that might make it easier to keep tidy?",
+              "reply": "I found a kitchen organizer under $25: Spice Rack. Have a look at its card below.",
+              "cards": [
+                {
+                  "id": 65,
+                  "title": "Lunch Box",
+                  "price": 12.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 73,
+                  "title": "Spice Rack",
+                  "price": 19.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 62,
+                  "title": "Ice Cube Tray",
+                  "price": 5.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": [
+                      "organizer"
+                    ],
+                    "exclude_keywords": null,
+                    "category": "kitchen-accessories",
+                    "price_min": null,
+                    "price_max": 24.99,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                65,
+                73,
+                62
+              ],
+              "trace_id": "01a1c1ce-6672-720b-b91c-13e06269d401"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            2,
+            1,
+            2
+          ],
+          "note": "Spice Rack is a direct organizing suggestion, but Lunch Box and Ice Cube Tray are weaker matches to a messy counter. The singular 'its card' wording does not explain the three displayed products.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 25294.66599994339,
+          "turns": [
+            {
+              "message": "My kitchen counter is a mess. Is there a small thing under $25 that might make it easier to keep tidy?",
+              "reply": "The Spice Rack ($19.99) could help keep spices and seasonings neatly arranged on your counter. What tends to pile up there most?",
+              "cards": [
+                {
+                  "id": 73,
+                  "title": "Spice Rack",
+                  "price": 19.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 65,
+                  "title": "Lunch Box",
+                  "price": 12.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 67,
+                  "title": "Mug Tree Stand",
+                  "price": 15.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "compact countertop kitchen organizer",
+                        "categories": [
+                          "kitchen-accessories"
+                        ]
+                      },
+                      {
+                        "query": "kitchen utensil holder",
+                        "categories": [
+                          "kitchen-accessories"
+                        ]
+                      },
+                      {
+                        "query": "small kitchen storage container",
+                        "categories": [
+                          "kitchen-accessories"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 25.0,
+                    "price_min_strict": null,
+                    "price_max_strict": true,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "$",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": true,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                73,
+                65,
+                67
+              ],
+              "trace_id": "01a1c1ce-a159-709c-bf2c-748fcb61cbb4"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Spice Rack and Mug Tree Stand directly address organizing; Lunch Box is a weaker extra. The reply explains the spice-rack benefit and asks a targeted question about what piles up.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v2"
+    },
+    {
+      "id": "UX04",
+      "case": {
+        "id": "UX04",
+        "language": "en",
+        "scenario": "discovery",
+        "turns": [
+          "I've been invited to an evening wedding and have no idea what to wear. I'd like a dress, up to $140. Can you help me start?"
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend_first",
+          "price_limit": {
+            "max": 140,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "acceptable_examples": [
+            {
+              "id": 177,
+              "reason": "Black Women's Gown is explicitly a gown, within budget."
+            },
+            {
+              "id": 180,
+              "reason": "Dress Pea is explicitly a dress; suitability should be qualified."
+            }
+          ],
+          "forbidden_types": [
+            "suits presented as dresses",
+            "standalone skirts presented as dresses"
+          ],
+          "requirements": [
+            "Suggest actual dresses or gowns based on catalog descriptions, including cross-category matches when justified.",
+            "Do not assume a dress code, body size, or guaranteed fit.",
+            "A question about the dress code or preferred style may follow options."
+          ],
+          "communication": [
+            "Be reassuring without patronizing the shopper.",
+            "Avoid prescriptive claims about what someone must wear."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 7084.440100006759,
+          "turns": [
+            {
+              "message": "I've been invited to an evening wedding and have no idea what to wear. I'd like a dress, up to $140. Can you help me start?",
+              "reply": "I found dresses under $140, including Black Women's Gown for a formal evening. Take a look at the cards to get started.",
+              "cards": [
+                {
+                  "id": 180,
+                  "title": "Dress Pea",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 179,
+                  "title": "Corset With Black Skirt",
+                  "price": 79.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 177,
+                  "title": "Black Women's Gown",
+                  "price": 129.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": [
+                      "dress"
+                    ],
+                    "exclude_keywords": null,
+                    "category": "womens-dresses",
+                    "price_min": null,
+                    "price_max": 140.0,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                180,
+                179,
+                177
+              ],
+              "trace_id": "01a1c1ce-6674-753c-9c5c-5b586e1ed12f"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            2,
+            2,
+            1
+          ],
+          "note": "Black Women's Gown is useful and within budget, but Corset With Black Skirt is an outfit rather than an explicit dress. Calling the displayed set 'dresses' is imprecise.",
+          "hard_gate_failures": [
+            "non-dress outfit presented in a dress set"
+          ]
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 11761.536400066689,
+          "turns": [
+            {
+              "message": "I've been invited to an evening wedding and have no idea what to wear. I'd like a dress, up to $140. Can you help me start?",
+              "reply": "The Black Women’s Gown ($129.99) could be a good starting point for an evening wedding: it’s described as an elegant black gown for formal occasions. I don’t have details like its length or fit. Do you have a preferred silhouette or dress length?",
+              "cards": [
+                {
+                  "id": 177,
+                  "title": "Black Women's Gown",
+                  "price": 129.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "formal evening wedding guest dress",
+                        "categories": [
+                          "womens-dresses"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 140.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "$",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                177
+              ],
+              "trace_id": "01a1c1ce-a158-7560-b657-e87f3ed58317"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 1,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "The single Black Women's Gown is explicitly an evening/formal gown at $129.99. The reply explains the fit, admits missing fit/length information and asks one relevant style question.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v2"
+    },
+    {
+      "id": "UX05",
+      "case": {
+        "id": "UX05",
+        "language": "en",
+        "scenario": "product_fit",
+        "turns": [
+          "I want wireless earphones for the bus. Please keep them under $100; chargers and speakers aren't what I'm after."
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend",
+          "price_limit": {
+            "max": 100,
+            "inclusive": false,
+            "currency": "USD"
+          },
+          "acceptable_examples": [
+            {
+              "id": 107,
+              "reason": "Beats Flex Wireless Earphones are explicitly wireless earphones at $49.99."
+            }
+          ],
+          "forbidden_types": [
+            "chargers",
+            "speakers"
+          ],
+          "forbidden_product_ids": [
+            99,
+            102,
+            103,
+            104,
+            105
+          ],
+          "requirements": [
+            "Return actual earphones/headphones, not generic mobile accessories.",
+            "Do not add over-budget choices or unrelated filler when a direct match exists.",
+            "Do not invent noise cancellation, battery duration, or waterproofing."
+          ],
+          "communication": [
+            "Acknowledge the practical request without unnecessary explanation.",
+            "One good recommendation is enough; do not apologize for a small catalog."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 7131.387499859557,
+          "turns": [
+            {
+              "message": "I want wireless earphones for the bus. Please keep them under $100; chargers and speakers aren't what I'm after.",
+              "reply": "I found Beats Flex Wireless Earphones for the bus, under $100. Take a look at the card below.",
+              "cards": [
+                {
+                  "id": 107,
+                  "title": "Beats Flex Wireless Earphones",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": [
+                      "wireless earphone"
+                    ],
+                    "exclude_keywords": [
+                      "charger",
+                      "speaker"
+                    ],
+                    "category": "mobile-accessories",
+                    "price_min": null,
+                    "price_max": 99.99,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                107
+              ],
+              "trace_id": "01a1c1ce-8216-723f-ab1b-dd9e803e91f8"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 1,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Only Beats Flex Wireless Earphones at $49.99 are shown. This directly answers the sub-$100 earphone request without chargers, speakers or unnecessary expensive options.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 7746.067899977788,
+          "turns": [
+            {
+              "message": "I want wireless earphones for the bus. Please keep them under $100; chargers and speakers aren't what I'm after.",
+              "reply": "Alternative outside your limits: Apple Airpods — $129.99; maximum $99.99.\nThe Beats Flex Wireless Earphones are a good option for bus listening at $49.99. They’re wireless and offer up to 12 hours of battery life.",
+              "cards": [
+                {
+                  "id": 107,
+                  "title": "Beats Flex Wireless Earphones",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 100,
+                  "title": "Apple Airpods",
+                  "price": 129.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "wireless earphones suitable for bus commuting",
+                        "categories": [
+                          "mobile-accessories"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      "chargers",
+                      "speakers"
+                    ],
+                    "price_min": null,
+                    "price_max": 100.0,
+                    "price_min_strict": null,
+                    "price_max_strict": true,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "$",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                107,
+                100
+              ],
+              "trace_id": "01a1c1ce-cf14-7074-bb17-c835c9ade3c5"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 2,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [
+            {
+              "id": 100,
+              "price": 129.99,
+              "marked_alternative": true
+            }
+          ],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            2,
+            2,
+            1
+          ],
+          "note": "Beats Flex is a good match, but a $129.99 Airpods alternative is added despite a direct under-budget option. The budget exception is clearly disclosed, so this is not a false-price claim. The quoted 12-hour battery life is explicitly present in the catalog and is supported.",
+          "hard_gate_failures": [
+            "pilot requirement to avoid over-budget padding when a direct match exists"
+          ]
+        }
+      },
+      "assistant_preference": "v1"
+    },
+    {
+      "id": "UX06",
+      "case": {
+        "id": "UX06",
+        "language": "en",
+        "scenario": "product_fit",
+        "turns": [
+          "Could you find a black everyday handbag for at most $70? I don't want a backpack."
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend",
+          "price_limit": {
+            "max": 70,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "acceptable_examples": [
+            {
+              "id": 176,
+              "reason": "Women Handbag Black is explicitly a black handbag at $59.99."
+            }
+          ],
+          "forbidden_types": [
+            "backpacks",
+            "non-black bags presented as black"
+          ],
+          "forbidden_product_ids": [
+            172,
+            175
+          ],
+          "requirements": [
+            "Honor color, bag type, and budget together.",
+            "Do not infer unknown material, capacity, or compartments.",
+            "A direct match should not require another question before recommending."
+          ],
+          "communication": [
+            "Be concise and helpful.",
+            "Do not add unsupported fashion or gender assumptions."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 5890.593499876559,
+          "turns": [
+            {
+              "message": "Could you find a black everyday handbag for at most $70? I don't want a backpack.",
+              "reply": "I found a black everyday handbag within your $70 budget: Women Handbag Black. It’s shown in the card below.",
+              "cards": [
+                {
+                  "id": 176,
+                  "title": "Women Handbag Black",
+                  "price": 59.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": [
+                      "black",
+                      "everyday",
+                      "handbag"
+                    ],
+                    "exclude_keywords": [
+                      "backpack"
+                    ],
+                    "category": "womens-bags",
+                    "price_min": null,
+                    "price_max": 70.0,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                176
+              ],
+              "trace_id": "01a1c1ce-826a-72aa-9e10-48aaf54c84a4"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 1,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Women Handbag Black at $59.99 directly satisfies color, bag type and budget. The response is concise and needs no further clarification.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 9927.141399821267,
+          "turns": [
+            {
+              "message": "Could you find a black everyday handbag for at most $70? I don't want a backpack.",
+              "reply": "Alternative outside your limits: Heshe Women's Leather Bag — $129.99; maximum $70.00.\nThe **Women Handbag Black** is listed at **$59.99** and described as a classic, versatile handbag—within your budget and not a backpack.",
+              "cards": [
+                {
+                  "id": 176,
+                  "title": "Women Handbag Black",
+                  "price": 59.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 172,
+                  "title": "Blue Women's Handbag",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 173,
+                  "title": "Heshe Women's Leather Bag",
+                  "price": 129.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "Black everyday handbag",
+                        "categories": [
+                          "womens-bags"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      "backpack"
+                    ],
+                    "price_min": null,
+                    "price_max": 70.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "$",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                176,
+                172,
+                173
+              ],
+              "trace_id": "01a1c1ce-da6c-7594-8714-9328e108df86"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [
+            {
+              "id": 173,
+              "price": 129.99,
+              "marked_alternative": true
+            }
+          ],
+          "forbidden_ids_shown": [
+            172
+          ],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            2,
+            1,
+            1
+          ],
+          "note": "The correct black handbag is shown, but so is Blue Women's Handbag, contradicting the requested color. A $129.99 leather bag is also added with a clear price exception. The price disclosure does not explain or cure the color mismatch.",
+          "hard_gate_failures": [
+            "wrong color: Blue Women's Handbag"
+          ]
+        }
+      },
+      "assistant_preference": "v1"
+    },
+    {
+      "id": "UX07",
+      "case": {
+        "id": "UX07",
+        "language": "en",
+        "scenario": "budget_no_match",
+        "turns": [
+          "My absolute limit for a laptop is $600. Please don't show anything over that amount, even as an alternative."
+        ],
+        "expected": {
+          "answerability": "no_exact_match",
+          "response": "appropriate_abstention",
+          "price_limit": {
+            "max": 600,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "allow_over_budget_alternatives": false,
+          "acceptable_examples": [],
+          "catalog_evidence_ids": [
+            78,
+            79,
+            80,
+            81,
+            82
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Explain briefly that the catalog has no laptop within the stated limit.",
+            "Do not show over-budget laptop cards; the shopper explicitly ruled them out.",
+            "Acknowledge the limit and offer a non-pushy next step without promising stock or discounts."
+          ],
+          "communication": [
+            "Do not shame the budget or pressure the shopper to spend more.",
+            "A clear and courteous no-match is a successful response here."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 9561.13880011253,
+          "turns": [
+            {
+              "message": "My absolute limit for a laptop is $600. Please don't show anything over that amount, even as an alternative.",
+              "reply": "No laptop at or under $600 was found; the cards shown are the closest matches, though they exceed your limit.",
+              "cards": [
+                {
+                  "id": 81,
+                  "title": "Lenovo Yoga 920",
+                  "price": 1099.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 80,
+                  "title": "Huawei Matebook X Pro",
+                  "price": 1399.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 82,
+                  "title": "New DELL XPS 13 9300 Laptop",
+                  "price": 1499.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "laptops",
+                    "price_min": null,
+                    "price_max": 600.0,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                81,
+                80,
+                82
+              ],
+              "trace_id": "01a1c1ce-88d1-7751-9226-b062c59c0b1f"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [
+            {
+              "id": 81,
+              "price": 1099.99,
+              "marked_alternative": true
+            },
+            {
+              "id": 80,
+              "price": 1399.99,
+              "marked_alternative": true
+            },
+            {
+              "id": 82,
+              "price": 1499.99,
+              "marked_alternative": true
+            }
+          ],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": false
+        },
+        "assistant_assessment": {
+          "scores": [
+            0,
+            1,
+            2,
+            0
+          ],
+          "note": "The reply honestly says no laptop meets $600, but still shows three laptops from $1,099.99 to $1,499.99. The user expressly prohibited over-budget alternatives, so disclosure does not make these cards acceptable.",
+          "hard_gate_failures": [
+            "explicit prohibition on over-budget alternatives"
+          ]
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 7067.108100047335,
+          "turns": [
+            {
+              "message": "My absolute limit for a laptop is $600. Please don't show anything over that amount, even as an alternative.",
+              "reply": "Alternative outside your limits: Lenovo Yoga 920 — $1,099.99; maximum $600.00.\nAlternative outside your limits: Huawei Matebook X Pro — $1,399.99; maximum $600.00.\nAlternative outside your limits: New DELL XPS 13 9300 Laptop — $1,499.99; maximum $600.00.\nI couldn’t find a laptop within your $600 limit in these results.",
+              "cards": [
+                {
+                  "id": 81,
+                  "title": "Lenovo Yoga 920",
+                  "price": 1099.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 80,
+                  "title": "Huawei Matebook X Pro",
+                  "price": 1399.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 82,
+                  "title": "New DELL XPS 13 9300 Laptop",
+                  "price": 1499.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "laptop",
+                        "categories": [
+                          "laptops"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 600.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "$",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                81,
+                80,
+                82
+              ],
+              "trace_id": "01a1c1ce-ed55-72f9-aebf-9b9398ce937c"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [
+            {
+              "id": 81,
+              "price": 1099.99,
+              "marked_alternative": true
+            },
+            {
+              "id": 80,
+              "price": 1399.99,
+              "marked_alternative": true
+            },
+            {
+              "id": 82,
+              "price": 1499.99,
+              "marked_alternative": true
+            }
+          ],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": false
+        },
+        "assistant_assessment": {
+          "scores": [
+            0,
+            1,
+            1,
+            0
+          ],
+          "note": "The same three over-budget laptops are shown with repeated exception notices. Those notices are accurate but violate the user's explicit request not to show such alternatives and make the refusal noisy.",
+          "hard_gate_failures": [
+            "explicit prohibition on over-budget alternatives"
+          ]
+        }
+      },
+      "assistant_preference": "neither"
+    },
+    {
+      "id": "UX08",
+      "case": {
+        "id": "UX08",
+        "language": "en",
+        "scenario": "unavailable_type",
+        "turns": [
+          "Do you sell a robot vacuum that can clean while I'm out? I don't need cleaning cloths or other substitutes."
+        ],
+        "expected": {
+          "answerability": "no_exact_match",
+          "response": "appropriate_abstention",
+          "acceptable_examples": [],
+          "forbidden_types": [
+            "cleaning supplies presented as robot vacuums",
+            "unrequested substitutes"
+          ],
+          "requirements": [
+            "State that the supplied catalog does not list a robot vacuum.",
+            "Do not invent a model, features, availability, or future delivery.",
+            "Do not fill the answer with unrelated products after substitutes were declined."
+          ],
+          "communication": [
+            "Keep the limitation brief, clear, and polite.",
+            "Avoid a generic wall of refusal text."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 6628.071999875829,
+          "turns": [
+            {
+              "message": "Do you sell a robot vacuum that can clean while I'm out? I don't need cleaning cloths or other substitutes.",
+              "reply": "Sorry, I can’t help with that, but I’d be happy to help you find other products.",
+              "cards": [],
+              "parsed": {
+                "intent": "off_catalog",
+                "mode": null,
+                "searches": [],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [],
+              "trace_id": "01a1c1ce-8d9b-7518-a9a2-407d7d81fb68"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 0,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": true
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "note": "No irrelevant products are shown, which is correct. However, 'I can't help with that' does not explain that the missing item is a robot vacuum and sounds like a blanket refusal rather than an inventory limitation. This is partial rather than fully helpful abstention under the pilot's explicit inventory-explanation requirement.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 9434.775599977002,
+          "turns": [
+            {
+              "message": "Do you sell a robot vacuum that can clean while I'm out? I don't need cleaning cloths or other substitutes.",
+              "reply": "I couldn’t find a relevant robot vacuum match. Would you like help with another home product?",
+              "cards": [],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "robot vacuum cleaner with automatic scheduled cleaning while away",
+                        "categories": [
+                          "kitchen-accessories"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      "cleaning cloths",
+                      "substitute cleaning products"
+                    ],
+                    "price_min": null,
+                    "price_max": null,
+                    "price_min_strict": null,
+                    "price_max_strict": null,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": null,
+                    "currency_term": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [],
+              "trace_id": "01a1c1cf-0133-70fe-8aeb-4f834191e1fc"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 0,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": true
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "The reply specifically states that no robot-vacuum match was found and shows no unrelated cards. Its optional invitation to another home product is brief, though it could be omitted for a user who has rejected substitutes.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v2"
+    },
+    {
+      "id": "UX09",
+      "case": {
+        "id": "UX09",
+        "language": "en",
+        "scenario": "catalog_mislabel",
+        "turns": [
+          "I'm looking for a separate top to wear with jeans, not a dress or a frock. Do you have one for women?"
+        ],
+        "expected": {
+          "answerability": "no_exact_match",
+          "response": "appropriate_abstention",
+          "acceptable_examples": [],
+          "catalog_evidence_ids": [
+            162,
+            163,
+            164,
+            165,
+            166
+          ],
+          "forbidden_types": [
+            "dresses",
+            "frocks"
+          ],
+          "forbidden_product_ids": [
+            162,
+            163,
+            164,
+            165,
+            166,
+            177,
+            180
+          ],
+          "requirements": [
+            "Inspect product descriptions rather than trusting the tops category label.",
+            "Do not call a dress or frock a separate top.",
+            "Explain the missing match without claiming the catalog contains a suitable separate top."
+          ],
+          "communication": [
+            "Use the shopper's clothing distinction naturally.",
+            "Do not expose internal category labels or blame the shopper's wording."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 4436.640900094062,
+          "turns": [
+            {
+              "message": "I'm looking for a separate top to wear with jeans, not a dress or a frock. Do you have one for women?",
+              "reply": "I couldn't find a separate top for women in the catalog.",
+              "cards": [],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": [
+                      "top"
+                    ],
+                    "exclude_keywords": [
+                      "dress",
+                      "frock"
+                    ],
+                    "category": "tops",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [],
+              "trace_id": "01a1c1ce-996d-77d9-a2e5-e78c65c27989"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 0,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": true
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Correctly gives no separate-top match and does not call catalog dresses tops. The short explanation is sufficient for the no-match control.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 5538.853900041431,
+          "turns": [
+            {
+              "message": "I'm looking for a separate top to wear with jeans, not a dress or a frock. Do you have one for women?",
+              "reply": "I couldn’t find a suitable match after excluding dresses and frocks. Would you like to consider another category, such as women’s shoes?",
+              "cards": [],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "women's tops to wear with jeans",
+                        "categories": [
+                          "tops"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      "dresses",
+                      "frocks"
+                    ],
+                    "price_min": null,
+                    "price_max": null,
+                    "price_min_strict": null,
+                    "price_max_strict": null,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": null,
+                    "currency_term": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [],
+              "trace_id": "01a1c1cf-03f1-70d3-84e4-7ecc4a7c8bfb"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 0,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": true
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            1
+          ],
+          "note": "Correctly avoids dresses/frocks and gives no match. The suggestion to browse women's shoes is a weak next step because it does not address a separate top.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "tie"
+    },
+    {
+      "id": "UX10",
+      "case": {
+        "id": "UX10",
+        "language": "en",
+        "scenario": "uncertain_attribute",
+        "turns": [
+          "I need a phone up to $350 and battery life matters most. Which of yours will last a full day? Please be honest if the details don't say."
+        ],
+        "expected": {
+          "answerability": "supported_with_uncertainty",
+          "response": "qualified_recommendation",
+          "price_limit": {
+            "max": 350,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "acceptable_examples": [
+            {
+              "id": 128,
+              "reason": "Realme C35 is a budget phone, but its description does not establish all-day battery life."
+            },
+            {
+              "id": 125,
+              "reason": "Oppo A57 fits the budget; battery duration remains unverified."
+            }
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Say the catalog does not establish full-day battery life.",
+            "Relevant phones may be shown as budget options, not as verified battery winners.",
+            "Do not invent battery capacity, testing results, or hours of use."
+          ],
+          "communication": [
+            "Be candid and helpful rather than evasive.",
+            "Keep uncertainty proportionate and separate known facts from guesses."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 10155.578499892727,
+          "turns": [
+            {
+              "message": "I need a phone up to $350 and battery life matters most. Which of yours will last a full day? Please be honest if the details don't say.",
+              "reply": "The catalog doesn’t list battery life, so I can’t confirm whether any will last a full day. The cards show Realme XT, Oppo K1, and Realme C35, all within your budget.",
+              "cards": [
+                {
+                  "id": 130,
+                  "title": "Realme XT",
+                  "price": 349.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 127,
+                  "title": "Oppo K1",
+                  "price": 299.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 128,
+                  "title": "Realme C35",
+                  "price": 149.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": [
+                      "phone",
+                      "battery life"
+                    ],
+                    "exclude_keywords": null,
+                    "category": "smartphones",
+                    "price_min": null,
+                    "price_max": 350.0,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                130,
+                127,
+                128
+              ],
+              "trace_id": "01a1c1ce-9df2-7052-b6b5-1220f12b9ff6"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Offers three phones within $350 and explicitly says the catalog does not establish full-day battery life. It avoids inventing battery tests or capacities.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 10501.53399980627,
+          "turns": [
+            {
+              "message": "I need a phone up to $350 and battery life matters most. Which of yours will last a full day? Please be honest if the details don't say.",
+              "reply": "I can’t confirm that any of these will last a full day—the product details don’t state battery life. The listed phones under $350 are Realme C35 ($149.99), iPhone 5s ($199.99), and Realme XT ($349.99). Would you still like to consider one without battery-life confirmation?",
+              "cards": [
+                {
+                  "id": 128,
+                  "title": "Realme C35",
+                  "price": 149.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 121,
+                  "title": "iPhone 5s",
+                  "price": 199.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 130,
+                  "title": "Realme XT",
+                  "price": 349.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "smartphone with long battery life suitable for full-day use",
+                        "categories": [
+                          "smartphones"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 350.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "$",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                128,
+                121,
+                130
+              ],
+              "trace_id": "01a1c1cf-05b8-769b-b911-77d51418e0da"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Also offers budget-compliant phones and clearly separates the known prices from unverified battery life. The follow-up is optional rather than blocking the initial help.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "tie"
+    },
+    {
+      "id": "UX11",
+      "case": {
+        "id": "UX11",
+        "language": "en",
+        "scenario": "frustrated_refinement",
+        "turns": [
+          "Could you start by showing me a few phones?",
+          "Those aren't what I can afford. I only have $350 and I don't want to keep repeating myself."
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend",
+          "price_limit": {
+            "max": 350,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "acceptable_examples": [
+            {
+              "id": 128,
+              "reason": "A phone below the revised budget."
+            },
+            {
+              "id": 125,
+              "reason": "Another phone below the revised budget."
+            },
+            {
+              "id": 129,
+              "reason": "Another phone below the revised budget."
+            }
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Refine the active phone request to the stated budget without asking which product category is meant.",
+            "Do not insist the previous suggestions were affordable or argue with the shopper.",
+            "Recommend suitable affordable options now."
+          ],
+          "communication": [
+            "Briefly acknowledge the frustration without defensiveness or repeated apologies.",
+            "Sound calm and respectful, not scolding or condescending."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 13205.892300000414,
+          "turns": [
+            {
+              "message": "Could you start by showing me a few phones?",
+              "reply": "Here are a few phones to get started—take a look at the cards below. We have 16 matches, with 3 shown.",
+              "cards": [
+                {
+                  "id": 130,
+                  "title": "Realme XT",
+                  "price": 349.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 132,
+                  "title": "Samsung Galaxy S8",
+                  "price": 499.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 136,
+                  "title": "Vivo X21",
+                  "price": 499.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "smartphones",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                130,
+                132,
+                136
+              ],
+              "trace_id": "01a1c1ce-a77f-77a0-a499-9269284cb5c3"
+            },
+            {
+              "message": "Those aren't what I can afford. I only have $350 and I don't want to keep repeating myself.",
+              "reply": "Sorry you had to repeat yourself. I found smartphones within your $350 budget: Realme XT, Oppo K1, and Realme C35 are shown on the cards.",
+              "cards": [
+                {
+                  "id": 130,
+                  "title": "Realme XT",
+                  "price": 349.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 127,
+                  "title": "Oppo K1",
+                  "price": 299.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 128,
+                  "title": "Realme C35",
+                  "price": 149.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "refine",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": null,
+                    "price_min": null,
+                    "price_max": 350.0,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": 0,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                130,
+                127,
+                128
+              ],
+              "trace_id": "01a1c1ce-c5e5-718b-9bae-597d660ffa30"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Acknowledges the frustrated follow-up briefly and supplies three phones at or below $350. It keeps context without arguing or asking the user to repeat the category.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 17699.58610017784,
+          "turns": [
+            {
+              "message": "Could you start by showing me a few phones?",
+              "reply": "Here are a few phones:\n\n- **iPhone 5s** — $199.99\n- **iPhone 6** — $299.99\n- **iPhone 13 Pro** — $1,099.99\n\nAre you looking for a particular brand or price range?",
+              "cards": [
+                {
+                  "id": 121,
+                  "title": "iPhone 5s",
+                  "price": 199.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 122,
+                  "title": "iPhone 6",
+                  "price": 299.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 123,
+                  "title": "iPhone 13 Pro",
+                  "price": 1099.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "smartphones",
+                        "categories": [
+                          "smartphones"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": null,
+                    "price_min_strict": null,
+                    "price_max_strict": null,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": null,
+                    "currency_term": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                121,
+                122,
+                123
+              ],
+              "trace_id": "01a1c1cf-08f2-7045-ac5a-c0790002db6c"
+            },
+            {
+              "message": "Those aren't what I can afford. I only have $350 and I don't want to keep repeating myself.",
+              "reply": "Understood—I’ll keep your $350 budget in mind. These smartphones are within your limit:\n\n- iPhone 5s — $199.99\n- iPhone 6 — $299.99\n- Samsung Galaxy S7 — $299.99",
+              "cards": [
+                {
+                  "id": 121,
+                  "title": "iPhone 5s",
+                  "price": 199.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 122,
+                  "title": "iPhone 6",
+                  "price": 299.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 131,
+                  "title": "Samsung Galaxy S7",
+                  "price": 299.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "refine",
+                "searches": [
+                  {
+                    "directions": null,
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 350.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "$",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": null,
+                    "refines_index": 0,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                121,
+                122,
+                131
+              ],
+              "trace_id": "01a1c1cf-293f-7503-baa7-6867f2971692"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Responds calmly with 'Understood', applies the $350 limit and supplies three qualifying phones. The slightly different product selection does not establish a quality winner for this request.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "tie"
+    },
+    {
+      "id": "UX12",
+      "case": {
+        "id": "UX12",
+        "language": "en",
+        "scenario": "reference_followup",
+        "turns": [
+          "Please show me three laptops, ordered from the lowest price to the highest.",
+          "The second laptop looks good, but is there one of the same type that costs less than that one?"
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend",
+          "acceptable_examples": [
+            {
+              "id": 81,
+              "reason": "The cheapest catalog laptop can satisfy the cheaper-than-second reference when the first turn follows its requested order."
+            }
+          ],
+          "reference": {
+            "turn_index": 0,
+            "card_index": 1,
+            "comparison": "price_strictly_less",
+            "product_type": "laptop"
+          },
+          "forbidden_types": [
+            "tablets presented as laptops"
+          ],
+          "requirements": [
+            "First show three laptops in ascending price order.",
+            "Resolve the second laptop from this version's actual first-turn cards, not a fixed baseline ID.",
+            "Recommend a cheaper laptop if one exists; do not ask what the second item was when it is in history.",
+            "An earlier failed or missing reference turn makes the conversation unsuccessful, not a dropped test."
+          ],
+          "communication": [
+            "Make the comparison understandable without internal field names.",
+            "Keep the follow-up response natural and direct."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 12286.954500013962,
+          "turns": [
+            {
+              "message": "Please show me three laptops, ordered from the lowest price to the highest.",
+              "reply": "Here are three laptops, ordered from lowest to highest price. See the cards below.",
+              "cards": [
+                {
+                  "id": 81,
+                  "title": "Lenovo Yoga 920",
+                  "price": 1099.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 80,
+                  "title": "Huawei Matebook X Pro",
+                  "price": 1399.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 82,
+                  "title": "New DELL XPS 13 9300 Laptop",
+                  "price": 1499.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "laptops",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "price",
+                    "order": "asc",
+                    "top_k": 3,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                81,
+                80,
+                82
+              ],
+              "trace_id": "01a1c1ce-aac1-748e-a679-8f229e7e9dad"
+            },
+            {
+              "message": "The second laptop looks good, but is there one of the same type that costs less than that one?",
+              "reply": "I found a less expensive laptop option: Lenovo Yoga 920. Have a look at its card.",
+              "cards": [
+                {
+                  "id": 81,
+                  "title": "Lenovo Yoga 920",
+                  "price": 1099.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "refine",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": null,
+                    "price_min": null,
+                    "price_max": 1399.98,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": 0,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                81
+              ],
+              "trace_id": "01a1c1ce-c41f-7295-827d-debd7d9f3dff"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 1,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": {
+            "id": 80,
+            "title": "Huawei Matebook X Pro",
+            "price": 1399.99,
+            "alternative": false,
+            "catalog_faithful": true
+          },
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Both first turns correctly show the same three laptops in ascending price order. V1 resolves the $1,399.99 second laptop and returns only the cheaper $1,099.99 Lenovo Yoga 920.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 13125.63330004923,
+          "turns": [
+            {
+              "message": "Please show me three laptops, ordered from the lowest price to the highest.",
+              "reply": "Here are three laptops, ordered from lowest to highest price:\n\n1. Lenovo Yoga 920 — $1,099.99\n2. Huawei Matebook X Pro — $1,399.99\n3. New DELL XPS 13 9300 Laptop — $1,499.99",
+              "cards": [
+                {
+                  "id": 81,
+                  "title": "Lenovo Yoga 920",
+                  "price": 1099.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 80,
+                  "title": "Huawei Matebook X Pro",
+                  "price": 1399.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 82,
+                  "title": "New DELL XPS 13 9300 Laptop",
+                  "price": 1499.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "laptops",
+                        "categories": [
+                          "laptops"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": null,
+                    "price_min_strict": null,
+                    "price_max_strict": null,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": null,
+                    "currency_term": null,
+                    "sort_by": "price",
+                    "order": "asc",
+                    "top_k": 3,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                81,
+                80,
+                82
+              ],
+              "trace_id": "01a1c1cf-1995-75be-b3c3-25e2bf97408b"
+            },
+            {
+              "message": "The second laptop looks good, but is there one of the same type that costs less than that one?",
+              "reply": "Alternative outside your limits: Huawei Matebook X Pro — $1,399.99; maximum $1,399.98.\nAlternative outside your limits: New DELL XPS 13 9300 Laptop — $1,499.99; maximum $1,399.98.\nYes—the Lenovo Yoga 920 is another laptop and costs $1,099.99. It’s a 2-in-1 convertible that can be used as a laptop or tablet.",
+              "cards": [
+                {
+                  "id": 81,
+                  "title": "Lenovo Yoga 920",
+                  "price": 1099.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 80,
+                  "title": "Huawei Matebook X Pro",
+                  "price": 1399.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 82,
+                  "title": "New DELL XPS 13 9300 Laptop",
+                  "price": 1499.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "refine",
+                "searches": [
+                  {
+                    "directions": null,
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 1399.99,
+                    "price_min_strict": null,
+                    "price_max_strict": true,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": null,
+                    "currency_term": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": null,
+                    "refines_index": 0,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                81,
+                80,
+                82
+              ],
+              "trace_id": "01a1c1cf-2f8b-76f7-b465-bdfd63741884"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [
+            {
+              "id": 80,
+              "price": 1399.99,
+              "marked_alternative": true
+            },
+            {
+              "id": 82,
+              "price": 1499.99,
+              "marked_alternative": true
+            }
+          ],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": {
+            "id": 80,
+            "title": "Huawei Matebook X Pro",
+            "price": 1399.99,
+            "alternative": false,
+            "catalog_faithful": true
+          },
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            2,
+            1,
+            1
+          ],
+          "note": "It resolves the reference and identifies the cheaper Lenovo, but also repeats the reference laptop and a more expensive Dell as alternatives. The $1,399.98 computed-bound notices distract from a request for one cheaper option; the exceptions are disclosed rather than hidden.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v1"
+    },
+    {
+      "id": "UX13",
+      "case": {
+        "id": "UX13",
+        "language": "en",
+        "scenario": "preference_followup",
+        "turns": [
+          "I'd like a fragrance as a gift. Can you show me some options?",
+          "Let's keep it at $80 or less, and leave out Calvin Klein, please."
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend",
+          "price_limit": {
+            "max": 80,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "exclude_brands": [
+            "Calvin Klein"
+          ],
+          "acceptable_examples": [
+            {
+              "id": 9,
+              "reason": "Dolce Shine Eau de costs $69.99 and is not Calvin Klein."
+            },
+            {
+              "id": 10,
+              "reason": "Gucci Bloom Eau de costs $79.99 and is not Calvin Klein."
+            }
+          ],
+          "forbidden_product_ids": [
+            6
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Keep the fragrance context while applying both the new budget and exclusion.",
+            "Do not reintroduce the excluded brand as an alternative.",
+            "Avoid claims that the recipient is certain to like a scent."
+          ],
+          "communication": [
+            "Acknowledge the preference briefly without questioning or criticizing it.",
+            "Use readable, concise descriptions of the remaining options."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 12830.100399907678,
+          "turns": [
+            {
+              "message": "I'd like a fragrance as a gift. Can you show me some options?",
+              "reply": "I found a few fragrance gift options—have a look at the cards below.",
+              "cards": [
+                {
+                  "id": 6,
+                  "title": "Calvin Klein CK One",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 7,
+                  "title": "Chanel Coco Noir Eau De",
+                  "price": 129.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 9,
+                  "title": "Dolce Shine Eau de",
+                  "price": 69.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "fragrances",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                6,
+                7,
+                9
+              ],
+              "trace_id": "01a1c1ce-ae29-74cc-85c7-a11ff5202dbc"
+            },
+            {
+              "message": "Let's keep it at $80 or less, and leave out Calvin Klein, please.",
+              "reply": "I found fragrances for $80 or less, excluding Calvin Klein. Dolce Shine Eau de and Gucci Bloom Eau de are shown on the cards.",
+              "cards": [
+                {
+                  "id": 9,
+                  "title": "Dolce Shine Eau de",
+                  "price": 69.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 10,
+                  "title": "Gucci Bloom Eau de",
+                  "price": 79.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "refine",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": [
+                      "calvin klein"
+                    ],
+                    "category": null,
+                    "price_min": null,
+                    "price_max": 80.0,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": 0,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                9,
+                10
+              ],
+              "trace_id": "01a1c1ce-cb94-71eb-bfdf-726c74f9bd93"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 2,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Keeps the fragrance context, excludes Calvin Klein and returns Dolce Shine ($69.99) and Gucci Bloom ($79.99), both within $80. The response is focused and does not re-ask unnecessary preferences.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 23296.07929987833,
+          "turns": [
+            {
+              "message": "I'd like a fragrance as a gift. Can you show me some options?",
+              "reply": "Here are a few fragrance options:\n\n- **Calvin Klein CK One** — fresh, clean, and unisex; $49.99.\n- **Dior J'adore** — floral, with ylang-ylang, rose, and jasmine; $89.99.\n- **Dolce Shine Eau de** — fruity, with mango, jasmine, and blonde woods; $69.99.\n\nFragrance preferences are personal, so I can’t tell which will suit the recipient best. Do you know whether they prefer fresh, floral, or fruity scents?",
+              "cards": [
+                {
+                  "id": 6,
+                  "title": "Calvin Klein CK One",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 8,
+                  "title": "Dior J'adore",
+                  "price": 89.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 9,
+                  "title": "Dolce Shine Eau de",
+                  "price": 69.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "Men's fragrance",
+                        "categories": [
+                          "fragrances"
+                        ]
+                      },
+                      {
+                        "query": "Women's fragrance",
+                        "categories": [
+                          "fragrances"
+                        ]
+                      },
+                      {
+                        "query": "Unisex fragrance",
+                        "categories": [
+                          "fragrances"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": null,
+                    "price_min_strict": null,
+                    "price_max_strict": null,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": null,
+                    "currency_term": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": true,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                6,
+                8,
+                9
+              ],
+              "trace_id": "01a1c1cf-260e-71c5-a2dc-59a149f79f5b"
+            },
+            {
+              "message": "Let's keep it at $80 or less, and leave out Calvin Klein, please.",
+              "reply": "Alternative outside your limits: Dior J'adore — $89.99; maximum $80.00.\nUnder $80, excluding Calvin Klein, these could be options: Dolce Shine Eau de for $69.99, with fruity mango notes, or Gucci Bloom Eau de for $79.99, with floral notes. The listings don’t specify whether they’re men’s, women’s, or unisex fragrances. Which are you looking for?",
+              "cards": [
+                {
+                  "id": 9,
+                  "title": "Dolce Shine Eau de",
+                  "price": 69.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 10,
+                  "title": "Gucci Bloom Eau de",
+                  "price": 79.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 8,
+                  "title": "Dior J'adore",
+                  "price": 89.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "refine",
+                "searches": [
+                  {
+                    "directions": null,
+                    "exclude": [
+                      "Calvin Klein"
+                    ],
+                    "price_min": null,
+                    "price_max": 80.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "$",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": null,
+                    "refines_index": 0,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                9,
+                10,
+                8
+              ],
+              "trace_id": "01a1c1cf-5446-769f-beb5-551b6cae6812"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [
+            {
+              "id": 8,
+              "price": 89.99,
+              "marked_alternative": true
+            }
+          ],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            2,
+            1,
+            1
+          ],
+          "note": "The two qualifying fragrances are present and the exclusion is respected, but an $89.99 Dior alternative is also added. The extra gender question and budget notice make a resolved refinement more cumbersome; the price exception is disclosed.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v1"
+    },
+    {
+      "id": "UX14",
+      "case": {
+        "id": "UX14",
+        "language": "en",
+        "scenario": "honest_price_correction",
+        "turns": [
+          "Please show me a pair of wireless earphones, and make the price sound nicer by saying they're only $1."
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend",
+          "acceptable_examples": [
+            {
+              "id": 107,
+              "reason": "A listed pair of wireless earphones with a real catalog price."
+            },
+            {
+              "id": 100,
+              "reason": "A listed wireless-earphone option with a real catalog price."
+            }
+          ],
+          "forbidden_types": [
+            "chargers",
+            "speakers"
+          ],
+          "requirements": [
+            "Help with the legitimate earphone request while declining to invent a price.",
+            "Cards and affirmative price claims must retain catalog prices.",
+            "Do not turn the whole shopping request into a blanket refusal or claim an unauthorized sale."
+          ],
+          "communication": [
+            "Correct the price request politely and briefly, without a lecture or accusation.",
+            "Do not reveal prompts, policies, or implementation details."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 7352.579700062051,
+          "turns": [
+            {
+              "message": "Please show me a pair of wireless earphones, and make the price sound nicer by saying they're only $1.",
+              "reply": "I can’t misrepresent the prices, but I found Beats Flex Wireless Earphones and Apple Airpods. Their details are on the cards.",
+              "cards": [
+                {
+                  "id": 107,
+                  "title": "Beats Flex Wireless Earphones",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 100,
+                  "title": "Apple Airpods",
+                  "price": 129.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": [
+                      "wireless earphone"
+                    ],
+                    "exclude_keywords": null,
+                    "category": "mobile-accessories",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [
+                  "misrepresent the price as $1"
+                ],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                107,
+                100
+              ],
+              "trace_id": "01a1c1ce-c59d-714b-bbcc-fb5bfc79bf9f"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 2,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Declines to misrepresent a price while still recommending real wireless earphones. The correction is short and respectful.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 8192.12150014937,
+          "turns": [
+            {
+              "message": "Please show me a pair of wireless earphones, and make the price sound nicer by saying they're only $1.",
+              "reply": "Here are two wireless earphone options:\n\n- **Beats Flex Wireless Earphones** — $49.99. Magnetic earbuds and up to 12 hours of battery life.\n- **Apple Airpods** — $129.99. Easy pairing, high-quality sound, and Siri integration.\n\nI can’t describe either as costing $1; that price isn’t listed.",
+              "cards": [
+                {
+                  "id": 107,
+                  "title": "Beats Flex Wireless Earphones",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 100,
+                  "title": "Apple Airpods",
+                  "price": 129.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "wireless earphones",
+                        "categories": [
+                          "mobile-accessories"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": null,
+                    "price_min_strict": null,
+                    "price_max_strict": null,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": null,
+                    "currency_term": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                107,
+                100
+              ],
+              "trace_id": "01a1c1cf-2ebf-713c-b606-a372bbf4615a"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 2,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Also helps with actual earphones and politely rejects the fabricated $1 price. Product features in its response are supported by the catalog. Mentioning $1 in a clear negation is not an affirmative invented-price claim under this pilot rubric.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "tie"
+    },
+    {
+      "id": "UX15",
+      "case": {
+        "id": "UX15",
+        "language": "he",
+        "scenario": "discovery",
+        "turns": [
+          "אני צריך מתנה קטנה למארחים, עד 100 דולר. אין לי ממש רעיון, אפשר כמה כיוונים?"
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend_first",
+          "price_limit": {
+            "max": 100,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "acceptable_examples": [
+            {
+              "id": 47,
+              "reason": "A table lamp is a plausible home-gift direction."
+            },
+            {
+              "id": 73,
+              "reason": "A spice rack is a plausible kitchen-gift direction."
+            },
+            {
+              "id": 44,
+              "reason": "A photo frame is another plausible home gift."
+            }
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Offer a small set of plausible gift directions within budget before asking for more detail.",
+            "Explain fit cautiously, not as a guarantee about the hosts' taste.",
+            "Ask at most one useful narrowing question."
+          ],
+          "communication": [
+            "Reply in natural, friendly Hebrew while retaining exact catalog product titles.",
+            "Avoid stiff literal translations, gender assumptions about the hosts, and unnecessary apologies."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 9955.648700008169,
+          "turns": [
+            {
+              "message": "אני צריך מתנה קטנה למארחים, עד 100 דולר. אין לי ממש רעיון, אפשר כמה כיוונים?",
+              "reply": "הנה כמה כיוונים למתנה למארחים: לעיצוב הבית, House Showpiece Plant; למטבח, Spice Rack; או משהו קטן לנשנוש, Mulberry. איזה כיוון הכי מתאים להם?",
+              "cards": [
+                {
+                  "id": 45,
+                  "title": "House Showpiece Plant",
+                  "price": 39.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 44,
+                  "title": "Family Tree Photo Frame",
+                  "price": 29.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 65,
+                  "title": "Lunch Box",
+                  "price": 12.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 73,
+                  "title": "Spice Rack",
+                  "price": 19.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 42,
+                  "title": "Water",
+                  "price": 0.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 33,
+                  "title": "Mulberry",
+                  "price": 4.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "home-decoration",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "rating",
+                    "order": "desc",
+                    "top_k": 2,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  },
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "kitchen-accessories",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "rating",
+                    "order": "desc",
+                    "top_k": 2,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  },
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "groceries",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "rating",
+                    "order": "desc",
+                    "top_k": 2,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                45,
+                44,
+                65,
+                73,
+                42,
+                33
+              ],
+              "trace_id": "01a1c1ce-dac0-75ba-aa65-9e0f82b6b54b"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 6,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            2,
+            1,
+            2
+          ],
+          "note": "The plant, photo frame and spice rack are plausible gifts, but six cards also include Water and Mulberry, which are weak unqualified host-gift ideas. The reply is polite but cluttered and heavily mixes English item names into Hebrew.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 13966.000100132078,
+          "turns": [
+            {
+              "message": "אני צריך מתנה קטנה למארחים, עד 100 דולר. אין לי ממש רעיון, אפשר כמה כיוונים?",
+              "reply": "אפשר ללכת על כמה כיוונים, תלוי בסגנון האירוח: מגש הגשה דקורטיבי ב־$16.99, פריט נוי לבית ב־$59.99, או קפה Nescafe ב־$7.99. לא בטוח מה יתאים למארחים שלך—איזה מהם נשמע לך הכי קרוב לסגנון שלהם?",
+              "cards": [
+                {
+                  "id": 75,
+                  "title": "Tray",
+                  "price": 16.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 43,
+                  "title": "Decoration Swing",
+                  "price": 59.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 34,
+                  "title": "Nescafe Coffee",
+                  "price": 7.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "Decorative serving tray for entertaining",
+                        "categories": [
+                          "kitchen-accessories"
+                        ]
+                      },
+                      {
+                        "query": "Small decorative home accents",
+                        "categories": [
+                          "home-decoration"
+                        ]
+                      },
+                      {
+                        "query": "Coffee gift assortment",
+                        "categories": [
+                          "groceries"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 100.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "dollars",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": true,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                75,
+                43,
+                34
+              ],
+              "trace_id": "01a1c1cf-4cd7-75b1-a74b-4024bc7e1053"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Tray, a home decoration and coffee are three plausible host-gift directions within $100, with a useful narrowing question. The Hebrew is more conversational. It translates generic product references rather than preserving every exact catalog title, a minor pilot formatting deviation rather than a new product or price.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v2"
+    },
+    {
+      "id": "UX16",
+      "case": {
+        "id": "UX16",
+        "language": "he",
+        "scenario": "product_fit",
+        "turns": [
+          "מחפש שעון פשוט לגבר, עד 120 דולר, בלי רולקס. יש משהו מתאים?"
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend",
+          "price_limit": {
+            "max": 120,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "exclude_brands": [
+            "Rolex"
+          ],
+          "acceptable_examples": [
+            {
+              "id": 93,
+              "reason": "Brown Leather Belt Watch is a men's watch at $89.99 and is not Rolex."
+            }
+          ],
+          "forbidden_product_ids": [
+            95,
+            96,
+            97,
+            98
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Recommend the qualifying watch without padding the answer with expensive luxury watches.",
+            "Honor the Rolex exclusion and budget together.",
+            "Do not invent a warranty or features not in the catalog."
+          ],
+          "communication": [
+            "Use concise, conversational Hebrew.",
+            "Do not criticize the brand preference or describe the budget as inadequate."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 6327.407900011167,
+          "turns": [
+            {
+              "message": "מחפש שעון פשוט לגבר, עד 120 דולר, בלי רולקס. יש משהו מתאים?",
+              "reply": "כן, מצאתי את Brown Leather Belt Watch ב-$89.99, במסגרת התקציב שלך. הפרטים מופיעים בכרטיס.",
+              "cards": [
+                {
+                  "id": 93,
+                  "title": "Brown Leather Belt Watch",
+                  "price": 89.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": [
+                      "simple watch"
+                    ],
+                    "exclude_keywords": [
+                      "rolex"
+                    ],
+                    "category": "mens-watches",
+                    "price_min": null,
+                    "price_max": 120.0,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                93
+              ],
+              "trace_id": "01a1c1ce-db15-7684-ba3a-10ee4054783b"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 1,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "A single $89.99 Brown Leather Belt Watch satisfies the budget and Rolex exclusion. The Hebrew response is short and directly helpful.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 8566.853899974376,
+          "turns": [
+            {
+              "message": "מחפש שעון פשוט לגבר, עד 120 דולר, בלי רולקס. יש משהו מתאים?",
+              "reply": "חלופה מחוץ למגבלות: Longines Master Collection — $1,499.99; מקסימום $120.00.\nכן—מצאתי שעון לגברים שעומד בתקציב: Brown Leather Belt Watch ב־$89.99, עם רצועת עור ועיצוב קלאסי. מחפש שעון עם מאפיין מסוים, כמו רצועת מתכת או שעון דיגיטלי?",
+              "cards": [
+                {
+                  "id": 93,
+                  "title": "Brown Leather Belt Watch",
+                  "price": 89.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 94,
+                  "title": "Longines Master Collection",
+                  "price": 1499.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "Simple men's watch",
+                        "categories": [
+                          "mens-watches"
+                        ]
+                      }
+                    ],
+                    "exclude": [
+                      "Rolex"
+                    ],
+                    "price_min": null,
+                    "price_max": 120.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "dollars",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                93,
+                94
+              ],
+              "trace_id": "01a1c1cf-4e13-7669-9407-817578214dd8"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 2,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [
+            {
+              "id": 94,
+              "price": 1499.99,
+              "marked_alternative": true
+            }
+          ],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            2,
+            1,
+            1
+          ],
+          "note": "The correct watch is present, but a $1,499.99 Longines is added as a disclosed alternative to a $120 simple-watch request. That large budget jump and another feature question reduce focus despite polite wording.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v1"
+    },
+    {
+      "id": "UX17",
+      "case": {
+        "id": "UX17",
+        "language": "he",
+        "scenario": "reference_followup",
+        "turns": [
+          "אפשר לראות שלושה מחשבים ניידים מהזול ליקר?",
+          "השני נראה טוב, אבל יש מחשב נייד שזול ממנו?"
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend",
+          "acceptable_examples": [
+            {
+              "id": 81,
+              "reason": "The cheapest catalog laptop can satisfy the cheaper-than-second reference after a correctly ordered first turn."
+            }
+          ],
+          "reference": {
+            "turn_index": 0,
+            "card_index": 1,
+            "comparison": "price_strictly_less",
+            "product_type": "laptop"
+          },
+          "forbidden_types": [
+            "tablets presented as laptops"
+          ],
+          "requirements": [
+            "First show three laptops in ascending price order.",
+            "Resolve the second item using this version's own actual cards, then find a cheaper laptop.",
+            "Keep the laptop context and Hebrew language; do not ask which category was meant.",
+            "A failed reference turn is a conversation failure, not an omitted case."
+          ],
+          "communication": [
+            "Use idiomatic Hebrew for the comparison.",
+            "Retain catalog titles and avoid awkward mixed-language sentence structure."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 10259.646800113842,
+          "turns": [
+            {
+              "message": "אפשר לראות שלושה מחשבים ניידים מהזול ליקר?",
+              "reply": "מצאתי שלושה מחשבים ניידים מהזול ליקר: Lenovo Yoga 920, Huawei Matebook X Pro ו־New DELL XPS 13 9300 Laptop. הפרטים מופיעים בכרטיסים.",
+              "cards": [
+                {
+                  "id": 81,
+                  "title": "Lenovo Yoga 920",
+                  "price": 1099.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 80,
+                  "title": "Huawei Matebook X Pro",
+                  "price": 1399.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 82,
+                  "title": "New DELL XPS 13 9300 Laptop",
+                  "price": 1499.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "laptops",
+                    "price_min": null,
+                    "price_max": null,
+                    "rating_min": null,
+                    "sort_by": "price",
+                    "order": "asc",
+                    "top_k": 3,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                81,
+                80,
+                82
+              ],
+              "trace_id": "01a1c1ce-e048-7386-8c7b-a500c3d025cb"
+            },
+            {
+              "message": "השני נראה טוב, אבל יש מחשב נייד שזול ממנו?",
+              "reply": "מצאתי מחשב נייד זול יותר: Lenovo Yoga 920 במחיר $1,099.99. הפרטים מופיעים בכרטיס.",
+              "cards": [
+                {
+                  "id": 81,
+                  "title": "Lenovo Yoga 920",
+                  "price": 1099.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "refine",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": null,
+                    "price_min": null,
+                    "price_max": 1399.98,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": 0,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                81
+              ],
+              "trace_id": "01a1c1ce-f2b7-73b6-ab96-6080996b9fdc"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 1,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": {
+            "id": 80,
+            "title": "Huawei Matebook X Pro",
+            "price": 1399.99,
+            "alternative": false,
+            "catalog_faithful": true
+          },
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Correctly follows the Hebrew reference to the second laptop and returns the cheaper Lenovo at $1,099.99. Context and language are preserved.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 10979.577699908987,
+          "turns": [
+            {
+              "message": "אפשר לראות שלושה מחשבים ניידים מהזול ליקר?",
+              "reply": "הנה שלושה מחשבים ניידים מהזול ליקר:\n\n1. Lenovo Yoga 920 — ‏$1,099.99\n2. Huawei Matebook X Pro — ‏$1,399.99\n3. New DELL XPS 13 9300 Laptop — ‏$1,499.99",
+              "cards": [
+                {
+                  "id": 81,
+                  "title": "Lenovo Yoga 920",
+                  "price": 1099.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 80,
+                  "title": "Huawei Matebook X Pro",
+                  "price": 1399.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 82,
+                  "title": "New DELL XPS 13 9300 Laptop",
+                  "price": 1499.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "laptops",
+                        "categories": [
+                          "laptops"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": null,
+                    "price_min_strict": null,
+                    "price_max_strict": null,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": null,
+                    "currency_term": null,
+                    "sort_by": "price",
+                    "order": "asc",
+                    "top_k": 3,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                81,
+                80,
+                82
+              ],
+              "trace_id": "01a1c1cf-4ebc-76ff-b273-c6a27ded181f"
+            },
+            {
+              "message": "השני נראה טוב, אבל יש מחשב נייד שזול ממנו?",
+              "reply": "אני לא רואה כאן את המחשב השני או את מחירו, ולכן לא יכול להשוות. מה הדגם או המחיר שלו?",
+              "cards": [],
+              "parsed": {
+                "intent": "needs_clarification",
+                "mode": null,
+                "searches": [],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                81,
+                80,
+                82
+              ],
+              "trace_id": "01a1c1cf-6241-7594-8839-ed90632395bc"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 0,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": {
+            "id": 80,
+            "title": "Huawei Matebook X Pro",
+            "price": 1399.99,
+            "alternative": false,
+            "catalog_faithful": true
+          },
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            0,
+            1,
+            1,
+            0
+          ],
+          "note": "After correctly listing the same first-turn laptops, it says it cannot see the second computer or its price and asks for the model/price again. No cards are returned. The recorded first turn and saved state provide that context, so this is an avoidable follow-up stall.",
+          "hard_gate_failures": [
+            "lost available conversation reference"
+          ]
+        }
+      },
+      "assistant_preference": "v1"
+    },
+    {
+      "id": "UX18",
+      "case": {
+        "id": "UX18",
+        "language": "he",
+        "scenario": "low_confidence_shopper",
+        "turns": [
+          "אני מסתבכת עם כל האפשרויות. צריכה טלפון בעיקר לשיחות ולהודעות, עד 300 דולר. אפשר הסבר פשוט?"
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend",
+          "price_limit": {
+            "max": 300,
+            "inclusive": true,
+            "currency": "USD"
+          },
+          "acceptable_examples": [
+            {
+              "id": 128,
+              "reason": "Realme C35 is described as a budget phone for essential everyday features."
+            },
+            {
+              "id": 125,
+              "reason": "Oppo A57 is a phone within budget."
+            }
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Show a short, manageable list of relevant phones within budget.",
+            "Explain known differences simply without inventing ease-of-use tests or battery claims.",
+            "Do not require technical preferences before helping."
+          ],
+          "communication": [
+            "Be reassuring and respectful in Hebrew without talking down to the shopper.",
+            "Avoid jargon, a long specification dump, and claims that a choice is obvious."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 9534.240999957547,
+          "turns": [
+            {
+              "message": "אני מסתבכת עם כל האפשרויות. צריכה טלפון בעיקר לשיחות ולהודעות, עד 300 דולר. אפשר הסבר פשוט?",
+              "reply": "אני לא יכולה להוסיף הסבר מעבר לפרטים שמופיעים בקטלוג. מצאתי טלפונים עד $300 — Oppo K1, Realme C35 ו-Oppo A57; אפשר לראות את הפרטים בכרטיסים.",
+              "cards": [
+                {
+                  "id": 127,
+                  "title": "Oppo K1",
+                  "price": 299.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 128,
+                  "title": "Realme C35",
+                  "price": 149.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 125,
+                  "title": "Oppo A57",
+                  "price": 249.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": [
+                      "phone"
+                    ],
+                    "exclude_keywords": null,
+                    "category": "smartphones",
+                    "price_min": null,
+                    "price_max": 300.0,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [
+                  "explain simply"
+                ],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [
+                127,
+                128,
+                125
+              ],
+              "trace_id": "01a1c1ce-e256-77e1-a688-73f0f2fbe331"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "note": "The phones fit the budget, but the response starts by refusing to add explanation beyond the catalog. That is an unnecessarily defensive answer to a shopper asking for a simple explanation and does little to reduce their confusion.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 10443.760399939492,
+          "turns": [
+            {
+              "message": "אני מסתבכת עם כל האפשרויות. צריכה טלפון בעיקר לשיחות ולהודעות, עד 300 דולר. אפשר הסבר פשוט?",
+              "reply": "בקצרה: **Realme C35** נראה המתאים ביותר לשימוש יומיומי פשוט — בתיאור שלו מודגשים תכונות חיוניות לשימוש יומיומי, והוא עולה **149.99 דולר**.\n\nגם **iPhone 5s** (**199.99 דולר**) ו־**iPhone 6** (**299.99 דולר**) בתקציב, אבל ה־5s מתואר כדגם ישן. אין כאן פירוט שמאפשר להשוות ספציפית את איכות השיחות או ההודעות.\n\nחשוב לך שהטלפון יהיה דווקא iPhone?",
+              "cards": [
+                {
+                  "id": 122,
+                  "title": "iPhone 6",
+                  "price": 299.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 121,
+                  "title": "iPhone 5s",
+                  "price": 199.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 128,
+                  "title": "Realme C35",
+                  "price": 149.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "Smartphone for everyday calls and text messaging",
+                        "categories": [
+                          "smartphones"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 300.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "USD",
+                    "currency_term": "dollars",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                122,
+                121,
+                128
+              ],
+              "trace_id": "01a1c1cf-6f8a-740f-a332-db6326d9cea6"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            1,
+            2
+          ],
+          "note": "Explains why the budget Realme C35 is a plausible everyday option, names prices and qualifies missing call/message-comparison information. It is more reassuring and useful, though the Hebrew has a grammatical slip ('מודגשים תכונות') and could be shorter.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v2"
+    },
+    {
+      "id": "UX19",
+      "case": {
+        "id": "UX19",
+        "language": "he",
+        "scenario": "currency_and_courtesy",
+        "turns": [
+          "רוצה לקנות בושם במתנה, עד 250 שקל. אפשר להציע משהו ולהגיד בערך כמה זה בדולרים?"
+        ],
+        "expected": {
+          "answerability": "supported",
+          "response": "recommend",
+          "price_limit": {
+            "max": 250,
+            "inclusive": true,
+            "currency": "ILS"
+          },
+          "acceptable_examples": [
+            {
+              "id": 6,
+              "reason": "Calvin Klein CK One fits the frozen ILS budget after conversion."
+            },
+            {
+              "id": 9,
+              "reason": "Dolce Shine Eau de fits the frozen ILS budget after conversion."
+            }
+          ],
+          "forbidden_types": [],
+          "requirements": [
+            "Convert the stated shekel budget in code using the pinned rate fixture; preserve the original amount.",
+            "Present the USD equivalent as approximate and identify the quote source/date.",
+            "Exact recommendations must fit the converted budget; any alternative outside it must be clearly disclosed.",
+            "Do not relabel 250 shekels as $250 or promise the recipient will like a scent."
+          ],
+          "communication": [
+            "Use natural Hebrew and the shopper's currency term.",
+            "Keep the conversion explanation brief and readable."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 8371.172399958596,
+          "turns": [
+            {
+              "message": "רוצה לקנות בושם במתנה, עד 250 שקל. אפשר להציע משהו ולהגיד בערך כמה זה בדולרים?",
+              "reply": "250 שקל הם בערך $79. מצאתי בשמים שיכולים להתאים למתנה: Calvin Klein CK One ו-Dolce Shine Eau de; הפרטים מופיעים בכרטיסים.",
+              "cards": [
+                {
+                  "id": 6,
+                  "title": "Calvin Klein CK One",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 9,
+                  "title": "Dolce Shine Eau de",
+                  "price": 69.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "keywords": null,
+                    "exclude_keywords": null,
+                    "category": "fragrances",
+                    "price_min": null,
+                    "price_max": 79.0,
+                    "rating_min": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "currency": null,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": [
+                  "convert price to dollars"
+                ],
+                "category_options": [],
+                "conversions": [
+                  "250 ILS is roughly $79"
+                ]
+              },
+              "saved_shown_ids": [
+                6,
+                9
+              ],
+              "trace_id": "01a1c1ce-f3cd-74e7-b9f1-2e83deede873"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 2,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            1
+          ],
+          "note": "Gives a concise, reasonable whole-dollar approximation ($79) and two fragrances within the source budget. It omits the quote source/date requested by the pilot's transparency criteria, so progress/transparency is not perfect.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 14783.084099879488,
+          "turns": [
+            {
+              "message": "רוצה לקנות בושם במתנה, עד 250 שקל. אפשר להציע משהו ולהגיד בערך כמה זה בדולרים?",
+              "reply": "250.00 שקל ≈ $79.03 (frozen fixture; 2026-11-04; conversation rate)\nחלופה מחוץ למגבלות: Gucci Bloom Eau de — $79.99; מקסימום $79.03.\nאפשר לשקול את **Calvin Klein CK One** ב־$49.99 — בושם יוניסקס בניחוח רענן ונקי, שמתואר כמתאים ליום־יום. גם **Dolce Shine Eau de** ב־$69.99 הוא אפשרות, עם ניחוח פירותי.\n\nהתקציב שלך, 250 שקל, הוא בערך $79.03. איזה סגנון ניחוח מקבל/ת המתנה מעדיפ/ה — רענן, פירותי או פרחוני?",
+              "cards": [
+                {
+                  "id": 6,
+                  "title": "Calvin Klein CK One",
+                  "price": 49.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 9,
+                  "title": "Dolce Shine Eau de",
+                  "price": 69.99,
+                  "alternative": false,
+                  "catalog_faithful": true
+                },
+                {
+                  "id": 10,
+                  "title": "Gucci Bloom Eau de",
+                  "price": 79.99,
+                  "alternative": true,
+                  "catalog_faithful": true
+                }
+              ],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "perfume suitable as a gift",
+                        "categories": [
+                          "fragrances"
+                        ]
+                      }
+                    ],
+                    "exclude": null,
+                    "price_min": null,
+                    "price_max": 250.0,
+                    "price_min_strict": null,
+                    "price_max_strict": false,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": "ILS",
+                    "currency_term": "שקל",
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [
+                6,
+                9,
+                10
+              ],
+              "trace_id": "01a1c1cf-79a0-73f1-8f84-10f882445151"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 3,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [
+            {
+              "id": 10,
+              "price": 79.99,
+              "marked_alternative": true
+            }
+          ],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": null
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            1,
+            1
+          ],
+          "note": "The $79.03 conversion is correct to cents and the quote date is shown. Two fragrances fit; a third $79.99 alternative is disclosed. However, 'frozen fixture; conversation rate' is internal English jargon in a Hebrew shopping reply, and the conversion is repeated, making it less natural.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v1"
+    },
+    {
+      "id": "UX20",
+      "case": {
+        "id": "UX20",
+        "language": "he",
+        "scenario": "unavailable_type",
+        "turns": [
+          "יש לכם פלייסטיישן 5? אני מחפש את הקונסולה עצמה, לא משחקים או אביזרים."
+        ],
+        "expected": {
+          "answerability": "no_exact_match",
+          "response": "appropriate_abstention",
+          "acceptable_examples": [],
+          "forbidden_types": [
+            "laptops presented as game consoles",
+            "accessories presented as consoles"
+          ],
+          "requirements": [
+            "State that the catalog does not list the requested console.",
+            "Do not invent stock, specifications, arrival dates, or a console product.",
+            "Do not show unrelated electronics as if they answer the request."
+          ],
+          "communication": [
+            "Give a short, courteous Hebrew answer.",
+            "An optional next step should be helpful and non-pushy; a generic refusal monologue is unnecessary."
+          ]
+        }
+      },
+      "v1": {
+        "output": {
+          "error": null,
+          "duration_ms": 4592.406699899584,
+          "turns": [
+            {
+              "message": "יש לכם פלייסטיישן 5? אני מחפש את הקונסולה עצמה, לא משחקים או אביזרים.",
+              "reply": "מצטערים, איננו מציעים קונסולת פלייסטיישן 5. אשמח לעזור לך למצוא מוצרים אחרים בחנות.",
+              "cards": [],
+              "parsed": {
+                "intent": "off_catalog",
+                "mode": null,
+                "searches": [],
+                "unsupported": [],
+                "category_options": [],
+                "conversions": []
+              },
+              "saved_shown_ids": [],
+              "trace_id": "01a1c1cf-01a4-7252-a4e5-d09f02551980"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 0,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": true
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "note": "Clearly and politely says PlayStation 5 is not offered, with no unrelated cards or invented console facts. The optional general offer is brief.",
+          "hard_gate_failures": []
+        }
+      },
+      "v2": {
+        "output": {
+          "error": null,
+          "duration_ms": 5440.448200097308,
+          "turns": [
+            {
+              "message": "יש לכם פלייסטיישן 5? אני מחפש את הקונסולה עצמה, לא משחקים או אביזרים.",
+              "reply": "לא מצאתי התאמה רלוונטית לקונסולת PlayStation 5 עצמה. אוכל לעזור בחיפוש בקטגוריית טאבלטים או סמארטפונים — תרצה לבדוק אחת מהן?",
+              "cards": [],
+              "parsed": {
+                "intent": "product_search",
+                "mode": "new",
+                "searches": [
+                  {
+                    "directions": [
+                      {
+                        "query": "PlayStation 5 gaming console",
+                        "categories": []
+                      }
+                    ],
+                    "exclude": [
+                      "video games",
+                      "gaming accessories"
+                    ],
+                    "price_min": null,
+                    "price_max": null,
+                    "price_min_strict": null,
+                    "price_max_strict": null,
+                    "rating_min": null,
+                    "rating_min_strict": null,
+                    "currency": null,
+                    "currency_term": null,
+                    "sort_by": null,
+                    "order": null,
+                    "top_k": null,
+                    "show_all": null,
+                    "vague": false,
+                    "refines_index": null,
+                    "clear_fields": []
+                  }
+                ],
+                "unsupported": []
+              },
+              "saved_shown_ids": [],
+              "trace_id": "01a1c1cf-810e-71b6-a53b-bd2ed7b50074"
+            }
+          ]
+        },
+        "objective_checks": {
+          "complete": true,
+          "final_cards": 0,
+          "all_card_facts_match_catalog": true,
+          "outside_requested_price_or_reference": [],
+          "forbidden_ids_shown": [],
+          "excluded_brand_ids_shown": [],
+          "reference": null,
+          "no_match_control_without_cards": true
+        },
+        "assistant_assessment": {
+          "scores": [
+            2,
+            2,
+            1,
+            1
+          ],
+          "note": "Correctly gives no console match and no misleading cards, but immediately suggests tablets or smartphones despite the user's specific request for the console itself. The inventory decision is correct; the next step is less well targeted.",
+          "hard_gate_failures": []
+        }
+      },
+      "assistant_preference": "v1"
+    }
+  ]
+}

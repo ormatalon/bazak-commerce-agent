@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "review_status": "assistant_draft",
+  "scale": [0, 1, 2],
+  "dimensions": {
+    "recommendation_usefulness": {
+      "0": "Wrong or irrelevant products, avoidable non-answer, misleading help, or an execution failure.",
+      "1": "Some plausible help, but weak fit, substantial missing context, or incomplete task progress.",
+      "2": "At least one useful, catalog-supported recommendation, or a correct and helpful abstention on a no-match control."
+    },
+    "courtesy": {
+      "0": "Dismissive, accusatory, patronizing, judgmental, pushy, or argumentative.",
+      "1": "Respectful enough but noticeably cold, defensive, overly apologetic, or needlessly formal.",
+      "2": "Respectful, proportionately warm, calm, and helpful; handles frustration and correction tactfully."
+    },
+    "phrasing": {
+      "0": "Confusing, unnatural, wrong-language, or difficult to understand.",
+      "1": "Understandable but stiff, repetitive, verbose, jargon-heavy, or awkwardly translated.",
+      "2": "Clear, concise, natural in the shopper's language, with readable explanations and exact catalog titles."
+    },
+    "task_progress": {
+      "0": "Loses context, stalls unnecessarily, contradicts the request, or produces an error.",
+      "1": "Makes partial progress but asks avoidable questions or gives a weak next step.",
+      "2": "Advances the task, preserves follow-up context, and asks a useful question only when appropriate."
+    }
+  },
+  "hard_gates": ["catalog_fact_fidelity", "explicit_constraints_or_permitted_disclosed_alternatives", "no_wrong_product_type", "no_unsupported_affirmative_claims", "no_instruction_or_private_data_leak"],
+  "derived_metrics": {
+    "avoidable_non_answer_rate": "Supported final requests with no useful recommendation and no legitimate blocking reason / all supported final requests. Split clarification-only, decline, empty search, and error; report errors in the denominator.",
+    "useful_recommendation_rate": "Supported requests rated usefulness=2 with all applicable hard gates passed / all supported requests. No-match controls are excluded from this denominator.",
+    "appropriate_abstention_rate": "No-match controls that honestly avoid a wrong or prohibited recommendation and remain courteous/helpful / all no-match controls.",
+    "communication_scores": "Courtesy and phrasing reported separately with valid judgment counts; missing ratings are unknown, not zero or passing.",
+    "pairwise_preference": "Blind A/B choice: A better, B better, equally useful, or neither useful. Report ties and neither separately."
+  },
+  "rules": [
+    "A clarification is not automatically a refusal. It is avoidable only when useful, grounded progress was possible without that question.",
+    "Card count and category membership do not establish relevance. Review actual descriptions, requested use, explicit constraints, and reply claims.",
+    "Acceptable product examples are non-exhaustive evidence, not an exact expected card list or ranking.",
+    "Score the whole conversation and inspect the final response. Earlier reference failures remain conversation failures rather than disappearing from the denominator.",
+    "Friendly language cannot compensate for wrong products or a failed hard gate. Do not collapse all dimensions into one unqualified average.",
+    "Use blinded, randomized side assignment. Record reviewer, rationale, and disagreement. Do not treat assistant drafts or model-judge ratings as human ground truth.",
+    "Do not require a particular greeting, apology, polite keyword, or exact sentence. Judge communication in context."
+  ]
+}

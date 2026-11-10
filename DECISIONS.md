@@ -1,0 +1,109 @@
+# V2 implementation decisions
+
+## macOS setup, 10 November 2026
+
+- The owner requested macOS setup in addition to Windows. Document native Apple Silicon macOS 14+, Python 3.12 via uv, PyPI-based installation, safe `.env` creation, local auth-secret generation, the model download, run/test commands and troubleshooting. Keep the Windows CPU index confined to the Windows instructions.
+- Preserve the pinned dependencies and CPU embedding configuration. Cross-platform dependency resolution confirms `torch==2.15.0` provides a macOS 14 arm64 wheel; Intel and macOS 13 targets cannot use this wheel. Do not silently downgrade torch or claim native Intel support. This limitation agrees with PyTorch's official x86 macOS build deprecation.
+- Require binary wheels only for torch/NumPy in the Mac command. A blanket binary-only policy fails because pinned Chainlit depends on source-only literalai; allowing that published pure-Python source dependency resolves the full Apple Silicon set. Dependency resolution is not a real Mac install or startup test; state that limit explicitly.
+
+## Experience pilot replay and comparison report
+
+- The owner requested a Markdown summary of all results, explaining each test, comparing V1 and V2, and ending with a short conclusion. Replay all 20 frozen cases through original staging V1 (`18af131`) and V2 (`818d19c`), using the same catalog, numerical frozen FX rates, allowed model, four workers per version, and native rounding. No application behavior or input expectations were changed after seeing outputs.
+- Preserve all 40 conversation results and 48 turns. Both versions completed every pilot case without a recorded case error; no manual model replay was made. Save raw evidence locally and a compact, auditable output/assessment packet with the report. Upload recorded outputs to one immutable 20-case LangSmith snapshot; uploads make no additional model calls.
+- Distinguish programmatic completion/card/price/reference checks from unblinded assistant judgments about usefulness, courtesy, phrasing, progress and preferences. Those judgments are not human gold or a blind semantic win rate. A negated mention of an invented price is not automatically an affirmative price hallucination.
+- Keep the 20-case pilot, earlier 167-case compatibility suite, and earlier post-hoc refusal cohorts separate. Report appropriate no-match behavior independently of supported-request stalls. Do not use polite wording or category F1 to excuse irrelevant products, prohibited alternatives or lost conversation context.
+
+## Owner-approved experience pilot: 20 cases
+
+- The owner requested a small evaluation set focused on refusal behavior, actual recommendations, courtesy and phrasing. Add 14 English and 6 Hebrew cases, including 4 multi-turn conversations and 4 genuine no-match controls, without changing the original source-suite labels or runtime behavior.
+- Draft expectations before replaying either implementation. Pin the existing 194-product comparison snapshot and FX fixture. Treat product IDs as non-exhaustive evidence, not an exact expected list; judge catalog descriptions and user purpose rather than category membership alone.
+- Separate usefulness, courtesy, phrasing and task progress on 0-2 scales, with factual/constraint gates and justified abstention scored independently. Keep assistant drafts distinct from human-reviewed ground truth. Known-failure-inspired scenarios form a development pilot, not a prospective holdout.
+- Provide a no-network validator and a readable case list. Creation and validation are authorized now; do not spend on another model replay merely to create the set. Preserve the user's staging checkout, implement on a separate branch, and merge the completed dataset change into v2.
+- Validation: the pilot validator confirms 20 unique cases, 14 English/6 Hebrew, 4 multi-turn conversations, 4 no-match controls, frozen file hashes, valid catalog references and budget-compliant positive examples. All 86 existing offline tests pass; no new model outputs or human ratings are claimed.
+
+## Hebrew layout fix, 9 November 2026
+
+- Enable the existing `public/style.css` through Chainlit's supported `UI.custom_css` setting. It was present but not loaded. Extend paragraph-aware bidirectional layout to the composer, message editor, remaining headings and table cells. Each paragraph follows its first strong character, so Hebrew reads right-to-left and English reads left-to-right in the same chat.
+- Keep code blocks and inline code isolated left-to-right. Keep the English catalog cards left-to-right, and isolate the Hebrew alternative badge with `bdi`. Reuse existing CSS/JSX without a new dependency, global page direction, custom JavaScript, or any pipeline change.
+- Validation: parsed the updated TOML, resolved the configured public stylesheet, checked selectors against the installed Chainlit frontend, and passed `git diff --check`. No browser surface was available for a visual preview. Restart Chainlit and hard-refresh the page to load the configuration and stylesheet.
+
+## Approved extension: API currency rates, 9 November 2026
+
+- The owner approved replacing the fixed runtime table with API-backed reference rates, caching, conversation pinning, source/date disclosure, frozen evaluation rates and graceful fallback. This explicitly amends the original fixed-rate design and does not add an LLM node. Reuse the existing `httpx` dependency and the keyless Frankfurter pair endpoint; do not send budgets, chat text or user identifiers to the provider.
+- Refresh shared local quotes after one hour. On transient failure, accept a previously validated cached quote only when both fetch age and reference-date age are at most seven days; disclose the fallback. With no usable quote or an unsupported pair, ask for a USD budget and retain existing search state. Do not fall back to hardcoded runtime rates. Cache write errors leave valid in-memory quotes usable.
+- Pin each quote when a search succeeds, retain it across refinements/new requests in the same conversation and resume, and show its date so aging is visible. Multi-request preparation is transactional: a failed conversion cannot partially commit quotes. A new conversation can acquire newer rates through the shared cache.
+- Persist immutable decimal quotes in conversation state and each evaluation outcome. Trace fetch/cache/fallback decisions through `currency_rate` spans. Default evaluation to a versioned fixture; current-rate evaluation requires `--live-rates`. The independent scorer uses recorded quotes; only pre-extension archives missing the quote field use the original fixture for compatibility.
+- Follow the owner's changes-first/tests-last workflow. Validate offline contracts and rescore existing evidence, then smoke-test the public rate API without another paid model replay. Leave unrelated local file deletions/translations untouched.
+- Final validation: 86 offline tests passed; compilation and whitespace checks passed. All 167 saved cases rescored with zero execution errors and identical aggregate metrics to `evals/artifacts/review-rescored`; new evidence is in ignored `evals/artifacts/live-currency-rescored`. Public ILS lookup returned 3.1918 units/USD dated 2026-11-09; conversion, memory-cache reuse and disk reload succeeded. The API returned 2026-11-10 for INR/EUR while UTC was 2026-11-09; future-dated responses were correctly rejected rather than silently accepted. No paid model calls were made.
+
+## Comprehensive code review — 9 November 2026
+
+- The owner requested implementing all review changes before testing. Review is manual; no review-agent/plugin workflow or new dependency was introduced. All runtime edits and regression cases precede the final test batch.
+- Preserve the approved ranking, relevance thresholds, product-type node and fallback order. This review fixes implementation defects rather than adopting another retrieval policy or treating draft labels as reviewed.
+- Reject currency changes that would reinterpret an untouched price bound; ask for a complete range instead. Preserve explicit count/sort clearing semantics and give the responder the actual numeric-only message with a separate language hint.
+- Queue overlapping turns per session, reject stale pagination actions and discard replies for a chat the user has already left. Keep only the six structured messages the parser consumes; Chainlit retains the full visible transcript independently.
+- Isolate trace initialization, updates, headers and shutdown; use the SDK's existing batching rather than a redundant second buffer. Keep client initialization thread-safe. Database logging records exception types rather than SQL parameters, and corruption recovery preserves older backups.
+- Use one immutable catalog snapshot per startup/run; reject malformed/non-finite data and rebuild corrupt caches. A failed optional cache write must not discard an otherwise usable in-memory index.
+- Share one score-record function between live replay and offline re-scoring. Failed cases remain in applicable accuracy denominators; ties receive equivalent credit; a rating is not a dollar amount. Validate complete, unique evidence before uploads and refuse uninformative/stale-label calibration.
+
+## Approved extension — product-type node, 9 November 2026
+
+- The owner approved adding a `gpt-6-luna` product-type check after ranking, before exact/fallback card selection, after z-scores accepted unrelated inventory for unsupported types. This supersedes the original two-call parser/responder path for product searches.
+- Check all semantically shortlisted, unseen, nonexcluded products, including candidates that may become price/rating alternatives. Batch across requests/directions; deduplicate identical query/product pairs. A normal shortlist takes one additional call; larger shortlists use batches of at most 64 pairs so inventory and show-more are not silently capped.
+- The node checks product type and named identity using catalog evidence. It does not decide numeric eligibility, loosen exclusions, reorder results or invent products. Category guesses remain soft. The code validates complete response identity coverage and fails closed on missing, duplicate, fabricated or invalid decisions.
+- Checker reasons and per-candidate decisions are visible in LangSmith. No new dependency or model was introduced. Tests, supported/unsupported-type probes and the complete 167-case source replay run after the implementation checks; draft semantic labels remain drafts.
+- The first full replay exposed incorrect parser strict-bound flags and omitted singular counts. Clarify each existing flag in the prompt/schema, reject strict flags without their corresponding bound, and interpret explicit singular superlatives as count 1. This fixes the existing numeric/count contract; no retrieval or pipeline-design change is made. Preserve the first run and score the corrected configuration separately.
+- Validate all existing source card-count labels and distinguish no fallback, rating, price and both in legacy scoring. These are diagnostic compatibility checks; they do not replace V2 semantic labels or change the source expectations.
+- A source case exposed plural exclusion leakage (`iPhones` did not match `iPhone`). Normalize common English plural suffixes on both catalog text and exclusion phrases, retaining phrase boundaries. This implements the existing hard-exclusion contract; it does not add a model node or relax exclusions. Also specify response language explicitly and prohibit unsupported dollar arithmetic in the existing responder prompt, retaining the grounding rule.
+- Correct known-title grounding checks to ignore title prefixes and shorter titles embedded in shown names; retain unknown semantic grounding as unknown. Re-score immutable recorded predictions without model calls, record scorer provenance, and compare V1/V2 on verified-identical LangSmith snapshot inputs. Recorded experiment overhead is not model latency; publish measured conversation duration separately.
+- Final replay completed 167 cases/182 turns without execution errors. Source numeric/sort/count extraction matched 72/72 labels and forbidden-card checks passed 10/10. Legacy retrieval F1 regressed relative to V1; retain these failures and the missing sunglasses item in the handoff. Human-reviewed relevance labels and prospective cases are unavailable, so do not invent them or certify threshold calibration. Detailed evidence is in `plan/FINAL_EVALUATION.md`.
+
+## Execution rules — 9 November 2026
+
+- User instructions override V1-only clauses in CLAUDE.md: implement Design V2 in separate phase branches, merge each completed phase into v2, do not pause for stage reviews, and run evaluations at the end. Keep simple typed functions, explicit code, secrets handling, Chainlit/SQLite, and decision logging.
+- Keep the existing deleted `Design Decisions.md` and `plan/PLAN.md` untouched. The active plan is `plan/V2_PLAN.md`. Existing local run files and Chainlit configuration are not staged wholesale.
+- Branches use `v2-phase-N-*`: Git cannot create `v2/phase-*` while branch `v2` exists.
+- Local multilingual embeddings, LangSmith, and their runtime dependencies are authorized by the V2 plan. Pin installed versions and the Hugging Face model revision. No other OpenAI model is called.
+- Dataset expectation changes and semantic annotations are drafts until human reviewed; no assistant-generated label is presented as human ground truth. Final reports must expose this coverage limitation. Per the user's no-review instruction, do not request intermediate annotation reviews.
+- Unit checks may run as implementation verification. Dataset replay, threshold calibration, baseline runs, and relevance feasibility measurements are deferred to the final evaluation, as explicitly requested. Initial thresholds remain marked provisional.
+- Reuse the V1 catalog loader and Chainlit SQLAlchemy persistence integration, already implemented on staging, rather than choosing a new database architecture. Review the reused source directly; no review subagents or approval gates.
+
+## Phase 1
+
+- Original numeric amounts and strict operators remain in conversation state. Conversion produces an independent USD search copy to avoid cumulative rounding and accidental budget changes during fallback.
+- A request owns one to three alternative directions; independent searches have independent limits. This follows the revised plan and avoids assigning one budget to unrelated product requests.
+- Minimal tracing uses LangSmith's public trace context instead of wrapping every pure function. This is one of the SDK approaches described by the implementation references and preserves explicit stage boundaries.
+
+## Phase 2
+
+- Use E5 query/passage prefixes for every language, normalized vectors, CPU execution, and a 512-token limit, following the pinned model card. A first explicit download populates `.models/`; normal startup is offline for model loading.
+- The cache stores two aligned arrays and plain JSON metadata in NPZ with pickle loading disabled. Rebuild on invalid metadata, vector shape, or norms; atomic replacement avoids half-written caches.
+- Per the user's evaluation-at-end instruction, the relevance feasibility checkpoint runs at the final stage. No calibrated relevance or unsupported-type accuracy is claimed before that checkpoint.
+
+## Phase 3
+
+- Apply the revised plan's proposed all-qualified sorting policy: sort the full relevant inventory and paginate it. A top-10 list is trace/evaluation diagnostics only; truncating it before sorting would violate ordinary cheapest/highest-rated behavior and break show-more.
+- Compute relevance z-scores without category boosts over the full catalog. Filter numeric constraints before selecting any candidates/cards, but preserve full-catalog score statistics. No category or keyword hard filters are introduced.
+- Merge alternative directions by round-robin; raw similarities from different queries are not compared. Keep independent requests and their bounds separate.
+- Exclusions use normalized whole phrases in catalog fields. Parser translates Hebrew exclusions to positive English matching phrases. This deterministic rule is conservative and requires semantic coverage evaluation; no untested claim of understanding all negation is made.
+
+## Phase 4
+
+- Reuse Chainlit's SQLAlchemy data layer and existing recovery/login code from staging. V2 messages have metadata version 2; V1 structured searches are not silently reinterpreted as V2 searches.
+- Follow the revised plan's two-sided-range fallback rule: relax one price bound, retain the other, choose smallest absolute USD violation, then semantic rank and product ID. Keep rating-only alternatives before price alternatives.
+- Disclosures for each alternative and currency conversions are generated by code and prepended to the grounded model reply. The show-more button uses the same turn path, so it cannot introduce undisclosed over-budget alternatives.
+- Preserve original user constraints in saved state; conversion and fallback operate on copies. Save structured outcomes with each assistant message for replay and diagnosis.
+
+## Phase 5
+
+- Pure scoring functions distinguish legacy compatibility, observable V2 invariants, and unreviewed semantic metrics. Unknown semantic judgments are null, not an automatic success. Recall/nDCG require complete eligible judgments.
+- Calibration refuses to use draft labels as human ground truth. Source expectations remain preserved; draft overrides and prospective holdout status are reported explicitly.
+- Live replay requires `--live`, limits concurrency, stores every conversation's evidence as it finishes, and retains execution errors. Provider exception messages are omitted to prevent credential/request leakage.
+
+## Phase 6
+
+- The owner supplied a LangSmith credential; store it only in ignored `.env`. Workspace read access was verified without exposing its value. Use the `bazak-v2` destination for runtime traces.
+- Required monitoring is a sanitized local event journal/dashboard plus LangSmith stage/LLM traces and a runbook. Automatic judges, alerts, and dataset synchronization remain deferred as the revised plan permits.
+- Upload immutable evaluation snapshots and score recorded predictions rather than making a second set of model calls. Preserve source trace IDs and configuration so LangSmith experiment scores refer to the exact local evidence.
+- Pass the pipeline's public trace headers into Chainlit message/card persistence so async SQL spans retain their turn parent. SQL parameters and authentication values are never exported.
+- Final integration checks found a console-encoding issue in draft Hebrew relevance text; restore UTF-8 Hebrew. Final evaluation artifacts now save the complete normalized catalog alongside its hash for reproducibility.

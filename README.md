@@ -1,17 +1,154 @@
-## Test datasets
+﻿# Bazak Shopping Copilot V2
 
-The repo includes two small datasets of questions with expected answers, used to evaluate the agent. Each case is labeled `basic` or `hard`.
+A local shopping assistant over the DummyJSON catalog. Chat in English or Hebrew, see product cards, and return to saved conversations.
 
-### `deterministic.csv`
+## Versions
 
-65 single-turn shopping queries (50 basic, 15 hard), each with the exact search filters the agent should extract: `category`, `price_min`, `price_max`, `rating_min`, `sort_by`, `order` and `top_k`. Empty columns mean the filter should not be set.
+- **`v1`:** the original filter-and-keyword approach, copied from `staging` at commit `18af131`. Use that branch's README for V1 setup; it does not need the embedding model.
+- **`v2`:** semantic ranking and product-type checking. This README describes V2.
+- **Comparison:** see [V1 versus V2](#v1-versus-v2) for the approach and the [experience evaluation](evals/EXPERIENCE_PILOT_RESULTS.md) for actual replies and results.
 
-### `behavioral.jsonl`
+## Setup
 
-26 conversations (20 basic, 6 hard), some with several turns, that test how the agent handles situations such as ambiguous requests, off-catalog requests, follow-ups, empty results and prompt injection. Each case lists the user's `turns` and the expected outcome:
+Use branch `v2`, Python 3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/). Run commands from the repository root.
 
-- `expected_intent`: the intent the agent should identify
-- `expected_mode`: whether the search is new or refines the previous one
-- `expected_categories` and `category_match`: the categories to show, and whether all or any of them must appear
-- `expect_fallback`: the filter the agent should loosen when nothing matches
-- `expected_behavior`: a plain-language description of the correct response
+### 1. Install dependencies
+
+**Windows — PowerShell**
+
+```powershell
+uv python install 3.12
+uv venv --python 3.12 .venv
+uv pip install --python .venv/Scripts/python.exe -r requirements.txt --index https://download.pytorch.org/whl/cpu --index https://pypi.org/simple --index-strategy unsafe-best-match
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+.venv/Scripts/python.exe -m chainlit create-secret
+```
+
+**macOS — Apple Silicon, macOS 14+**
+
+```bash
+uv python install 3.12
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -r requirements.txt --index-url https://pypi.org/simple --only-binary torch,numpy
+if [ ! -e .env ]; then cp .env.example .env; fi
+.venv/bin/python -m chainlit create-secret
+```
+
+Create a separate environment on each machine. Intel Macs are not supported by the pinned PyTorch version. Mac dependencies were resolved, but the app has not been tested on a physical Mac. See [detailed setup and troubleshooting](plan/SETUP.md).
+
+### 2. Configure `.env`
+
+- `OPENAI_API_KEY`: your model API key.
+- `APP_USERNAME` and `APP_PASSWORD`: choose a local login.
+- `CHAINLIT_AUTH_SECRET`: copy the generated secret, or keep your existing one.
+
+`.env` is ignored by Git. LangSmith tracing is optional; see [monitoring setup](plan/MONITORING.md).
+
+### 3. Start the app
+
+**Windows**
+
+```powershell
+.venv/Scripts/python.exe -m app.embeddings --download
+.venv/Scripts/python.exe -m chainlit run app/main.py
+```
+
+**macOS**
+
+```bash
+.venv/bin/python -m app.embeddings --download
+.venv/bin/python -m chainlit run app/main.py
+```
+
+Open **http://localhost:8000** and sign in. On later runs, only the last command is needed. Model calls require internet access; the embedding model runs locally on CPU.
+
+## Architecture
+
+### UI framework
+
+1. **Streamlit:** quick for a demo, but its rerun model adds work to coordinate chat state and saved conversations.
+2. **Chainlit:** provides chat, a conversation sidebar and resume hooks; custom elements support product cards.
+3. **Custom React + Python API:** more UI control, but requires building the chat connection, history sidebar and resume flow.
+
+I chose **Chainlit** to spend less time building chat features and more time on retrieval and evaluation.
+
+### Pipeline framework
+
+1. **Plain Python:** explicit steps and typed data make the flow easy to trace and test.
+2. **LangChain:** could organize model calls and retrieval, but would add another abstraction without removing much code here.
+3. **LangGraph:** useful for branching and resumable workflows; this mostly fixed sequence does not need a graph.
+
+I chose **plain Python** because the flow is small. Chainlit and SQLite handle conversation persistence.
+
+### Message flow
+
+1. `gpt-6-luna` parses intent, constraints and follow-ups.
+2. Local multilingual E5 embeddings rank products.
+3. `gpt-6-luna` checks shortlisted product types; Python applies filters and selects cards.
+4. `gpt-6-luna` writes a reply using the selected products. Chainlit renders cards and saves state.
+
+## Retrieval
+
+### Catalog access
+
+- `GET /products?limit=0` fetches all products from `https://dummyjson.com`.
+- `GET /products/category-list` supplies valid category names.
+- A local cache avoids repeated API calls and keeps one consistent catalog during a chat.
+- Local search gives control over filtering, ranking and pagination. The tradeoff is stale data: the cache is not automatically refreshed.
+
+### V1 versus V2
+
+1. **V1 (`v1`):** extracts filters and keywords, then searches locally. Answers are focused, but vague requests can lead to clarification or no useful results.
+2. **V2 (`v2`):** adds semantic ranking and several possible directions for vague requests. It offers broader suggestions, but evaluations do not establish an overall improvement over V1.
+
+### Request handling
+
+- **Vague:** suggest up to three directions for requests such as "something nice for my wife", then ask a follow-up.
+- **Off-catalog:** decline unrelated requests such as "a flight to Tokyo" without cards. Unsupported product types may return a no-match explanation.
+- **Multi-intent:** search each request separately, preserving its budget and constraints.
+- **Follow-ups:** use recent messages, saved searches and shown products. "Show more" skips previously shown products.
+- **Alternatives:** fill empty slots with disclosed price/rating exceptions. Exclusions are never relaxed. Explicit "no alternatives" requests are not currently represented in the search schema.
+- **Currency:** convert budgets using Frankfurter reference rates, save the quote for the conversation and disclose its source/date. During an outage, use a recent cached quote or ask for a USD budget.
+
+## Conversations and storage
+
+- **Storage:** local `chat.db`, using SQLite through Chainlit's SQLAlchemy data layer. SQLite needs no separate database server for this single-user app.
+- **Resume:** save history, search constraints and card data so previous chats can continue after refresh.
+- **Full disk or failed write:** warn that the message may not be saved; the chat can continue.
+- **Corruption at startup:** keep a backup and create a fresh database. Old chats are no longer visible in the app.
+- **Database deleted during chat:** recreate it and save future messages. Deleted history is not restored.
+
+## Tests and evaluation
+
+- **86 offline tests:** cover filters, exclusions, sorting, pagination, alternatives, currency, state restoration, storage and selected UI callbacks.
+- **167 source cases:** cover explicit searches, behavior, adversarial requests and Hebrew.
+- **20-case experience pilot:** compares V1/V2 recommendations, courtesy and follow-up progress.
+- **Regressions caught:** dropped budgets, repeated cards, incorrect state updates and replies sent to the wrong conversation.
+- **Blind spots:** offline tests use fake model replies and vectors. Neither the tests nor recorded evaluations verify actual browser rendering or refresh. Semantic judgments are not independent human ratings.
+
+Run offline tests on Windows:
+
+```powershell
+$testTemp = Join-Path (Get-Location) ('.test-tmp/' + [guid]::NewGuid().ToString('N'))
+.venv/Scripts/python.exe -m pytest tests -q -p no:cacheprovider --basetemp $testTemp
+```
+
+On macOS, run `.venv/bin/python -m pytest tests -q`.
+
+For a live evaluation, run `.venv/Scripts/python.exe -m evals.run_evals --live` (use `.venv/bin/python` on macOS). This makes paid model calls and uses frozen currency rates by default.
+
+## Known limitations
+
+- Ranking can omit valid products; relevance thresholds are still provisional.
+- Alternatives can make answers noisy or conflict with a request to stay strictly within budget.
+- Some recorded follow-ups lose available context.
+- The catalog cache can become stale; local retrieval would need revisiting for a much larger catalog.
+- Existing live results predate later code changes. Rescoring those outputs does not test the updated application.
+
+## Further reading
+
+- [Final evaluation and remaining gaps](plan/FINAL_EVALUATION.md)
+- [V1/V2 experience comparison](evals/EXPERIENCE_PILOT_RESULTS.md)
+- [Implementation decisions](DECISIONS.md)
+- [Implementation plan](plan/V2_PLAN.md)
+- [Monitoring and detailed evaluation commands](plan/MONITORING.md)
