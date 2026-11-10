@@ -24,6 +24,9 @@ evals/runs/
 evals/artifacts/
 monitoring/
 
+# Private review notes
+/LOCAL_REVIEW_HANDOFF.md
+
 # Chainlit uploads
 .files/
 
